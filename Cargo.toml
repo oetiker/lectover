@@ -1,0 +1,10 @@
+[workspace]
+# Phase 1 crates (pure Rust) plus the native binding crate.
+members = ["crates/lectover", "crates/lectover-sys"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/oetiker/lectover"
+authors = ["Tobias Oetiker <tobi@oetiker.ch>"]

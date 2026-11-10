@@ -1,0 +1,15 @@
+[
+  {"tag": "p", "text": "Zwei solide Klubspielerinnen ergeben im Doppel noch keinen Roger Federer.", "hash": "f24d484e", "tokens": 10},
+  {"tag": "h2", "text": "Erstens: das Patt", "hash": "5d45f232", "tokens": 3},
+  {"tag": "p", "text": "Olten hält rund 60 % der Aktien – am 25. November entscheidet das Parlament.", "hash": "0028ce8a", "tokens": 14},
+  {"tag": "li", "text": "Strom", "hash": "3ed20f16", "tokens": 1},
+  {"tag": "li", "text": "Wasser", "hash": "021ad07b", "tokens": 1},
+  {"tag": "li", "text": "Trinkwasser", "hash": "af08508b", "tokens": 1},
+  {"tag": "li", "text": "Abwasser", "hash": "c5ee5f5b", "tokens": 1},
+  {"tag": "p", "text": "Zitat im Absatz.", "hash": "b9fa40f4", "tokens": 3},
+  {"tag": "blockquote", "text": "Zitat ohne Absatz.", "hash": "8b2a9445", "tokens": 3},
+  {"tag": "div", "text": "Hinweis: wichtig !", "hash": "28de6f6a", "tokens": 3},
+  {"tag": "h1", "text": "Titel im Text", "hash": "e301c96e", "tokens": 3},
+  {"tag": "h6", "text": "Kleinste Überschrift", "hash": "51951821", "tokens": 2},
+  {"tag": "p", "text": "Ende. Schluss", "hash": "34a15aa1", "tokens": 2}
+]

@@ -1,0 +1,5 @@
+[env]
+# Build libopus from audiopus_sys' bundled source (static) instead of a system/Homebrew copy,
+# so the binary has no runtime libopus dependency. Its CMakeLists predates CMake 4's minimum.
+OPUS_NO_PKG = "1"
+CMAKE_POLICY_VERSION_MINIMUM = "3.5"

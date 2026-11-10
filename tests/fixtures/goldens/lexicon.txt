@@ -1,0 +1,6 @@
+# Pronunciation lexicon: "written = spoken", applied before synthesis (whole words, case-sensitive).
+# Respell the spoken side in German orthography; hyphens help to place stress.
+# Test candidates with: cd qwen && uv run python try_words.py "Variant 1" "Variant 2"
+Kleinholz = Klein-holz
+Fonds = Fong
+Olten jetzt! = Olten jetzt

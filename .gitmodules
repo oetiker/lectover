@@ -1,0 +1,17 @@
+[submodule "crates/lectover-sys/vendor/qwentts.cpp"]
+	path = crates/lectover-sys/vendor/qwentts.cpp
+	url = https://github.com/oetiker/qwentts.cpp.git
+	branch = lectover/main
+[submodule "crates/lectover-sys/vendor/qwen3-asr.cpp"]
+	path = crates/lectover-sys/vendor/qwen3-asr.cpp
+	url = https://github.com/oetiker/qwen3-asr.cpp.git
+	branch = lectover/main
+[submodule "crates/lectover-sys/vendor/llama.cpp"]
+	path = crates/lectover-sys/vendor/llama.cpp
+	url = https://github.com/oetiker/llama.cpp.git
+	branch = lectover/reuse
+	shallow = true
+[submodule "crates/lectover-sys/vendor/reuse.cpp"]
+	path = crates/lectover-sys/vendor/reuse.cpp
+	url = https://github.com/oetiker/reuse.cpp.git
+	branch = lectover/main

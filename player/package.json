@@ -1,0 +1,11 @@
+{
+  "name": "lectover",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
+  }
+}

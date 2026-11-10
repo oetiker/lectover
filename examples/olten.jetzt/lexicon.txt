@@ -1,0 +1,26 @@
+# Pronunciation lexicon: "written = spoken", applied before synthesis (whole words, case-sensitive).
+# Respell the spoken side in German orthography; hyphens help to place stress.
+# Try candidates by ear: lectover say --voice erzaehler "Variante eins." "Variante zwei."
+Kleinholz = Klein-holz
+Fonds = Fong
+Olten jetzt! = Olten jetzt
+Oetiker = Ötiker
+# "Session" is otherwise read with an English "sch"; whole words only, so every form is listed.
+Session = Sessjon
+Sessions = Sessjons
+Sessionsbericht = Sessjonsbericht
+Sessionsberichtes = Sessjonsberichtes
+Sessionsvorschau = Sessjonsvorschau
+Sessionssvorschau = Sessjonsvorschau
+Sessionsrückblick = Sessjonsrückblick
+Sessionstag = Sessjonstag
+# Abbreviations, spelled the way they are said; also inside compounds ("FDP-Fraktion").
+NOZ = Notz
+sbo = Äss-Be-O
+SBO = Äss-Be-O
+Sbo = Äss-Be-O
+StWZ = Schtewezätt
+GLP = G-Äl-Pe
+glp = G-Äl-Pe
+FDP = Äf-De-Pe
+EVP = E-Fau-Pee

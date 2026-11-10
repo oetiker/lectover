@@ -1,0 +1,583 @@
+{
+ "slug": "contract",
+ "blocks": [
+  {
+   "tag": "p",
+   "text": "Zwei solide Klubspielerinnen ergeben im Doppel noch keinen Roger Federer.",
+   "hash": "f24d484e",
+   "tokens": [
+    "Zwei",
+    "solide",
+    "Klubspielerinnen",
+    "ergeben",
+    "im",
+    "Doppel",
+    "noch",
+    "keinen",
+    "Roger",
+    "Federer."
+   ]
+  },
+  {
+   "tag": "h2",
+   "text": "Erstens: das Patt",
+   "hash": "5d45f232",
+   "tokens": [
+    "Erstens:",
+    "das",
+    "Patt"
+   ]
+  },
+  {
+   "tag": "p",
+   "text": "Olten hält rund 60 % der Aktien – am 25. November entscheidet das Parlament.",
+   "hash": "0028ce8a",
+   "tokens": [
+    "Olten",
+    "hält",
+    "rund",
+    "60",
+    "%",
+    "der",
+    "Aktien",
+    "–",
+    "am",
+    "25.",
+    "November",
+    "entscheidet",
+    "das",
+    "Parlament."
+   ]
+  },
+  {
+   "tag": "li",
+   "text": "Strom",
+   "hash": "3ed20f16",
+   "tokens": [
+    "Strom"
+   ]
+  },
+  {
+   "tag": "li",
+   "text": "Wasser",
+   "hash": "021ad07b",
+   "tokens": [
+    "Wasser"
+   ]
+  },
+  {
+   "tag": "li",
+   "text": "Trinkwasser",
+   "hash": "af08508b",
+   "tokens": [
+    "Trinkwasser"
+   ]
+  },
+  {
+   "tag": "li",
+   "text": "Abwasser",
+   "hash": "c5ee5f5b",
+   "tokens": [
+    "Abwasser"
+   ]
+  },
+  {
+   "tag": "p",
+   "text": "Zitat im Absatz.",
+   "hash": "b9fa40f4",
+   "tokens": [
+    "Zitat",
+    "im",
+    "Absatz."
+   ]
+  },
+  {
+   "tag": "blockquote",
+   "text": "Zitat ohne Absatz.",
+   "hash": "8b2a9445",
+   "tokens": [
+    "Zitat",
+    "ohne",
+    "Absatz."
+   ]
+  },
+  {
+   "tag": "div",
+   "text": "Hinweis: wichtig !",
+   "hash": "28de6f6a",
+   "tokens": [
+    "Hinweis:",
+    "wichtig",
+    "!"
+   ]
+  },
+  {
+   "tag": "h1",
+   "text": "Titel im Text",
+   "hash": "e301c96e",
+   "tokens": [
+    "Titel",
+    "im",
+    "Text"
+   ]
+  },
+  {
+   "tag": "h6",
+   "text": "Kleinste Überschrift",
+   "hash": "51951821",
+   "tokens": [
+    "Kleinste",
+    "Überschrift"
+   ]
+  },
+  {
+   "tag": "p",
+   "text": "Ende. Schluss",
+   "hash": "34a15aa1",
+   "tokens": [
+    "Ende.",
+    "Schluss"
+   ]
+  }
+ ],
+ "groups": [
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Zwei"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "solide"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "Klubspielerinnen"
+   },
+   {
+    "first": 3,
+    "last": 4,
+    "spoken": "ergeben"
+   },
+   {
+    "first": 4,
+    "last": 5,
+    "spoken": "im"
+   },
+   {
+    "first": 5,
+    "last": 6,
+    "spoken": "Doppel"
+   },
+   {
+    "first": 6,
+    "last": 7,
+    "spoken": "noch"
+   },
+   {
+    "first": 7,
+    "last": 8,
+    "spoken": "keinen"
+   },
+   {
+    "first": 8,
+    "last": 9,
+    "spoken": "Roger"
+   },
+   {
+    "first": 9,
+    "last": 10,
+    "spoken": "Federer."
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Erstens:"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "das"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "Patt"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Olten"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "hält"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "rund"
+   },
+   {
+    "first": 3,
+    "last": 4,
+    "spoken": "sechzig"
+   },
+   {
+    "first": 4,
+    "last": 5,
+    "spoken": "Prozent"
+   },
+   {
+    "first": 5,
+    "last": 6,
+    "spoken": "der"
+   },
+   {
+    "first": 6,
+    "last": 7,
+    "spoken": "Aktien"
+   },
+   {
+    "first": 7,
+    "last": 8,
+    "spoken": "–"
+   },
+   {
+    "first": 8,
+    "last": 9,
+    "spoken": "am"
+   },
+   {
+    "first": 9,
+    "last": 10,
+    "spoken": "fünfundzwanzigsten"
+   },
+   {
+    "first": 10,
+    "last": 11,
+    "spoken": "November"
+   },
+   {
+    "first": 11,
+    "last": 12,
+    "spoken": "entscheidet"
+   },
+   {
+    "first": 12,
+    "last": 13,
+    "spoken": "das"
+   },
+   {
+    "first": 13,
+    "last": 14,
+    "spoken": "Parlament."
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Strom"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Wasser"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Trinkwasser"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Abwasser"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Zitat"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "im"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "Absatz."
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Zitat"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "ohne"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "Absatz."
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Hinweis:"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "wichtig"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "!"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Titel"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "im"
+   },
+   {
+    "first": 2,
+    "last": 3,
+    "spoken": "Text"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Kleinste"
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "Überschrift"
+   }
+  ],
+  [
+   {
+    "first": 0,
+    "last": 1,
+    "spoken": "Ende."
+   },
+   {
+    "first": 1,
+    "last": 2,
+    "spoken": "Schluss"
+   }
+  ]
+ ],
+ "chunks": [
+  {
+   "block": 0,
+   "g0": 0,
+   "g1": 10,
+   "text": "Zwei solide Klubspielerinnen ergeben im Doppel noch keinen Roger Federer.",
+   "kind": "paragraph",
+   "max_tokens": 270,
+   "spoken_words": [
+    "Zwei",
+    "solide",
+    "Klubspielerinnen",
+    "ergeben",
+    "im",
+    "Doppel",
+    "noch",
+    "keinen",
+    "Roger",
+    "Federer"
+   ]
+  },
+  {
+   "block": 1,
+   "g0": 0,
+   "g1": 3,
+   "text": "Erstens: das Patt",
+   "kind": "title",
+   "max_tokens": 80,
+   "spoken_words": [
+    "Erstens",
+    "das",
+    "Patt"
+   ]
+  },
+  {
+   "block": 2,
+   "g0": 0,
+   "g1": 14,
+   "text": "Olten hält rund sechzig Prozent der Aktien – am fünfundzwanzigsten November entscheidet das Parlament.",
+   "kind": "paragraph",
+   "max_tokens": 310,
+   "spoken_words": [
+    "Olten",
+    "hält",
+    "rund",
+    "sechzig",
+    "Prozent",
+    "der",
+    "Aktien",
+    "am",
+    "fünfundzwanzigsten",
+    "November",
+    "entscheidet",
+    "das",
+    "Parlament"
+   ]
+  },
+  {
+   "block": 3,
+   "g0": 0,
+   "g1": 1,
+   "text": "Strom",
+   "kind": "paragraph",
+   "max_tokens": 50,
+   "spoken_words": [
+    "Strom"
+   ]
+  },
+  {
+   "block": 4,
+   "g0": 0,
+   "g1": 1,
+   "text": "Wasser",
+   "kind": "paragraph",
+   "max_tokens": 60,
+   "spoken_words": [
+    "Wasser"
+   ]
+  },
+  {
+   "block": 5,
+   "g0": 0,
+   "g1": 1,
+   "text": "Trinkwasser",
+   "kind": "paragraph",
+   "max_tokens": 70,
+   "spoken_words": [
+    "Trinkwasser"
+   ]
+  },
+  {
+   "block": 6,
+   "g0": 0,
+   "g1": 1,
+   "text": "Abwasser",
+   "kind": "paragraph",
+   "max_tokens": 70,
+   "spoken_words": [
+    "Abwasser"
+   ]
+  },
+  {
+   "block": 7,
+   "g0": 0,
+   "g1": 3,
+   "text": "Zitat im Absatz.",
+   "kind": "paragraph",
+   "max_tokens": 90,
+   "spoken_words": [
+    "Zitat",
+    "im",
+    "Absatz"
+   ]
+  },
+  {
+   "block": 8,
+   "g0": 0,
+   "g1": 3,
+   "text": "Zitat ohne Absatz.",
+   "kind": "paragraph",
+   "max_tokens": 100,
+   "spoken_words": [
+    "Zitat",
+    "ohne",
+    "Absatz"
+   ]
+  },
+  {
+   "block": 9,
+   "g0": 0,
+   "g1": 3,
+   "text": "Hinweis: wichtig !",
+   "kind": "paragraph",
+   "max_tokens": 80,
+   "spoken_words": [
+    "Hinweis",
+    "wichtig"
+   ]
+  },
+  {
+   "block": 10,
+   "g0": 0,
+   "g1": 3,
+   "text": "Titel im Text",
+   "kind": "title",
+   "max_tokens": 80,
+   "spoken_words": [
+    "Titel",
+    "im",
+    "Text"
+   ]
+  },
+  {
+   "block": 11,
+   "g0": 0,
+   "g1": 2,
+   "text": "Kleinste Überschrift",
+   "kind": "title",
+   "max_tokens": 90,
+   "spoken_words": [
+    "Kleinste",
+    "Überschrift"
+   ]
+  },
+  {
+   "block": 12,
+   "g0": 0,
+   "g1": 2,
+   "text": "Ende. Schluss",
+   "kind": "paragraph",
+   "max_tokens": 70,
+   "spoken_words": [
+    "Ende",
+    "Schluss"
+   ]
+  }
+ ]
+}

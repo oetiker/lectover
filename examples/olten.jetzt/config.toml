@@ -1,0 +1,9 @@
+# Example lectover config for one Ghost site. Copy to ~/.config/lectover/config.toml.
+
+[site."olten.jetzt"]
+# Base URL of the Ghost blog.
+ghost_url = "https://olten.jetzt"
+# Voices offered in the player; each id is a voice saved under the voices dir.
+voices    = [ { id = "erzaehler", label = "Erzähler" } ]
+# Ghost Content API key, read from this environment variable.
+ghost_key = { env = "GHOST_CONTENT_KEY" }

@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MP3 delay probe</title>
+<!--
+  Dev tool, not deployed. Measures when the click at 1.000 s and 2.000 s of probe.ogg /
+  probe.mp3 (written by the ignored test `write_delay_probe` in crates/lectover/src/audio/mp3.rs)
+  shows up, (a) in decodeAudioData output (no user gesture needed) and (b) during <audio>
+  playback, read via audio.currentTime (MediaElementAudioSourceNode -> AnalyserNode, polled from
+  rAF and from a ScriptProcessorNode callback, which keeps firing when the window is hidden or
+  the screen is locked). Caveat: in Safari the Web Audio tap itself adds format-dependent
+  latency (MP3 read ~84 ms "earlier" than Ogg there, while the speaker output matched), so
+  the tap numbers are not what a listener hears; use the acoustic mode below for decisions.
+  Element runs start automatically where autoplay is allowed, otherwise after one tap.
+  With `?report=<url>` every result is also sent as a GET `<url>?<json>` (no-cors), so a
+  shell-driven browser can be read from a request log instead of a screenshot.
+
+  `?mode=acoustic` instead plays, per run, a PCM WAV reference beep (3 kHz) and then the probe
+  file, each through a plain <audio> (no Web Audio routing, as the player does), and reports
+  when currentTime passed the beep and the clicks, on the performance.now() clock. A
+  microphone recording of the speaker (made outside the browser) gives the heard times:
+  (heard click - heard beep) - (predicted click - predicted beep) is how late the sound is
+  versus currentTime, up to a constant (the WAV path's own latency) that cancels in MP3 - Ogg.
+-->
+<style>
+  body { font: 22px/1.35 -apple-system, system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+  h1 { font-size: 26px; margin: 0 0 8px; }
+  .big { font-size: 34px; font-weight: 700; }
+  table { border-collapse: collapse; margin: 8px 0 16px; }
+  td, th { border: 1px solid #999; padding: 4px 10px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  #start { display: none; width: 100%; height: 160px; font-size: 40px; margin: 12px 0; }
+  #status { color: #555; }
+  small { font-size: 15px; color: #555; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>MP3 delay probe</h1>
+<div><small id="ua"></small></div>
+<div id="support"></div>
+<h2>decodeAudioData (click 1 / click 2, ms late vs source)</h2>
+<div id="decode">decoding ...</div>
+<button id="start">Tap to start element runs</button>
+<h2>&lt;audio&gt; currentTime at click (ms late, mean of both clicks)</h2>
+<div id="element">waiting ...</div>
+<div id="summary" class="big"></div>
+<div id="status"></div>
+
+<script>
+'use strict';
+const FILES = { ogg: 'probe.ogg', mp3: 'probe.mp3' };
+const CLICKS = [1.0, 2.0];
+const RUNS = 5;
+const THRESHOLD = 0.5;
+const $ = (id) => document.getElementById(id);
+const ms = (s) => (s * 1000).toFixed(1);
+const status = (msg) => { $('status').textContent = msg; };
+const REPORT = new URLSearchParams(location.search).get('report');
+const MODE = new URLSearchParams(location.search).get('mode');
+const report = (what, data) => {
+  if (!REPORT) return;
+  const body = JSON.stringify({ what, ua: navigator.userAgent, ...data });
+  fetch(REPORT + '?' + encodeURIComponent(body), { mode: 'no-cors' }).catch(() => {});
+};
+
+$('ua').textContent = navigator.userAgent;
+{
+  const a = document.createElement('audio');
+  $('support').innerHTML =
+    'canPlayType("audio/ogg; codecs=opus") = <b>"' + a.canPlayType('audio/ogg; codecs=opus') + '"</b><br>' +
+    'canPlayType("audio/mpeg") = <b>"' + a.canPlayType('audio/mpeg') + '"</b>';
+}
+
+/** Sample indices where the signal first crosses THRESHOLD after each quiet gap of >= 0.3 s. */
+function onsets(data, rate) {
+  const out = [];
+  let quietUntil = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (i >= quietUntil && Math.abs(data[i]) > THRESHOLD) {
+      out.push(i);
+      quietUntil = i + Math.round(0.3 * rate);
+    }
+  }
+  return out;
+}
+
+async function decodeAll() {
+  const rows = [];
+  const late = {};
+  for (const [kind, url] of Object.entries(FILES)) {
+    try {
+      const bytes = await (await fetch(url, { cache: 'no-store' })).arrayBuffer();
+      // OfflineAudioContext decodes without a user gesture (iOS too).
+      const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 48000, 48000);
+      const buf = await new Promise((res, rej) => {
+        const p = ctx.decodeAudioData(bytes, res, rej);
+        if (p && p.then) p.then(res, rej);
+      });
+      const found = onsets(buf.getChannelData(0), buf.sampleRate).map((i) => i / buf.sampleRate);
+      const lat = found.slice(0, 2).map((t, k) => t - CLICKS[k]);
+      late[kind] = lat.reduce((a, b) => a + b, 0) / lat.length;
+      report('decode', { kind, lateMs: lat.map(ms), rate: buf.sampleRate, duration: buf.duration });
+      rows.push('<tr><td>' + kind + '</td><td>' + lat.map(ms).join(' / ') + '</td><td>' +
+        buf.sampleRate + '</td><td>' + buf.duration.toFixed(4) + '</td></tr>');
+    } catch (e) {
+      report('decode', { kind, error: String(e) });
+      rows.push('<tr><td>' + kind + '</td><td colspan="3">error: ' + e + '</td></tr>');
+    }
+  }
+  let diff = '';
+  if ('ogg' in late && 'mp3' in late) diff = '<div class="big">decode MP3 &minus; Ogg = ' + ms(late.mp3 - late.ogg) + ' ms</div>';
+  $('decode').innerHTML = '<table><tr><th>file</th><th>late ms</th><th>rate</th><th>duration s</th></tr>' +
+    rows.join('') + '</table>' + diff;
+}
+
+let ctx = null;
+
+/** One playback of `url`; resolves with the click times read from currentTime (seconds late). */
+function elementRun(url) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    audio.preload = 'auto';
+    audio.src = url + '?r=' + Math.random();
+    const source = ctx.createMediaElementSource(audio);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 4096;
+    source.connect(analyser);
+    analyser.connect(ctx.destination);
+    // A silent ScriptProcessor only serves as a clock that keeps ticking when rAF is paused.
+    const pump = ctx.createScriptProcessor(1024, 1, 1);
+    source.connect(pump);
+    pump.connect(ctx.destination);
+    const buf = new Float32Array(analyser.fftSize);
+    const hits = [];
+    let armedAt = 0;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      source.disconnect();
+      analyser.disconnect();
+      pump.disconnect();
+      pump.onaudioprocess = null;
+      resolve(hits);
+    };
+    const poll = () => {
+      if (done) return;
+      analyser.getFloatTimeDomainData(buf);
+      const now = audio.currentTime;
+      let first = -1;
+      for (let i = 0; i < buf.length; i++) if (Math.abs(buf[i]) > THRESHOLD) { first = i; break; }
+      if (first >= 0 && now >= armedAt && hits.length < CLICKS.length) {
+        // The analyser holds the most recent fftSize samples; the onset is (fftSize - first) samples old.
+        const t = now - (buf.length - first) / ctx.sampleRate;
+        hits.push({ raw: now - CLICKS[hits.length], est: t - CLICKS[hits.length] });
+        armedAt = now + 0.5;
+      }
+    };
+    const tick = () => {
+      if (done) return;
+      poll();
+      requestAnimationFrame(tick);
+    };
+    pump.onaudioprocess = poll;
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', () => { done = true; reject(new Error('media error ' + (audio.error && audio.error.code))); });
+    setTimeout(finish, 8000);
+    audio.play().then(() => requestAnimationFrame(tick), (e) => { done = true; reject(e); });
+  });
+}
+
+async function elementAll() {
+  $('start').style.display = 'none';
+  const runs = { ogg: [], mp3: [] };
+  const errors = {};
+  const playable = (kind) => kind === 'mp3' || document.createElement('audio').canPlayType('audio/ogg; codecs=opus') !== '';
+  for (let r = 0; r < RUNS; r++) {
+    for (const kind of ['ogg', 'mp3']) {
+      if (!playable(kind) || errors[kind]) continue;
+      status('run ' + (r + 1) + '/' + RUNS + ' ' + kind);
+      try {
+        const hits = await elementRun(FILES[kind]);
+        if (hits.length === CLICKS.length) runs[kind].push(hits);
+        else errors[kind] = 'only ' + hits.length + ' clicks detected';
+      } catch (e) {
+        errors[kind] = String(e);
+      }
+      showElement(runs, errors);
+    }
+  }
+  report('element', {
+    canPlayOpus: document.createElement('audio').canPlayType('audio/ogg; codecs=opus'),
+    errors,
+    runsMs: Object.fromEntries(Object.entries(runs).map(([k, rs]) =>
+      [k, rs.map((h) => h.map((x) => ({ est: ms(x.est), raw: ms(x.raw) })))])),
+    summary: $('summary').textContent,
+  });
+  status('done');
+}
+
+function stats(values) {
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  return { mean, spread: Math.max(...values) - Math.min(...values) };
+}
+
+function showElement(runs, errors) {
+  let html = '<table><tr><th>file</th><th>runs: est ms (raw currentTime ms)</th><th>mean</th><th>spread</th></tr>';
+  const means = {};
+  for (const kind of ['ogg', 'mp3']) {
+    const per = runs[kind].map((h) => ({
+      est: (h[0].est + h[1].est) / 2,
+      raw: (h[0].raw + h[1].raw) / 2,
+    }));
+    if (per.length) {
+      const s = stats(per.map((p) => p.est));
+      means[kind] = s;
+      html += '<tr><td>' + kind + '</td><td>' + per.map((p) => ms(p.est) + ' (' + ms(p.raw) + ')').join(', ') +
+        '</td><td>' + ms(s.mean) + '</td><td>' + ms(s.spread) + '</td></tr>';
+    } else {
+      html += '<tr><td>' + kind + '</td><td colspan="3">' + (errors[kind] || 'not playable / no runs') + '</td></tr>';
+    }
+  }
+  $('element').innerHTML = html + '</table>';
+  if (means.ogg && means.mp3) {
+    $('summary').textContent = 'element MP3 − Ogg = ' + ms(means.mp3.mean - means.ogg.mean) + ' ms (n=' +
+      Math.min(runs.ogg.length, runs.mp3.length) + ')';
+  } else if (means.mp3) {
+    $('summary').textContent = 'element MP3 late vs source = ' + ms(means.mp3.mean) + ' ms (no Ogg)';
+  }
+}
+
+async function startElement() {
+  try {
+    if (MODE === 'acoustic') { await acousticAll(); return; }
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state !== 'running') {
+      await Promise.race([ctx.resume(), new Promise((r) => setTimeout(r, 500))]);
+    }
+    if (ctx.state !== 'running') throw new Error('AudioContext ' + ctx.state);
+    await elementAll();
+  } catch (e) {
+    status('autoplay blocked (' + e + '): tap the button');
+    report('blocked', { error: String(e), canPlayOpus: document.createElement('audio').canPlayType('audio/ogg; codecs=opus') });
+    $('start').style.display = 'block';
+  }
+}
+
+/** A 0.6 s mono 48 kHz WAV with a 5 ms 3 kHz beep at 0.300 s, as an object URL. */
+function beepWavUrl() {
+  const rate = 48000;
+  const n = Math.round(0.6 * rate);
+  const view = new DataView(new ArrayBuffer(44 + 2 * n));
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) view.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); view.setUint32(4, 36 + 2 * n, true); str(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true); view.setUint32(28, 2 * rate, true); view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true); str(36, 'data'); view.setUint32(40, 2 * n, true);
+  const start = Math.round(0.3 * rate);
+  for (let i = 0; i < rate / 200; i++) {
+    view.setInt16(44 + 2 * (start + i), Math.round(16000 * Math.cos(2 * Math.PI * 3000 * i / rate)), true);
+  }
+  return URL.createObjectURL(new Blob([view.buffer], { type: 'audio/wav' }));
+}
+
+// Two reused elements: iOS lets an element play later only once a tap has started it.
+const players = { beep: new Audio(), probe: new Audio() };
+const beepUrl = beepWavUrl();
+players.beep.src = beepUrl;
+players.probe.src = FILES.mp3;
+
+/** Start and pause both players inside a tap so later play() calls are allowed (iOS). */
+function unlockPlayers() {
+  for (const audio of Object.values(players)) {
+    const p = audio.play();
+    if (p) p.then(() => audio.pause(), () => {});
+  }
+}
+
+/**
+ * Play `url` on `audio` from the start; resolves with the performance time (ms) at which
+ * currentTime passed each of `marks` (seconds): the median of now - currentTime over the run.
+ */
+function playTimed(audio, url, marks) {
+  return new Promise((resolve, reject) => {
+    audio.pause();
+    audio.src = url;
+    const samples = [];
+    let done = false;
+    const sample = () => {
+      if (!done && !audio.paused && audio.currentTime > 0) samples.push([performance.now(), audio.currentTime]);
+    };
+    const tick = () => { if (!done) { sample(); requestAnimationFrame(tick); } };
+    // setInterval keeps sampling when rAF is paused (hidden window).
+    const timer = setInterval(sample, 2);
+    const cleanup = () => {
+      done = true;
+      clearInterval(timer);
+      audio.removeEventListener('ended', finish);
+      audio.removeEventListener('error', fail);
+    };
+    const finish = () => {
+      if (done) return;
+      cleanup();
+      if (!samples.length) { reject(new Error('no currentTime samples')); return; }
+      const d = samples.map(([now, ct]) => now - ct * 1000).sort((a, b) => a - b);
+      const base = d[Math.floor(d.length / 2)];
+      resolve({ at: marks.map((t) => base + t * 1000), n: samples.length });
+    };
+    const fail = () => { if (!done) { cleanup(); reject(new Error('media error')); } };
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', fail);
+    audio.play().then(() => requestAnimationFrame(tick), (e) => { if (!done) { cleanup(); reject(e); } });
+    setTimeout(finish, 8000);
+  });
+}
+
+/** Reference beep, then the probe file; times in ms on the performance clock. */
+async function acousticRun(url) {
+  const beep = await playTimed(players.beep, beepUrl, [0.3]);
+  await new Promise((r) => setTimeout(r, 200));
+  const probe = await playTimed(players.probe, url + '?r=' + Math.random(), CLICKS);
+  return { beep: beep.at[0], c1: probe.at[0], c2: probe.at[1], n: probe.n };
+}
+
+async function acousticAll() {
+  $('start').style.display = 'none';
+  const rows = [];
+  for (let r = 0; r < RUNS; r++) {
+    for (const kind of ['ogg', 'mp3']) {
+      if (kind === 'ogg' && players.probe.canPlayType('audio/ogg; codecs=opus') === '') continue;
+      status('acoustic run ' + (r + 1) + '/' + RUNS + ' ' + kind);
+      try {
+        const res = await acousticRun(FILES[kind]);
+        const row = { kind, run: r, beep: res.beep.toFixed(1), c1: res.c1.toFixed(1), c2: res.c2.toFixed(1), n: res.n };
+        rows.push(row);
+        report('acoustic', row);
+      } catch (e) {
+        if (e && e.name === 'NotAllowedError') throw e; // autoplay refused: wait for a tap
+        report('acoustic', { kind, run: r, error: String(e) });
+      }
+      $('element').textContent = rows.map((x) => x.kind + ' beep→c1 ' + (x.c1 - x.beep).toFixed(1) + ' ms').join(' | ');
+      await new Promise((res) => setTimeout(res, 1500));
+    }
+  }
+  report('acoustic-done', {});
+  status('done');
+}
+
+$('start').addEventListener('click', () => {
+  if (MODE === 'acoustic') unlockPlayers();
+  startElement();
+});
+decodeAll().then(startElement);
+</script>
+</body>
+</html>

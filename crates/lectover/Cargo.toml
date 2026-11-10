@@ -1,0 +1,48 @@
+[package]
+name = "lectover"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+description = "Lectover renderer: turns Ghost posts into narrated audio"
+
+[dependencies]
+anyhow = "1.0.104"
+audiopus = "0.3.0-rc.0"
+# Direct dep only to enable a static libopus; .cargo/config.toml forces the bundled-source build.
+audiopus_sys = { version = "0.2.2", features = ["static"] }
+clap = { version = "4.6.7", features = ["derive"] }
+fancy-regex = "0.20.0"
+hound = "3.5.1"
+html5ever = "0.39.0"
+indexmap = { version = "2.14.2", features = ["serde"] }
+lectover-sys = { version = "0.1.0", path = "../lectover-sys" }
+libc = "0.2"
+markup5ever_rcdom = "0.39.0"
+ogg = "0.9.2"
+percent-encoding = "2.3.2"
+rand_chacha = "0.10.0"
+rand_core = "0.10.1"
+rusty_mp3 = "1.0.5"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["preserve_order"] }
+sha1 = "0.11.0"
+serde_ignored = "0.1.14"
+tempfile = "3.27.0"
+tiny_http = "0.12.0"
+toml = "1.2"
+unicode-general-category = "1.1.0"
+unicode-normalization = "0.1.26"
+ureq = "3.5.0"
+url = "2.5.8"
+
+[dev-dependencies]
+
+[features]
+# GPU backends of the native ggml; forwarded to lectover-sys.
+metal = ["lectover-sys/metal"]
+cuda = ["lectover-sys/cuda"]
+hip = ["lectover-sys/hip"]
+vulkan = ["lectover-sys/vulkan"]
