@@ -1,5 +1,8 @@
 # Lectover: read-aloud for Ghost posts
 
+[![CI](https://github.com/oetiker/lectover/actions/workflows/ci.yml/badge.svg)](https://github.com/oetiker/lectover/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/oetiker/lectover)](https://github.com/oetiker/lectover/releases/latest)
+
 Lectover renders a public Ghost blog post as spoken Ogg/Opus audio (plus an MP3 copy for
 browsers without Ogg/Opus support, such as older Safari and iOS) with
 word-level timings (Qwen3-TTS plus Qwen3 forced alignment), and ships a small
@@ -14,11 +17,29 @@ The renderer is one Rust binary, `lectover`, running the models through ggml
 (Metal on macOS; HIP and Vulkan tested on an AMD Strix Halo APU; CUDA is
 untested). No Python, ffmpeg or other runtime is needed to render.
 
+The manual is [docs/manual.md](docs/manual.md), installed as `man lectover`.
+
+## Install
+
+Archives of the [latest release](https://github.com/oetiker/lectover/releases/latest):
+
+- `lectover-<version>-aarch64-apple-darwin.tar.gz`: macOS on Apple silicon, Metal.
+- `lectover-<version>-x86_64-unknown-linux-gnu.tar.gz`, `lectover-<version>-aarch64-unknown-linux-gnu.tar.gz`: Linux with Vulkan; needs glibc 2.39 or newer, `libvulkan.so.1` and a Vulkan driver.
+
+```bash
+tar -xzf lectover-<version>-<target>.tar.gz
+sudo install -m 0755 lectover/lectover /usr/local/bin/
+sudo install -m 0644 lectover/man/lectover.1 /usr/local/share/man/man1/
+```
+
+For HIP or CUDA, or another platform, build from source.
+
 ## Build
 
 Needs a Rust toolchain, CMake and a C/C++ compiler (Xcode command line tools
 on macOS; on Linux the Vulkan, ROCm/HIP or CUDA development files for the
-backend you choose). The native libraries (ggml from `oetiker/llama.cpp`,
+backend you choose; Vulkan also needs `glslc` and SPIRV-Headers, and
+[pkg/linux/Containerfile](pkg/linux/Containerfile) lists the Ubuntu packages). The native libraries (ggml from `oetiker/llama.cpp`,
 `qwentts.cpp`, `qwen3-asr.cpp`, `reuse.cpp`) are git submodules:
 
 ```bash
@@ -26,6 +47,7 @@ git clone --recursive https://github.com/oetiker/lectover.git
 cd lectover
 cargo build --release --features metal      # or cuda, hip, vulkan; none = CPU
 cargo test -p lectover                      # fast tests, no models, no network
+make man                                    # man/lectover.1, needs pandoc
 ```
 
 On HIP (and CUDA) builds, do not set `GGML_CUDA_ENABLE_UNIFIED_MEMORY`: ggml
@@ -209,7 +231,7 @@ the timings and stays silent (with a console warning) if they no longer match.
   B. Publiziert am 16. Oktober 2026.* (authors and publication date from Ghost;
   parts Ghost does not report are left out), followed by the site's intro sound.
 - **Breaks.** An `<hr>` in the post plays the site's break sound.
-- **Audio-only text.** An HTML comment starting with `AUDIO ONLY` (e.g. in an
+- **Audio-only text.** An HTML comment starting with `AUDIO ONLY` (for example in an
   HTML card) is spoken where it stands and never shown on the page. Blank lines
   separate paragraphs; a run of three or more `-` plays the break sound:
 
