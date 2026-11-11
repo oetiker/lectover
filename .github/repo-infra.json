@@ -1,0 +1,25 @@
+{
+  "moving_major_tag": false,
+  "version_files": [
+    {
+      "path": "crates/lectover/Cargo.toml",
+      "pattern": "^version\\s*=\\s*\"[^\"]*\"",
+      "replacement": "version = \"$VERSION\"",
+      "verify": "^version\\s*=\\s*\"$VERSION\""
+    },
+    {
+      "path": "Cargo.lock",
+      "pattern": "^name = \"lectover\"\nversion = \"[^\"]*\"",
+      "replacement": "name = \"lectover\"\nversion = \"$VERSION\"",
+      "verify": "^name = \"lectover\"\nversion = \"$VERSION\""
+    }
+  ],
+  "release_assets": [
+    "lectover-*-aarch64-apple-darwin.tar.gz",
+    "lectover-*-x86_64-unknown-linux-gnu.tar.gz",
+    "lectover-*-aarch64-unknown-linux-gnu.tar.gz"
+  ],
+  "exceptions": {
+    "native-targets": "The release carries the GPU builds: aarch64-apple-darwin with Metal, and x86_64- and aarch64-unknown-linux-gnu with Vulkan, built by release-build-local.yml. No musl: the Vulkan backend loads the system's Vulkan driver through libvulkan.so.1, which a static musl binary cannot do. No Windows: the program uses Unix interfaces (statvfs, termios, Unix permission bits). No illumos and no x86_64 macOS: ruled out by the owner. HIP and CUDA are built from source."
+  }
+}
