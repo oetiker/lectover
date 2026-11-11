@@ -1,0 +1,61 @@
+name: Build and test
+
+# lectover's own CI jobs, called from ci.yml.
+#
+# The native libraries are four git submodules on forks under
+# github.com/oetiker. A submodule commit that is not reachable from a pushed
+# branch of its fork breaks `git clone --recursive` for everyone while every
+# existing working copy keeps building. Each leg therefore starts from a fresh
+# recursive clone and caches no build directory, so the submodule sources are
+# fetched and compiled on every run.
+#
+# Linux builds the CPU backend: the Vulkan backend needs glslc and the Vulkan
+# and SPIRV headers, which the runner image does not carry (the release builds
+# it in pkg/linux/Containerfile). macOS builds the Metal backend of the
+# release. The model tests (`-- --ignored`) need the model downloads and stay
+# out of CI.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to test; empty takes the commit that triggered the run.
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Fresh recursive clone, build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            features: ''
+          - os: macos-latest
+            features: metal
+    env:
+      CARGO_TERM_COLOR: always
+      FEATURES: ${{ matrix.features }}
+    steps:
+      - name: Fresh recursive clone
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        run: cargo build --release --locked ${FEATURES:+--features "$FEATURES"}
+
+      - name: Test
+        run: cargo test --release --locked -p lectover ${FEATURES:+--features "$FEATURES"}
+
+      - name: Run the binary
+        run: ./target/release/lectover --version
