@@ -1,0 +1,158 @@
+name: Release archives
+
+# lectover's own release build, called from release-build.yml. It writes the
+# archives in the layout of ri-release-rust-binaries, <bin>/<bin>,
+# <bin>/man/lectover.1, <bin>/README.md and <bin>/LICENSE, for three targets:
+#
+#   aarch64-apple-darwin       Metal, on the macOS runner
+#   x86_64-unknown-linux-gnu   Vulkan, in pkg/linux/Containerfile
+#   aarch64-unknown-linux-gnu  Vulkan, in pkg/linux/Containerfile on the arm runner
+#
+# The Linux binaries link glibc and libvulkan.so.1: a static musl binary
+# cannot load the system's Vulkan driver. HIP and CUDA are built from source.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version being released.
+        type: string
+        required: true
+      ref:
+        description: The release branch head to build.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  man:
+    name: Build the man page
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      # The pandoc of ri-ci-man, which checks the page on every pull request.
+      - name: Install pandoc
+        env:
+          PANDOC_VERSION: 3.12.1
+          PANDOC_SHA256: b4217ac7c54067c442f9d4cd38bcd0c184a43f3e7053431a12263a6f92a33ba2
+        run: |
+          deb="$RUNNER_TEMP/pandoc-$PANDOC_VERSION-1-amd64.deb"
+          curl -fsSL --retry 5 -o "$deb" \
+            "https://github.com/jgm/pandoc/releases/download/$PANDOC_VERSION/pandoc-$PANDOC_VERSION-1-amd64.deb"
+          echo "$PANDOC_SHA256  $deb" | sha256sum -c -
+          sudo dpkg -i "$deb"
+
+      - run: make man
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: man-pages
+          path: man/
+          if-no-files-found: error
+
+  archives:
+    name: Build ${{ matrix.target }}
+    needs: man
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      # Which target broke is the answer; fail-fast would cancel the others.
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            features: metal
+            container: false
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            features: vulkan
+            container: true
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            features: vulkan
+            container: true
+    env:
+      CARGO_TERM_COLOR: always
+      BIN: lectover
+      VERSION: ${{ inputs.version }}
+      TARGET: ${{ matrix.target }}
+      FEATURES: ${{ matrix.features }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: recursive
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: man-pages
+          path: man
+
+      - if: ${{ !matrix.container }}
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build on the runner
+        if: ${{ !matrix.container }}
+        run: |
+          set -euo pipefail
+          cargo build --release --locked --features "$FEATURES"
+          mkdir -p out
+          cp target/release/lectover out/
+
+      # The checkout is mounted at /src; the container's build output stays
+      # in target/linux, apart from anything a host build left in target/.
+      - name: Build in the container
+        if: ${{ matrix.container }}
+        run: |
+          set -euo pipefail
+          docker build -t lectover-release-linux -f pkg/linux/Containerfile pkg/linux
+          docker run --rm -v "$PWD:/src" -e CARGO_TARGET_DIR=/src/target/linux \
+            lectover-release-linux cargo build --release --locked --features "$FEATURES"
+          mkdir -p out
+          cp target/linux/release/lectover out/
+
+      # In the container on Linux, whose image carries libvulkan.so.1.
+      - name: Check the version of the binary
+        env:
+          CONTAINER: ${{ matrix.container }}
+        run: |
+          set -euo pipefail
+          if [ "$CONTAINER" = true ]; then
+            got=$(docker run --rm -v "$PWD:/src" lectover-release-linux /src/out/lectover --version)
+          else
+            got=$(./out/lectover --version)
+          fi
+          if [ "$got" != "lectover $VERSION" ]; then
+            echo "::error::the binary reports '$got', the release is $VERSION"
+            exit 1
+          fi
+
+      # COPYFILE_DISABLE keeps the bsdtar of macOS from adding ._ files.
+      - name: Pack the archive
+        env:
+          COPYFILE_DISABLE: 1
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          pages=(man/*.[1-9]*)
+          if [ ${#pages[@]} -eq 0 ]; then
+            echo "::error::no man page under man/; the man job uploads what make man built"
+            exit 1
+          fi
+          mkdir -p dist "staging/$BIN/man"
+          cp out/lectover "staging/$BIN/"
+          cp "${pages[@]}" "staging/$BIN/man/"
+          cp README.md LICENSE "staging/$BIN/"
+          tar -czf "dist/$BIN-$VERSION-$TARGET.tar.gz" -C staging "$BIN"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-asset-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error

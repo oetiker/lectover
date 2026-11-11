@@ -1,0 +1,28 @@
+name: Release build
+
+# Called by Create release PR on the release branch before the pull request
+# exists (D28). The archives need the submodules, a cargo feature per GPU
+# backend and the Vulkan build environment, which no repo-infra release piece
+# provides, so release-build-local.yml builds them. Read-only: nothing here
+# writes the repository.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version being released.
+        type: string
+        required: true
+      ref:
+        description: The release branch head to build.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  archives:
+    uses: ./.github/workflows/release-build-local.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ inputs.ref }}

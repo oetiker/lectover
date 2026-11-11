@@ -1,0 +1,22 @@
+# The build environment of the Linux release archives: glibc with the Vulkan
+# backend. .github/workflows/release-build-local.yml builds this image on an
+# x86_64 and on an arm64 runner and runs `cargo build --release --features
+# vulkan` in it, with the checkout mounted at /src.
+#
+# Ubuntu 24.04 sets the oldest glibc the binary runs on (2.39). ggml-vulkan's
+# CMakeLists needs glslc and the SPIRV-Headers CMake config besides the Vulkan
+# headers; the binary then links libvulkan.so.1 and loads the system's driver.
+FROM docker.io/library/ubuntu:24.04
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates curl git make \
+      build-essential cmake clang libclang-dev \
+      libvulkan-dev glslc spirv-headers \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo PATH=/usr/local/cargo/bin:$PATH
+RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
+ && chmod -R a+w "$RUSTUP_HOME" "$CARGO_HOME"
+
+WORKDIR /src
