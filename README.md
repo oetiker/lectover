@@ -21,6 +21,41 @@ The manual is [docs/manual.md](docs/manual.md), installed as `man lectover`.
 
 ## Install
 
+Linux packages with the Vulkan backend, for amd64 and arm64. Each needs a
+Vulkan driver (Mesa or the GPU vendor's). The player script is installed as
+`/usr/share/lectover/lectover.js`.
+
+Debian 13, Ubuntu 24.04 and 26.04:
+
+```sh
+sudo install -d -m 0755 /etc/apt/keyrings
+sudo curl -fsSL -o /etc/apt/keyrings/gitea-oposs.asc https://gitea.oetiker.ch/api/packages/oposs/debian/repository.key
+echo "deb [signed-by=/etc/apt/keyrings/gitea-oposs.asc] https://gitea.oetiker.ch/api/packages/oposs/debian $(. /etc/os-release && echo $VERSION_CODENAME) main" | sudo tee /etc/apt/sources.list.d/oposs.list
+sudo apt update && sudo apt install lectover
+```
+
+Fedora 45, AlmaLinux 9 and 10 (`<dist>` is `fc45`, `el9` or `el10`):
+
+```sh
+sudo curl -fsSL -o /etc/yum.repos.d/oposs.repo https://gitea.oetiker.ch/api/packages/oposs/rpm/<dist>.repo
+sudo dnf install lectover
+```
+
+AlmaLinux takes some libraries from EPEL and CRB; turn them on first:
+
+```sh
+sudo dnf install -y epel-release
+sudo crb enable
+```
+
+Alpine 3.23 and 3.24 (`<branch>` is `v3.23` or `v3.24`):
+
+```sh
+cd /etc/apk/keys && sudo curl -fJO https://gitea.oetiker.ch/api/packages/oposs/alpine/key
+echo "https://gitea.oetiker.ch/api/packages/oposs/alpine/<branch>/main" | sudo tee -a /etc/apk/repositories
+sudo apk update && sudo apk add lectover
+```
+
 Archives of the [latest release](https://github.com/oetiker/lectover/releases/latest):
 
 - `lectover-<version>-aarch64-apple-darwin.tar.gz`: macOS on Apple silicon, Metal.
@@ -39,7 +74,7 @@ For HIP or CUDA, or another platform, build from source.
 Needs a Rust toolchain, CMake and a C/C++ compiler (Xcode command line tools
 on macOS; on Linux the Vulkan, ROCm/HIP or CUDA development files for the
 backend you choose; Vulkan also needs `glslc` and SPIRV-Headers, and
-[pkg/linux/Containerfile](pkg/linux/Containerfile) lists the Ubuntu packages). The native libraries (ggml from `oetiker/llama.cpp`,
+the [Containerfile](Containerfile) lists the packages per distribution). The native libraries (ggml from `oetiker/llama.cpp`,
 `qwentts.cpp`, `qwen3-asr.cpp`, `reuse.cpp`) are git submodules:
 
 ```bash

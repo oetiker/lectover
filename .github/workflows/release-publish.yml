@@ -25,9 +25,24 @@ jobs:
       contents: write
       pull-requests: read
 
+  # The .deb, .rpm and .apk files of ri-release-distro-packages go to the
+  # Gitea registry; each finds its apt distribution, rpm group or Alpine
+  # branch in its own version or file name.
+  gitea:
+    needs: [publish]
+    if: needs.publish.outputs.release_id != ''
+    uses: oposs/repo-infra/.github/workflows/ri-publish-gitea.yml@v2
+    permissions:
+      contents: write
+    with:
+      release_id: ${{ needs.publish.outputs.release_id }}
+      head: ${{ needs.publish.outputs.head }}
+    secrets:
+      GITEA_PACKAGE_TOKEN: ${{ secrets.GITEA_PACKAGE_TOKEN }}
+
   # finalize needs every other job of this file; check verifies it (D30).
   finalize:
-    needs: [publish]
+    needs: [publish, gitea]
     if: needs.publish.outputs.release_id != ''
     uses: oposs/repo-infra/.github/workflows/ri-publish-finalize.yml@v2
     permissions:
