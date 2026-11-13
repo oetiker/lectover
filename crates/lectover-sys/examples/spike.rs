@@ -364,8 +364,10 @@ fn read_wav_mono(path: &Path) -> (Vec<f32>, u32) {
     assert_eq!(bits, 16, "only 16-bit PCM");
     let data = data.unwrap();
     let s: Vec<f32> = data
-        .chunks_exact(2)
-        .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0)
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|c| i16::from_le_bytes(*c) as f32 / 32768.0)
         .collect();
     let ch = ch as usize;
     (

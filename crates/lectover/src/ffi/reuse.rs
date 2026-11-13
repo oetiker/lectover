@@ -32,16 +32,19 @@ pub fn convert_reuse(safetensors: &Path, gguf: &Path) -> Result<()> {
     Ok(())
 }
 
+/// The progress hook of a denoise run, called with the fraction done.
+type ProgressFn = Box<dyn FnMut(f32) + Send>;
+
 /// RE-USE handle. The C side serialises nothing: calls on one handle must not overlap.
 pub struct ReuseDenoiser {
     ctx: *mut sys::reuse_ctx,
     /// Progress closure the C side points at; boxed twice so its address stays stable.
-    progress: Option<Box<Box<dyn FnMut(f32) + Send>>>,
+    progress: Option<Box<ProgressFn>>,
 }
 
 unsafe extern "C" fn progress_trampoline(fraction: f32, user: *mut std::ffi::c_void) {
     // SAFETY: `user` is the `Box<Box<dyn FnMut>>` heap address kept alive in `progress`.
-    let f = unsafe { &mut *(user as *mut Box<dyn FnMut(f32) + Send>) };
+    let f = unsafe { &mut *(user as *mut ProgressFn) };
     // A panic must not unwind into C; a panicking hook only loses that update.
     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(fraction)));
 }
@@ -59,11 +62,11 @@ impl Drop for ReuseDenoiser {
 impl ReuseDenoiser {
     /// Report progress (fraction in [0, 1], non-decreasing, ends at 1.0) on the calling
     /// thread during `denoise`. `None` removes the hook.
-    pub fn set_progress(&mut self, f: Option<Box<dyn FnMut(f32) + Send>>) {
+    pub fn set_progress(&mut self, f: Option<ProgressFn>) {
         match f {
             Some(f) => {
                 let mut boxed = Box::new(f);
-                let user = &mut *boxed as *mut Box<dyn FnMut(f32) + Send> as *mut std::ffi::c_void;
+                let user = &mut *boxed as *mut ProgressFn as *mut std::ffi::c_void;
                 // SAFETY: ctx is live; `boxed` is stored below and outlives the registration.
                 unsafe { sys::reuse_set_progress(self.ctx, Some(progress_trampoline), user) };
                 self.progress = Some(boxed);

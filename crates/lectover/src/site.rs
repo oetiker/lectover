@@ -146,21 +146,39 @@ fn short_digest(bytes: &[u8]) -> String {
         .collect()
 }
 
-/// Move the rendered Ogg and MP3 into `slug_dir` under content hashes and update manifest.json.
+/// Where a voice's files go and how the manifest lists it.
+pub struct VoiceTarget<'a> {
+    /// The post's output directory, holding manifest.json and the voices' files.
+    pub slug_dir: &'a Path,
+    /// Voice id; prefixes the file names and is the manifest entry's `id`.
+    pub voice: &'a str,
+    /// Display label of the manifest entry.
+    pub label: &'a str,
+    /// Voice id the manifest names as `default`; if the manifest has no such voice,
+    /// its first voice becomes the default.
+    pub default: &'a str,
+    /// The post whose slug and update time go into the manifest.
+    pub post: &'a Post,
+}
+
+/// Move the rendered Ogg and MP3 into `target.slug_dir` under content hashes and update
+/// manifest.json.
 ///
 /// Order: both files renamed into place, timings written, manifest rewritten atomically, and
 /// only then the voice's previous files removed. The timings file is named by the Ogg digest.
-#[allow(clippy::too_many_arguments)]
 pub fn publish_voice(
-    slug_dir: &Path,
-    voice: &str,
-    label: &str,
+    target: &VoiceTarget,
     ogg_tmp: &Path,
     mp3_tmp: &Path,
     timings: &Value,
-    post: &Post,
-    default: &str,
 ) -> Result<Value> {
+    let VoiceTarget {
+        slug_dir,
+        voice,
+        label,
+        default,
+        post,
+    } = *target;
     check_voice_id(voice)?;
     fs::create_dir_all(slug_dir).with_context(|| format!("creating {}", slug_dir.display()))?;
     let read = |p: &Path| fs::read(p).with_context(|| format!("reading {}", p.display()));
@@ -232,22 +250,21 @@ pub fn publish_voice(
     Ok(manifest)
 }
 
-/// Encode `audio` to `<voice>.tmp.ogg` and `<voice>.tmp.mp3` in `slug_dir` and publish both.
+/// Encode `audio` to `<voice>.tmp.ogg` and `<voice>.tmp.mp3` in `target.slug_dir` and
+/// publish both.
 ///
 /// On any error both temp files are removed, so the published set and manifest stay as they were.
-#[allow(clippy::too_many_arguments)]
 pub fn encode_and_publish(
     audio: &[f32],
     sr: u32,
-    slug_dir: &Path,
-    voice: &str,
-    label: &str,
+    target: &VoiceTarget,
     timings: &Value,
-    post: &Post,
-    default: &str,
     ogg_encoder: impl FnOnce(&[f32], u32, &Path) -> Result<()>,
     mp3_encoder: impl FnOnce(&[f32], u32, &Path) -> Result<()>,
 ) -> Result<Value> {
+    let VoiceTarget {
+        slug_dir, voice, ..
+    } = *target;
     check_voice_id(voice)?; // before the id becomes part of a path
     fs::create_dir_all(slug_dir).with_context(|| format!("creating {}", slug_dir.display()))?;
     let ogg_tmp = slug_dir.join(format!("{voice}.tmp.ogg"));
@@ -258,11 +275,7 @@ pub fn encode_and_publish(
             mp3_encoder(audio, sr, &mp3_tmp)
                 .with_context(|| format!("encoding {}", mp3_tmp.display()))
         })
-        .and_then(|()| {
-            publish_voice(
-                slug_dir, voice, label, &ogg_tmp, &mp3_tmp, timings, post, default,
-            )
-        });
+        .and_then(|()| publish_voice(target, &ogg_tmp, &mp3_tmp, timings));
     if result.is_err() {
         for tmp in [&ogg_tmp, &mp3_tmp] {
             let _ = fs::remove_file(tmp);

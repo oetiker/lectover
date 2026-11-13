@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::bail;
 use lectover::audio::encode_opus;
 use lectover::ghost::Post;
-use lectover::site::{encode_and_publish, prune_stale, publish_voice};
+use lectover::site::{encode_and_publish, prune_stale, publish_voice, VoiceTarget};
 use serde_json::{json, Value};
 
 fn post() -> Post {
@@ -43,14 +43,16 @@ fn publish_h(
     fs::write(&ogg, data).unwrap();
     fs::write(&mp3, mp3_data).unwrap();
     publish_voice(
-        &tmp.join("site"),
-        voice,
-        label,
+        &VoiceTarget {
+            slug_dir: &tmp.join("site"),
+            voice,
+            label,
+            default,
+            post: &post(),
+        },
         &ogg,
         &mp3,
         &timings(voice, hashes),
-        &post(),
-        default,
     )
 }
 
@@ -329,14 +331,16 @@ fn invalid_voice_id_rejected() {
     fs::write(&mp3, b"x").unwrap();
     for bad in ["Bad", "-x", "a/b", "", "../x"] {
         let r = publish_voice(
-            &tmp.path().join("site"),
-            bad,
-            "L",
+            &VoiceTarget {
+                slug_dir: &tmp.path().join("site"),
+                voice: bad,
+                label: "L",
+                default: "x",
+                post: &post(),
+            },
             &ogg,
             &mp3,
             &timings("x", &[]),
-            &post(),
-            "x",
         );
         assert!(r.is_err(), "{bad:?} accepted");
     }
@@ -401,12 +405,14 @@ fn encode_and_publish_publishes_encoder_output() {
     let m = encode_and_publish(
         &[0.0; 10],
         24000,
-        &site,
-        "erzaehler",
-        "E",
+        &VoiceTarget {
+            slug_dir: &site,
+            voice: "erzaehler",
+            label: "E",
+            default: "erzaehler",
+            post: &post(),
+        },
         &timings("erzaehler", &["h"]),
-        &post(),
-        "erzaehler",
         write_bytes(b"opus"),
         write_bytes(b"mp3"),
     )
@@ -431,12 +437,14 @@ fn failed_encode_leaves_no_tmp_and_old_pair() {
     encode_and_publish(
         &[0.0; 10],
         24000,
-        &site,
-        "erzaehler",
-        "E",
+        &VoiceTarget {
+            slug_dir: &site,
+            voice: "erzaehler",
+            label: "E",
+            default: "erzaehler",
+            post: &post(),
+        },
         &t,
-        &post(),
-        "erzaehler",
         write_bytes(b"old"),
         write_bytes(b"oldmp3"),
     )
@@ -462,12 +470,14 @@ fn failed_encode_leaves_no_tmp_and_old_pair() {
     let err = encode_and_publish(
         &[0.0; 10],
         24000,
-        &site,
-        "erzaehler",
-        "E",
+        &VoiceTarget {
+            slug_dir: &site,
+            voice: "erzaehler",
+            label: "E",
+            default: "erzaehler",
+            post: &post(),
+        },
         &t,
-        &post(),
-        "erzaehler",
         failing,
         write_bytes(b"new"),
     );
@@ -488,12 +498,14 @@ fn encode_and_publish_rejects_bad_voice_before_encoding() {
     let r = encode_and_publish(
         &[0.0; 10],
         24000,
-        &site,
-        "../x",
-        "E",
+        &VoiceTarget {
+            slug_dir: &site,
+            voice: "../x",
+            label: "E",
+            default: "x",
+            post: &post(),
+        },
         &timings("x", &[]),
-        &post(),
-        "x",
         never,
         never,
     );
@@ -508,12 +520,14 @@ fn failed_mp3_encode_leaves_no_tmp_and_old_set() {
     encode_and_publish(
         &[0.0; 10],
         24000,
-        &site,
-        "erzaehler",
-        "E",
+        &VoiceTarget {
+            slug_dir: &site,
+            voice: "erzaehler",
+            label: "E",
+            default: "erzaehler",
+            post: &post(),
+        },
         &t,
-        &post(),
-        "erzaehler",
         write_bytes(b"old"),
         write_bytes(b"oldmp3"),
     )
@@ -537,12 +551,14 @@ fn failed_mp3_encode_leaves_no_tmp_and_old_set() {
     let err = encode_and_publish(
         &[0.0; 10],
         24000,
-        &site,
-        "erzaehler",
-        "E",
+        &VoiceTarget {
+            slug_dir: &site,
+            voice: "erzaehler",
+            label: "E",
+            default: "erzaehler",
+            post: &post(),
+        },
         &t,
-        &post(),
-        "erzaehler",
         write_bytes(b"new"),
         failing,
     );

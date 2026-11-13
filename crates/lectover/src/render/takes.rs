@@ -72,31 +72,29 @@ impl Take {
     }
 }
 
-/// Synthesise `texts`; `budgets[i]` is the token budget of `ending.tts_text(texts[i])`
-/// (`plan::max_tokens_for`). Progress goes to stdout, warnings to stderr.
-#[allow(clippy::too_many_arguments)]
+/// The chunks to synthesise and how to sample and judge them.
+#[derive(Clone, Copy)]
+pub struct ChunkRequest<'a> {
+    /// The chunk texts.
+    pub texts: &'a [String],
+    /// `budgets[i]` is the token budget of `ending.tts_text(texts[i])` (`plan::max_tokens_for`).
+    pub budgets: &'a [usize],
+    /// Base seed of round 0, candidate 0.
+    pub seed: u64,
+    /// Sampling temperature of round 0 (see [`round_temperature`]).
+    pub temperature: f32,
+    /// Lexicon applied when scoring takes against the chunk text.
+    pub lex: &'a Lexicon,
+}
+
+/// Synthesise `req.texts`. Progress goes to stdout, warnings to stderr.
 pub fn synthesize_chunks(
     tts: &mut dyn Synth,
     asr: &mut dyn Transcribe,
     ending: &mut dyn Ending,
-    texts: &[String],
-    budgets: &[usize],
-    seed: u64,
-    temperature: f32,
-    lex: &Lexicon,
+    req: &ChunkRequest,
 ) -> Result<Vec<Vec<f32>>> {
-    synthesize_chunks_with(
-        tts,
-        asr,
-        ending,
-        texts,
-        budgets,
-        seed,
-        temperature,
-        lex,
-        &mut io::stdout(),
-        &mut io::stderr(),
-    )
+    synthesize_chunks_with(tts, asr, ending, req, &mut io::stdout(), &mut io::stderr())
 }
 
 /// [`synthesize_chunks`] with progress written to `log` and warnings to `warn`.
@@ -107,22 +105,24 @@ pub fn synthesize_chunks(
 /// Each round re-generates the chunks not yet [`Take::accepted`] in one `generate` call,
 /// each with its bucket's token budget, sampled at [`round_temperature`]. Spare batch slots
 /// ([`Synth::max_batch`]) go to extra candidates: every chunk of the round gets
-/// `max_batch / chunks` takes, at least 1 and at most [`MAX_CANDIDATES`], candidate `j` seeded `seed + round + MAX_ROUNDS * j`
-/// (so candidate 0 keeps the `seed + round` of an unbatched render). Identical requests
+/// `max_batch / chunks` takes, at least 1 and at most [`MAX_CANDIDATES`], candidate `j` seeded
+/// `req.seed + round + MAX_ROUNDS * j` (so candidate 0 keeps the `req.seed + round` of an unbatched render). Identical requests
 /// (a heading repeated in the post) are generated and scored once.
-#[allow(clippy::too_many_arguments)]
 pub fn synthesize_chunks_with(
     tts: &mut dyn Synth,
     asr: &mut dyn Transcribe,
     ending: &mut dyn Ending,
-    texts: &[String],
-    budgets: &[usize],
-    seed: u64,
-    temperature: f32,
-    lex: &Lexicon,
+    req: &ChunkRequest,
     log: &mut dyn Write,
     warn: &mut dyn Write,
 ) -> Result<Vec<Vec<f32>>> {
+    let ChunkRequest {
+        texts,
+        budgets,
+        seed,
+        temperature,
+        lex,
+    } = *req;
     if budgets.len() != texts.len() {
         bail!("{} token budgets for {} texts", budgets.len(), texts.len());
     }

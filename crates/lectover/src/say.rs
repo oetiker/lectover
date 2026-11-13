@@ -17,7 +17,7 @@ use crate::ffi::{asr_library_device, resolve_device, QwenAligner, QwenAsr, QwenT
 use crate::models::ModelFiles;
 use crate::plan::max_tokens_for;
 use crate::render::run::voice_ref;
-use crate::render::{synthesize_chunks, with_carrier, CarrierEnding, TakeCache};
+use crate::render::{synthesize_chunks, with_carrier, CarrierEnding, ChunkRequest, TakeCache};
 use crate::settings::Settings;
 use crate::text::normalize::{load_lexicon, spoken_groups, Lexicon};
 use crate::voices::load_registry;
@@ -139,11 +139,13 @@ pub fn run(args: &SayArgs, settings: &Settings) -> Result<()> {
                 &mut cached,
                 &mut asr,
                 &mut ending,
-                &texts,
-                &budgets,
-                args.seed,
-                0.9,
-                &lexicon,
+                &ChunkRequest {
+                    texts: &texts,
+                    budgets: &budgets,
+                    seed: args.seed,
+                    temperature: 0.9,
+                    lex: &lexicon,
+                },
             )?;
             for (n, ((take, line), spoken)) in takes.iter().zip(&args.lines).zip(&texts).enumerate()
             {

@@ -63,7 +63,7 @@ fn site_cfg(domain: &str, extra: &str) -> String {
     format!("[site.\"{domain}\"]\nghost_url = \"https://{domain}\"\n{extra}\n")
 }
 
-fn failing<'a>(cs: &'a [Check]) -> Vec<&'a Check> {
+fn failing(cs: &[Check]) -> Vec<&Check> {
     cs.iter().filter(|c| c.status == Status::Fail).collect()
 }
 
@@ -221,7 +221,7 @@ fn run_online(
     )
 }
 
-fn ghost<'a>(cs: &'a [Check]) -> &'a Check {
+fn ghost(cs: &[Check]) -> &Check {
     cs.iter()
         .find(|c| c.what.contains("Ghost Content API"))
         .expect("ghost check")

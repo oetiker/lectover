@@ -198,6 +198,9 @@ enum Conditioning<'a> {
     Clone {
         voice: &'a sys::qt_voice_ref,
         text: &'a CString,
+        /// Sampling temperature of the residual codebooks.
+        subtalker_temperature: f32,
+        non_streaming: bool,
     },
     Instruct(&'a CString),
 }
@@ -211,8 +214,6 @@ fn synthesize(
     max_tokens: usize,
     seed: u64,
     temperature: f32,
-    subtalker_temperature: Option<f32>,
-    non_streaming: bool,
 ) -> Result<Vec<f32>> {
     let text_c = c_string(text, "text")?;
     let mut params = sys::qt_tts_params::default();
@@ -222,7 +223,12 @@ fn synthesize(
     params.text = text_c.as_ptr();
     params.lang = lang.as_ptr();
     match cond {
-        Conditioning::Clone { voice, text } => {
+        Conditioning::Clone {
+            voice,
+            text,
+            subtalker_temperature,
+            non_streaming,
+        } => {
             params.ref_spk_emb = voice.ref_spk_emb;
             params.ref_spk_dim = voice.ref_spk_dim;
             params.ref_codes = voice.ref_codes;
@@ -230,15 +236,13 @@ fn synthesize(
             params.ref_text = text.as_ptr();
             params.tail_pad_frames = TAIL_PAD_FRAMES;
             params.icl_non_streaming = non_streaming as i32;
+            params.subtalker_temperature = subtalker_temperature;
         }
         Conditioning::Instruct(instruct) => params.instruct = instruct.as_ptr(),
     }
     // -1 would mean "random seed" to the library.
     params.seed = i64::try_from(seed).map_err(|_| anyhow!("seed {seed} exceeds i64"))?;
     params.temperature = temperature;
-    if let Some(t) = subtalker_temperature {
-        params.subtalker_temperature = t;
-    }
     params.max_new_tokens = c_len(max_tokens, "max_tokens")?;
 
     let mut out = Audio(sys::qt_audio {
@@ -384,6 +388,8 @@ impl QwenTts {
         let cond = Conditioning::Clone {
             voice: &self.voice.0,
             text: &self.voice_text,
+            subtalker_temperature: self.subtalker_temperature,
+            non_streaming: self.non_streaming,
         };
         synthesize(
             self.ctx,
@@ -393,8 +399,6 @@ impl QwenTts {
             max_tokens,
             seed,
             temperature,
-            Some(self.subtalker_temperature),
-            self.non_streaming,
         )
     }
 }
@@ -543,8 +547,6 @@ impl QwenVoiceDesign {
             max_tokens,
             seed,
             temperature,
-            None,
-            false,
         )
     }
 }
