@@ -48,7 +48,10 @@ fn load_registry_missing_file_and_bad_id_error() {
     assert_eq!(err, format!("voice registry missing: {}", path.display()));
     fs::write(&path, r#"{"Bad Id": {"label": "x"}}"#).unwrap();
     let err = load_registry(t.path()).unwrap_err().to_string();
-    assert_eq!(err, format!("invalid voice id in {}: 'Bad Id'", path.display()));
+    assert_eq!(
+        err,
+        format!("invalid voice id in {}: 'Bad Id'", path.display())
+    );
 }
 
 #[test]

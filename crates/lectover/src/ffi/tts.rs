@@ -60,7 +60,13 @@ unsafe impl Sync for Shared<'_> {}
 impl Shared<'_> {
     // A method, not `this.0.synthesize`: closures capture disjoint fields, and `&QwenTts`
     // itself is not Send.
-    fn synthesize(&self, text: &str, max_tokens: usize, seed: u64, temperature: f32) -> Result<Vec<f32>> {
+    fn synthesize(
+        &self,
+        text: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> Result<Vec<f32>> {
         self.0.synthesize(text, max_tokens, seed, temperature)
     }
 }
@@ -121,7 +127,13 @@ fn check_abi(found: i32, what: &str) -> Result<()> {
 
 /// Load a talker + codec pair on `device` and check its model type and German support.
 /// The returned handle is freed by the caller's `Drop`.
-fn init(talker: &Path, codec: &Path, device: Device, model_type: &str, max_batch: usize) -> Result<*mut sys::qt_context> {
+fn init(
+    talker: &Path,
+    codec: &Path,
+    device: Device,
+    model_type: &str,
+    max_batch: usize,
+) -> Result<*mut sys::qt_context> {
     check_ggml_layout()?;
     require_file(talker, "TTS talker model")?;
     require_file(codec, "TTS codec model")?;
@@ -136,7 +148,8 @@ fn init(talker: &Path, codec: &Path, device: Device, model_type: &str, max_batch
     params.talker_path = talker_c.as_ptr();
     params.codec_path = codec_c.as_ptr();
     params.device = device_c.as_ptr();
-    params.max_batch = i32::try_from(max_batch.max(1)).map_err(|_| anyhow!("max_batch {max_batch} too large"))?;
+    params.max_batch =
+        i32::try_from(max_batch.max(1)).map_err(|_| anyhow!("max_batch {max_batch} too large"))?;
 
     // SAFETY: params and the strings it points to outlive the call; qt_init copies what it keeps.
     let ctx = unsafe { sys::qt_init(&params) };
@@ -152,7 +165,10 @@ fn init(talker: &Path, codec: &Path, device: Device, model_type: &str, max_batch
         // SAFETY: the returned strings are owned by the live handle and copied immediately.
         let found = c_str(unsafe { sys::qt_model_type(ctx) });
         if found != model_type {
-            bail!("{}: model type {found:?}, expected a {model_type:?} talker", talker.display());
+            bail!(
+                "{}: model type {found:?}, expected a {model_type:?} talker",
+                talker.display()
+            );
         }
         // SAFETY: as above; i stays in [0, qt_n_languages).
         let langs: Vec<String> = unsafe {
@@ -161,7 +177,10 @@ fn init(talker: &Path, codec: &Path, device: Device, model_type: &str, max_batch
                 .collect()
         };
         if !langs.iter().any(|l| l == LANG) {
-            bail!("{}: no {LANG:?} in its languages {langs:?}", talker.display());
+            bail!(
+                "{}: no {LANG:?} in its languages {langs:?}",
+                talker.display()
+            );
         }
         Ok(())
     })();
@@ -176,7 +195,10 @@ fn init(talker: &Path, codec: &Path, device: Device, model_type: &str, max_batch
 /// What conditions a synthesis besides the text: a clone voice (base) or a description
 /// (voice_design).
 enum Conditioning<'a> {
-    Clone { voice: &'a sys::qt_voice_ref, text: &'a CString },
+    Clone {
+        voice: &'a sys::qt_voice_ref,
+        text: &'a CString,
+    },
     Instruct(&'a CString),
 }
 
@@ -239,7 +261,8 @@ fn synthesize(
             a.channels
         );
     }
-    let n = usize::try_from(a.n_samples).map_err(|_| anyhow!("negative sample count {}", a.n_samples))?;
+    let n = usize::try_from(a.n_samples)
+        .map_err(|_| anyhow!("negative sample count {}", a.n_samples))?;
     if n == 0 || a.samples.is_null() {
         bail!("qt_synthesize returned no audio for {text:?}");
     }
@@ -271,7 +294,11 @@ impl QwenTts {
                 .map_or(0, |d| d.as_nanos());
             format!("{}:{len}:{mtime}", p.display())
         };
-        let model_id = format!("qwentts {version} | {} | {} | {device}", file_id(talker), file_id(codec));
+        let model_id = format!(
+            "qwentts {version} | {} | {} | {device}",
+            file_id(talker),
+            file_id(codec)
+        );
         let mut tts = QwenTts {
             ctx,
             max_batch,
@@ -320,13 +347,26 @@ impl QwenTts {
         // SAFETY: ctx is live, pcm outlives the blocking call, voice.0 is an empty struct
         // that the call fills with malloc-owned buffers VoiceRef's Drop releases.
         let status = unsafe {
-            sys::qt_extract_voice_ref(self.ctx, pcm.as_ptr(), c_len(pcm.len(), "voice clip")?, &mut voice.0)
+            sys::qt_extract_voice_ref(
+                self.ctx,
+                pcm.as_ptr(),
+                c_len(pcm.len(), "voice clip")?,
+                &mut voice.0,
+            )
         };
         if status != sys::QT_STATUS_OK {
-            bail!("encoding voice clip {} failed (status {status}): {}", wav.display(), last_error());
+            bail!(
+                "encoding voice clip {} failed (status {status}): {}",
+                wav.display(),
+                last_error()
+            );
         }
         let mut h = Sha1::new();
-        h.update(pcm.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<u8>>());
+        h.update(
+            pcm.iter()
+                .flat_map(|v| v.to_le_bytes())
+                .collect::<Vec<u8>>(),
+        );
         h.update(text.as_bytes());
         self.voice_id = h.finalize().iter().map(|b| format!("{b:02x}")).collect();
         self.voice_text = c_string(text, "voice transcript")?;
@@ -334,9 +374,28 @@ impl QwenTts {
         Ok(())
     }
 
-    fn synthesize(&self, text: &str, max_tokens: usize, seed: u64, temperature: f32) -> Result<Vec<f32>> {
-        let cond = Conditioning::Clone { voice: &self.voice.0, text: &self.voice_text };
-        synthesize(self.ctx, &self.lang, cond, text, max_tokens, seed, temperature, Some(self.subtalker_temperature), self.non_streaming)
+    fn synthesize(
+        &self,
+        text: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> Result<Vec<f32>> {
+        let cond = Conditioning::Clone {
+            voice: &self.voice.0,
+            text: &self.voice_text,
+        };
+        synthesize(
+            self.ctx,
+            &self.lang,
+            cond,
+            text,
+            max_tokens,
+            seed,
+            temperature,
+            Some(self.subtalker_temperature),
+            self.non_streaming,
+        )
     }
 }
 
@@ -424,7 +483,10 @@ impl Synth for QwenTts {
             }
             match first_err {
                 Some(e) => Err(e),
-                None => Ok(takes.into_iter().map(|t| t.expect("every thread sent its take")).collect()),
+                None => Ok(takes
+                    .into_iter()
+                    .map(|t| t.expect("every thread sent its take"))
+                    .collect()),
             }
         })
     }
@@ -461,11 +523,28 @@ impl QwenVoiceDesign {
     }
 
     /// Speak `text` (German) in the voice `instruct` describes; at most `max_tokens` frames.
-    pub fn design(&mut self, text: &str, instruct: &str, max_tokens: usize, seed: u64, temperature: f32) -> Result<Vec<f32>> {
+    pub fn design(
+        &mut self,
+        text: &str,
+        instruct: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> Result<Vec<f32>> {
         if instruct.trim().is_empty() {
             bail!("voice design needs a non-empty voice description");
         }
         let instruct = c_string(instruct, "voice description")?;
-        synthesize(self.ctx, &self.lang, Conditioning::Instruct(&instruct), text, max_tokens, seed, temperature, None, false)
+        synthesize(
+            self.ctx,
+            &self.lang,
+            Conditioning::Instruct(&instruct),
+            text,
+            max_tokens,
+            seed,
+            temperature,
+            None,
+            false,
+        )
     }
 }

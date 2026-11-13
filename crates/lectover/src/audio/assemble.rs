@@ -116,7 +116,11 @@ pub fn trim_and_level_with(wav: &[f32], sr: u32) -> (Vec<f32>, Trim) {
         ),
         _ => (0, wav.len()), // shorter than one frame: nothing to judge
     };
-    let loud: Vec<f32> = wav[start..end].iter().copied().filter(|v| v.abs() > 0.01).collect();
+    let loud: Vec<f32> = wav[start..end]
+        .iter()
+        .copied()
+        .filter(|v| v.abs() > 0.01)
+        .collect();
     let gain = if loud.is_empty() {
         1.0
     } else {
@@ -173,7 +177,9 @@ pub fn level_segments(wav: &[f32], sr: u32) -> Vec<f32> {
         return wav.to_vec();
     }
     let power = |frames: &mut dyn Iterator<Item = usize>| {
-        let (sum, n) = frames.fold((0.0, 0usize), |(s, n), f| (s + 10f64.powf(db[f] / 10.0), n + 1));
+        let (sum, n) = frames.fold((0.0, 0usize), |(s, n), f| {
+            (s + 10f64.powf(db[f] / 10.0), n + 1)
+        });
         (10.0 * (sum / n.max(1) as f64 + 1e-18).log10(), n)
     };
     let (take_db, _) = power(&mut voiced.iter().copied());
@@ -182,13 +188,20 @@ pub fn level_segments(wav: &[f32], sr: u32) -> Vec<f32> {
         .iter()
         .map(|&(a, b)| {
             let (seg_db, n) = power(&mut voiced.iter().copied().filter(|&f| f >= a && f <= b));
-            (n >= min_frames).then(|| (take_db - seg_db).clamp(-SEGMENT_MAX_GAIN_DB, SEGMENT_MAX_GAIN_DB))
+            (n >= min_frames)
+                .then(|| (take_db - seg_db).clamp(-SEGMENT_MAX_GAIN_DB, SEGMENT_MAX_GAIN_DB))
         })
         .collect();
     // short segments borrow the previous measurable gain, else the next, else none
     for i in 0..gains.len() {
         if gains[i].is_none() {
-            gains[i] = gains[..i].iter().rev().flatten().next().copied().or_else(|| gains[i..].iter().flatten().next().copied());
+            gains[i] = gains[..i]
+                .iter()
+                .rev()
+                .flatten()
+                .next()
+                .copied()
+                .or_else(|| gains[i..].iter().flatten().next().copied());
         }
     }
     let gains: Vec<f64> = gains.into_iter().map(|g| g.unwrap_or(0.0)).collect();
@@ -257,7 +270,9 @@ fn median(values: &[f64]) -> f64 {
 /// `f` over `items` on all cores, results in input order. Every item is computed on its own,
 /// so the result is the same as a sequential map.
 fn par_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> {
-    let workers = std::thread::available_parallelism().map_or(1, |n| n.get()).min(items.len());
+    let workers = std::thread::available_parallelism()
+        .map_or(1, |n| n.get())
+        .min(items.len());
     if workers <= 1 {
         return items.iter().map(f).collect();
     }
@@ -273,7 +288,11 @@ fn par_map<T: Sync, R: Send>(items: &[T], f: impl Fn(&T) -> R + Sync) -> Vec<R> 
             });
         }
     });
-    out.into_inner().unwrap().into_iter().map(|r| r.expect("every item was mapped")).collect()
+    out.into_inner()
+        .unwrap()
+        .into_iter()
+        .map(|r| r.expect("every item was mapped"))
+        .collect()
 }
 
 /// Room tone at the very start of the file, before the first take or sting. An output that
@@ -323,7 +342,9 @@ pub fn assemble_parts_with(
     pace: bool,
     stings: &[(usize, Option<&[f32]>)],
 ) -> (Vec<f32>, Vec<(f64, Vec<f32>)>) {
-    let trimmed: Vec<Vec<f32>> = par_map(takes, |(w, _, _)| level_segments(&trim_and_level(w, sr), sr));
+    let trimmed: Vec<Vec<f32>> = par_map(takes, |(w, _, _)| {
+        level_segments(&trim_and_level(w, sr), sr)
+    });
     let rates: Vec<f64> = trimmed
         .iter()
         .zip(takes)
@@ -368,7 +389,9 @@ pub fn assemble_parts_with(
 
     let mut audio = Vec::new();
     let mut placed = Vec::with_capacity(takes.len());
-    let pad = |audio: &mut Vec<f32>, secs: f64| audio.resize(audio.len() + (sr as f64 * secs) as usize, 0.0);
+    let pad = |audio: &mut Vec<f32>, secs: f64| {
+        audio.resize(audio.len() + (sr as f64 * secs) as usize, 0.0)
+    };
     let mut pending = stings.iter().peekable();
     let mut play_stings = |audio: &mut Vec<f32>, at: usize| {
         while let Some((_, sound)) = pending.next_if(|(i, _)| *i == at) {

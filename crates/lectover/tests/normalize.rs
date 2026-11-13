@@ -120,12 +120,25 @@ fn lexicon_applies_whole_words() {
 
 #[test]
 fn lexicon_applies_to_hyphen_compound_parts() {
-    let lexicon = vec![("FDP".to_string(), "Äf-De-Pe".to_string()), ("sbo".to_string(), "Äs-Be-O".to_string())];
-    let got: Vec<String> = spoken_groups("FDP-Fraktion, Rot-FDP-Achse und sbo-Rat; FDPler", &lexicon)
-        .into_iter()
-        .map(|g| g.spoken)
-        .collect();
-    assert_eq!(got, ["Äf-De-Pe-Fraktion,", "Rot-Äf-De-Pe-Achse", "und", "Äs-Be-O-Rat;", "FDPler"]);
+    let lexicon = vec![
+        ("FDP".to_string(), "Äf-De-Pe".to_string()),
+        ("sbo".to_string(), "Äs-Be-O".to_string()),
+    ];
+    let got: Vec<String> =
+        spoken_groups("FDP-Fraktion, Rot-FDP-Achse und sbo-Rat; FDPler", &lexicon)
+            .into_iter()
+            .map(|g| g.spoken)
+            .collect();
+    assert_eq!(
+        got,
+        [
+            "Äf-De-Pe-Fraktion,",
+            "Rot-Äf-De-Pe-Achse",
+            "und",
+            "Äs-Be-O-Rat;",
+            "FDPler"
+        ]
+    );
 }
 
 #[test]
@@ -424,9 +437,18 @@ fn groups_match_goldens() {
 #[test]
 fn money_with_scale_words_and_spaced_thousands() {
     let cases = [
-        ("Das Projekt kostet CHF 157 Mio. Stadt", "Das Projekt kostet einhundertsiebenundfünfzig Millionen. Stadt"),
-        ("einen Bruttokredit von CHF 46,2 Mio.; nach", "einen Bruttokredit von sechsundvierzig Komma zwei Millionen; nach"),
-        ("netto CHF 29,1 Mio. An den", "netto neunundzwanzig Komma eins Millionen. An den"),
+        (
+            "Das Projekt kostet CHF 157 Mio. Stadt",
+            "Das Projekt kostet einhundertsiebenundfünfzig Millionen. Stadt",
+        ),
+        (
+            "einen Bruttokredit von CHF 46,2 Mio.; nach",
+            "einen Bruttokredit von sechsundvierzig Komma zwei Millionen; nach",
+        ),
+        (
+            "netto CHF 29,1 Mio. An den",
+            "netto neunundzwanzig Komma eins Millionen. An den",
+        ),
         ("CHF 1 Mio. bewertet", "eine Million bewertet"),
         ("CHF 2 Mrd.", "zwei Milliarden."),
         ("CHF 1,5 Milliarden", "eins Komma fünf Milliarden"),
@@ -437,12 +459,24 @@ fn money_with_scale_words_and_spaced_thousands() {
         ("CHF 1,05", "ein Franken fünf"),
         ("kostet CHF 4,50 pro", "kostet vier Franken fünfzig pro"),
         ("kostet 4,50 Franken", "kostet vier Franken fünfzig"),
-        ("um CHF 300 000 jährlich", "um dreihunderttausend Franken jährlich"),
-        ("rund CHF 14 000 pro Jahr", "rund vierzehntausend Franken pro Jahr"),
+        (
+            "um CHF 300 000 jährlich",
+            "um dreihunderttausend Franken jährlich",
+        ),
+        (
+            "rund CHF 14 000 pro Jahr",
+            "rund vierzehntausend Franken pro Jahr",
+        ),
         ("für CHF 10 pro m²", "für zehn Franken pro Quadratmeter"),
-        ("CHF 30 und CHF 60 verlangen", "dreißig Franken und sechzig Franken verlangen"),
+        (
+            "CHF 30 und CHF 60 verlangen",
+            "dreißig Franken und sechzig Franken verlangen",
+        ),
         ("für CHF 1 an die Stadt", "für ein Franken an die Stadt"),
-        ("20 845 m²", "zwanzigtausendachthundertfünfundvierzig Quadratmeter"),
+        (
+            "20 845 m²",
+            "zwanzigtausendachthundertfünfundvierzig Quadratmeter",
+        ),
         ("3 km² Wald", "drei Quadratkilometer Wald"),
         ("500 m³ Beton", "fünfhundert Kubikmeter Beton"),
     ];
@@ -456,17 +490,35 @@ fn money_with_scale_words_and_spaced_thousands() {
 #[test]
 fn sentence_final_abbreviations_keep_the_full_stop() {
     let cases = [
-        ("Es kostet 157 Mio. Die Stadt zahlt.", "Es kostet einhundertsiebenundfünfzig Millionen. Die Stadt zahlt."),
-        ("Es kostet 157 Mio.", "Es kostet einhundertsiebenundfünfzig Millionen."),
-        ("Es kostet 157 Mio. Franken.", "Es kostet einhundertsiebenundfünfzig Millionen Franken."),
+        (
+            "Es kostet 157 Mio. Die Stadt zahlt.",
+            "Es kostet einhundertsiebenundfünfzig Millionen. Die Stadt zahlt.",
+        ),
+        (
+            "Es kostet 157 Mio.",
+            "Es kostet einhundertsiebenundfünfzig Millionen.",
+        ),
+        (
+            "Es kostet 157 Mio. Franken.",
+            "Es kostet einhundertsiebenundfünfzig Millionen Franken.",
+        ),
         ("rund 3 Mio. Einwohner", "rund drei Millionen Einwohner"),
-        ("rund 3 Mio. Einwohnerinnen und Einwohner", "rund drei Millionen Einwohnerinnen und Einwohner"),
+        (
+            "rund 3 Mio. Einwohnerinnen und Einwohner",
+            "rund drei Millionen Einwohnerinnen und Einwohner",
+        ),
         ("2 Mrd. Euro", "zwei Milliarden Euro"),
         ("3 Mio. für die Schule", "drei Millionen für die Schule"),
-        ("wenn die Stadt 32 Mio. Überschuss ausweist.", "wenn die Stadt zweiunddreißig Millionen Überschuss ausweist."),
+        (
+            "wenn die Stadt 32 Mio. Überschuss ausweist.",
+            "wenn die Stadt zweiunddreißig Millionen Überschuss ausweist.",
+        ),
         ("Velo, Bus usw. Danach", "Velo, Bus und so weiter. Danach"),
         ("Velo, Bus usw.", "Velo, Bus und so weiter."),
-        ("Velo, Bus usw. und mehr", "Velo, Bus und so weiter und mehr"),
+        (
+            "Velo, Bus usw. und mehr",
+            "Velo, Bus und so weiter und mehr",
+        ),
         ("ca. Mitte Mai", "circa Mitte Mai"),
         ("u.a. Schulen", "unter anderem Schulen"),
     ];

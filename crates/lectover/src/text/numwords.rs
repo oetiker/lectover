@@ -1,8 +1,25 @@
 //! German number words, reproducing num2words (lang="de") spellings.
 
 const LOW: [&str; 20] = [
-    "null", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn",
-    "elf", "zwölf", "dreizehn", "vierzehn", "fünfzehn", "sechzehn", "siebzehn", "achtzehn",
+    "null",
+    "eins",
+    "zwei",
+    "drei",
+    "vier",
+    "fünf",
+    "sechs",
+    "sieben",
+    "acht",
+    "neun",
+    "zehn",
+    "elf",
+    "zwölf",
+    "dreizehn",
+    "vierzehn",
+    "fünfzehn",
+    "sechzehn",
+    "siebzehn",
+    "achtzehn",
     "neunzehn",
 ];
 const TENS: [&str; 10] = [
@@ -48,7 +65,11 @@ fn below_million(n: u64) -> String {
     let mut s = String::new();
     if t > 0 {
         // num2words quirk: only a bare 1 becomes "ein"; "einhunderteinstausend".
-        s.push_str(&if t == 1 { "ein".to_string() } else { below_1000(t) });
+        s.push_str(&if t == 1 {
+            "ein".to_string()
+        } else {
+            below_1000(t)
+        });
         s.push_str("tausend");
     }
     if r > 0 || t == 0 {

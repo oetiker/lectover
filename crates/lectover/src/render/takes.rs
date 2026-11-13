@@ -47,7 +47,12 @@ pub struct Take {
 
 impl Take {
     pub fn new(score: f64, wav: Vec<f32>, heard: String) -> Self {
-        Take { score: round2(score), wav, heard, clipped: false }
+        Take {
+            score: round2(score),
+            wav,
+            heard,
+            clipped: false,
+        }
     }
 
     /// Good enough to keep without another round.
@@ -80,7 +85,18 @@ pub fn synthesize_chunks(
     temperature: f32,
     lex: &Lexicon,
 ) -> Result<Vec<Vec<f32>>> {
-    synthesize_chunks_with(tts, asr, ending, texts, budgets, seed, temperature, lex, &mut io::stdout(), &mut io::stderr())
+    synthesize_chunks_with(
+        tts,
+        asr,
+        ending,
+        texts,
+        budgets,
+        seed,
+        temperature,
+        lex,
+        &mut io::stdout(),
+        &mut io::stderr(),
+    )
 }
 
 /// [`synthesize_chunks`] with progress written to `log` and warnings to `warn`.
@@ -118,7 +134,12 @@ pub fn synthesize_chunks_with(
         if per_chunk == 1 {
             writeln!(log, "round {}: generating {} chunk(s)", rnd + 1, todo.len())?;
         } else {
-            writeln!(log, "round {}: generating {} chunk(s), {per_chunk} candidates each", rnd + 1, todo.len())?;
+            writeln!(
+                log,
+                "round {}: generating {} chunk(s), {per_chunk} candidates each",
+                rnd + 1,
+                todo.len()
+            )?;
         }
         // (chunk, index into `reqs`), in bucket order as the log always listed them.
         let mut cands: Vec<(usize, usize)> = Vec::new();
@@ -127,7 +148,11 @@ pub fn synthesize_chunks_with(
         for bucket in BUCKETS {
             for &i in todo.iter().filter(|&&i| bucket_for(budgets[i]) == bucket) {
                 for j in 0..per_chunk {
-                    let req = TakeRequest::new(ending.tts_text(&texts[i]), bucket, seed + (rnd + MAX_ROUNDS * j) as u64);
+                    let req = TakeRequest::new(
+                        ending.tts_text(&texts[i]),
+                        bucket,
+                        seed + (rnd + MAX_ROUNDS * j) as u64,
+                    );
                     let slot = *seen.entry(req.clone()).or_insert_with(|| {
                         reqs.push(req);
                         reqs.len() - 1
@@ -145,16 +170,30 @@ pub fn synthesize_chunks_with(
         // as the engine finishes them, so the ASR check runs while the TTS still decodes.
         let mut judged: Vec<Option<(Take, f64)>> = vec![None; reqs.len()];
         let pad = tts.tail_pad_samples();
-        let wavs = tts.generate_each(&reqs, round_temperature(temperature, rnd), &mut |slot, raw| {
-            let text = &texts[slot_chunk[slot].expect("every request belongs to a chunk")];
-            let body = &raw[..raw.len().saturating_sub(pad)];
-            let (wav, clean) = ending.finish(body, sr, text)?;
-            let (s, heard) = score(asr, &wav, sr, text, lex)?;
-            judged[slot] = Some((Take { clipped: !clean, ..Take::new(s, wav, heard) }, s));
-            Ok(())
-        })?;
+        let wavs = tts.generate_each(
+            &reqs,
+            round_temperature(temperature, rnd),
+            &mut |slot, raw| {
+                let text = &texts[slot_chunk[slot].expect("every request belongs to a chunk")];
+                let body = &raw[..raw.len().saturating_sub(pad)];
+                let (wav, clean) = ending.finish(body, sr, text)?;
+                let (s, heard) = score(asr, &wav, sr, text, lex)?;
+                judged[slot] = Some((
+                    Take {
+                        clipped: !clean,
+                        ..Take::new(s, wav, heard)
+                    },
+                    s,
+                ));
+                Ok(())
+            },
+        )?;
         if wavs.len() != reqs.len() {
-            bail!("synthesis returned {} takes for {} requests", wavs.len(), reqs.len());
+            bail!(
+                "synthesis returned {} takes for {} requests",
+                wavs.len(),
+                reqs.len()
+            );
         }
         // Pick and log in request order, independent of the order the takes finished in.
         for (idx, slot) in cands {
@@ -176,13 +215,27 @@ pub fn synthesize_chunks_with(
             break;
         }
     }
-    let best: Vec<Take> = best.into_iter().map(|b| b.expect("every text was generated")).collect();
+    let best: Vec<Take> = best
+        .into_iter()
+        .map(|b| b.expect("every text was generated"))
+        .collect();
     for &i in &todo {
         if best[i].score < MIN_SCORE {
-            writeln!(warn, "WARNING: chunk {} best score {:.2}, heard: {}", i + 1, best[i].score, best[i].heard)?;
+            writeln!(
+                warn,
+                "WARNING: chunk {} best score {:.2}, heard: {}",
+                i + 1,
+                best[i].score,
+                best[i].heard
+            )?;
         }
         if best[i].clipped {
-            writeln!(warn, "WARNING: chunk {} no clean cut before the carrier in any take: {}", i + 1, texts[i])?;
+            writeln!(
+                warn,
+                "WARNING: chunk {} no clean cut before the carrier in any take: {}",
+                i + 1,
+                texts[i]
+            )?;
         }
     }
     Ok(best.into_iter().map(|b| b.wav).collect())

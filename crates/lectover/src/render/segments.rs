@@ -56,7 +56,11 @@ pub fn align_segments_with(
             }
             Err(err) => match err.downcast_ref::<FillSpanError>() {
                 Some(fill) => {
-                    writeln!(warn, "WARNING: chunk {}: {fill}; interpolating its word times", i + 1)?;
+                    writeln!(
+                        warn,
+                        "WARNING: chunk {}: {fill}; interpolating its word times",
+                        i + 1
+                    )?;
                     None
                 }
                 None => return Err(err),
@@ -65,7 +69,12 @@ pub fn align_segments_with(
         // never placeable -> spread over the chunk
         let items: Vec<WordTime> = aligned.unwrap_or_else(|| vec![(0.0, 0.0); words.len()]);
         let (local, interp) = place_words(&items, &words, wav.len() as f64 / sr as f64);
-        times.push(local.into_iter().map(|(s, e)| (offset + s, offset + e)).collect());
+        times.push(
+            local
+                .into_iter()
+                .map(|(s, e)| (offset + s, offset + e))
+                .collect(),
+        );
         flags.push(interp);
     }
     Ok((times, flags))

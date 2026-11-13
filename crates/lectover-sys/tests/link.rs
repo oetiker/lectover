@@ -11,7 +11,9 @@ fn registry_names() -> Vec<String> {
         (0..sys::ggml_backend_reg_count())
             .map(|i| {
                 let reg = sys::ggml_backend_reg_get(i);
-                CStr::from_ptr(sys::ggml_backend_reg_name(reg)).to_string_lossy().into_owned()
+                CStr::from_ptr(sys::ggml_backend_reg_name(reg))
+                    .to_string_lossy()
+                    .into_owned()
             })
             .collect()
     }
@@ -85,5 +87,8 @@ fn cpu_backend_is_registered() {
 fn metal_backend_registered() {
     // ggml names the Metal registry "MTL" (devices "MTL0", ...).
     let names = registry_names();
-    assert!(names.iter().any(|n| n == "MTL" || n == "Metal"), "registry: {names:?}");
+    assert!(
+        names.iter().any(|n| n == "MTL" || n == "Metal"),
+        "registry: {names:?}"
+    );
 }

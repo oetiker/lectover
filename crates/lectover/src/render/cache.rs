@@ -21,10 +21,20 @@ pub struct TakeCache<'a> {
 
 impl<'a> TakeCache<'a> {
     pub fn new(inner: &'a mut dyn Synth, dir: &Path) -> Self {
-        TakeCache { inner, dir: dir.to_path_buf() }
+        TakeCache {
+            inner,
+            dir: dir.to_path_buf(),
+        }
     }
 
-    fn path(&self, fingerprint: &str, text: &str, max_tokens: usize, seed: u64, temperature: f32) -> PathBuf {
+    fn path(
+        &self,
+        fingerprint: &str,
+        text: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> PathBuf {
         let mut h = Sha1::new();
         for part in [
             fingerprint.as_bytes(),
@@ -81,8 +91,10 @@ impl Synth for TakeCache<'_> {
         let Some(fp) = self.inner.fingerprint() else {
             return self.inner.generate_each(reqs, temperature, done);
         };
-        let paths: Vec<PathBuf> =
-            reqs.iter().map(|r| self.path(&fp, &r.text, r.max_tokens, r.seed, temperature)).collect();
+        let paths: Vec<PathBuf> = reqs
+            .iter()
+            .map(|r| self.path(&fp, &r.text, r.max_tokens, r.seed, temperature))
+            .collect();
         let mut takes: Vec<Option<Vec<f32>>> = paths.iter().map(|p| read_take(p)).collect();
         for (i, t) in takes.iter().enumerate() {
             if let Some(t) = t {
@@ -92,19 +104,31 @@ impl Synth for TakeCache<'_> {
         let missing: Vec<usize> = (0..reqs.len()).filter(|&i| takes[i].is_none()).collect();
         if !missing.is_empty() {
             let todo: Vec<TakeRequest> = missing.iter().map(|&i| reqs[i].clone()).collect();
-            let fresh = self.inner.generate_each(&todo, temperature, &mut |j, t| done(missing[j], t))?;
+            let fresh = self
+                .inner
+                .generate_each(&todo, temperature, &mut |j, t| done(missing[j], t))?;
             if fresh.len() != todo.len() {
-                bail!("synthesis returned {} takes for {} requests", fresh.len(), todo.len());
+                bail!(
+                    "synthesis returned {} takes for {} requests",
+                    fresh.len(),
+                    todo.len()
+                );
             }
             for (&i, wav) in missing.iter().zip(fresh) {
                 // A cache that cannot be written only costs time on the next render.
                 if let Err(e) = write_take(&paths[i], &wav) {
-                    eprintln!("warning: cannot cache take in {}: {e:#}", self.dir.display());
+                    eprintln!(
+                        "warning: cannot cache take in {}: {e:#}",
+                        self.dir.display()
+                    );
                 }
                 takes[i] = Some(wav);
             }
         }
-        Ok(takes.into_iter().map(|t| t.expect("every take was read or generated")).collect())
+        Ok(takes
+            .into_iter()
+            .map(|t| t.expect("every take was read or generated"))
+            .collect())
     }
 
     fn tail_pad_samples(&self) -> usize {

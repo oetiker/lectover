@@ -36,7 +36,11 @@ fn spread(words: &[&str], left: f64, right: f64) -> Vec<WordTime> {
         .collect()
 }
 
-pub fn place_words(items: &[WordTime], words: &[String], duration: f64) -> (Vec<WordTime>, Vec<bool>) {
+pub fn place_words(
+    items: &[WordTime],
+    words: &[String],
+    duration: f64,
+) -> (Vec<WordTime>, Vec<bool>) {
     let mut placed = Vec::with_capacity(items.len());
     let mut last_end = 0.0_f64;
     for &(s, e) in items {
@@ -62,7 +66,11 @@ pub fn place_words(items: &[WordTime], words: &[String], duration: f64) -> (Vec<
         while j < items.len() && !placed[j] {
             j += 1;
         }
-        let right = if j < items.len() { items[j].0.max(0.0).min(duration) } else { duration };
+        let right = if j < items.len() {
+            items[j].0.max(0.0).min(duration)
+        } else {
+            duration
+        };
         let right = right.max(left);
         let ws: Vec<&str> = words[i..j].iter().map(String::as_str).collect();
         for (k, t) in spread(&ws, left, right).into_iter().enumerate() {
@@ -150,9 +158,15 @@ pub fn assemble_token_times(
             if c.block != bi {
                 continue;
             }
-            let need: usize = groups[bi][c.g0..c.g1].iter().map(|g| spoken_words(&g.spoken).len()).sum();
+            let need: usize = groups[bi][c.g0..c.g1]
+                .iter()
+                .map(|g| spoken_words(&g.spoken).len())
+                .sum();
             if need != ct.len() {
-                bail!("block {bi}: chunk has {} word times, groups need {need}", ct.len());
+                bail!(
+                    "block {bi}: chunk has {} word times, groups need {need}",
+                    ct.len()
+                );
             }
             covered[c.g0..c.g1].fill(true);
             wt.extend_from_slice(ct);
@@ -161,7 +175,17 @@ pub fn assemble_token_times(
         let gs: Vec<Group> = groups[bi]
             .iter()
             .enumerate()
-            .map(|(i, g)| if covered[i] { g.clone() } else { Group { first: g.first, last: g.last, spoken: String::new() } })
+            .map(|(i, g)| {
+                if covered[i] {
+                    g.clone()
+                } else {
+                    Group {
+                        first: g.first,
+                        last: g.last,
+                        spoken: String::new(),
+                    }
+                }
+            })
             .collect();
         let (t, f) = token_times(&block.tokens, &gs, &wt, &wi, carry);
         if let Some(l) = t.last() {
@@ -173,7 +197,12 @@ pub fn assemble_token_times(
     Ok((result, flags))
 }
 
-pub fn build_timings(voice: &str, duration: f64, blocks: &[Block], times: &[Vec<WordTime>]) -> Result<Value> {
+pub fn build_timings(
+    voice: &str,
+    duration: f64,
+    blocks: &[Block],
+    times: &[Vec<WordTime>],
+) -> Result<Value> {
     let mut last_start = 0.0;
     let mut out = Vec::new();
     for (b, ts) in blocks.iter().zip(times) {
@@ -192,8 +221,17 @@ pub fn build_timings(voice: &str, duration: f64, blocks: &[Block], times: &[Vec<
 
 pub fn alignment_report(blocks: &[Block], interp: &[Vec<bool>]) -> String {
     let n: usize = interp.iter().map(Vec::len).sum();
-    let bad: usize = interp.iter().map(|f| f.iter().filter(|&&b| b).count()).sum();
-    let pct = |x: usize| if n > 0 { 100.0 * x as f64 / n as f64 } else { 0.0 };
+    let bad: usize = interp
+        .iter()
+        .map(|f| f.iter().filter(|&&b| b).count())
+        .sum();
+    let pct = |x: usize| {
+        if n > 0 {
+            100.0 * x as f64 / n as f64
+        } else {
+            0.0
+        }
+    };
     let mut lines = vec![format!(
         "aligned directly: {:.1} % of {n} tokens, interpolated: {:.1} %",
         pct(n - bad),
@@ -203,7 +241,11 @@ pub fn alignment_report(blocks: &[Block], interp: &[Vec<bool>]) -> String {
         let k = f.iter().filter(|&&x| x).count();
         if k >= 3 && k as f64 / f.len() as f64 >= 0.15 {
             let head: String = b.text.chars().take(30).collect();
-            lines.push(format!("block {i} ({}, \"{head}…\"): {k}/{} interpolated", b.tag, f.len()));
+            lines.push(format!(
+                "block {i} ({}, \"{head}…\"): {k}/{} interpolated",
+                b.tag,
+                f.len()
+            ));
         }
     }
     lines.join("\n")

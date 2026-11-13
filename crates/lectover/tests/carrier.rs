@@ -22,11 +22,17 @@ fn take(speech: usize, pause: usize, carrier: usize) -> Vec<f32> {
 
 #[test]
 fn carrier_follows_the_sentence_end() {
-    assert_eq!(with_carrier("Der Entscheid."), format!("Der Entscheid.{CARRIER}"));
+    assert_eq!(
+        with_carrier("Der Entscheid."),
+        format!("Der Entscheid.{CARRIER}")
+    );
     assert_eq!(with_carrier("Wirklich?"), format!("Wirklich?{CARRIER}"));
     assert_eq!(with_carrier("«Nein!»"), format!("«Nein!»{CARRIER}"));
     // a chunk without a sentence end gets a full stop first
-    assert_eq!(with_carrier("Der Entscheid "), format!("Der Entscheid.{CARRIER}"));
+    assert_eq!(
+        with_carrier("Der Entscheid "),
+        format!("Der Entscheid.{CARRIER}")
+    );
 }
 
 #[test]
@@ -101,7 +107,12 @@ impl Align for FakeAlign {
     fn align(&mut self, pcm16k: &[f32], words: &[String]) -> Result<Vec<(String, f64, f64)>> {
         assert!(!pcm16k.is_empty());
         match &self.0 {
-            Ok(spans) => Ok(words.iter().cloned().zip(spans).map(|(w, &(s, e))| (w, s, e)).collect()),
+            Ok(spans) => Ok(words
+                .iter()
+                .cloned()
+                .zip(spans)
+                .map(|(w, &(s, e))| (w, s, e))
+                .collect()),
             Err(()) => bail!("no alignment"),
         }
     }
@@ -113,13 +124,19 @@ fn carrier_ending_cuts_before_the_carrier_and_fades() {
     let w = take(500, 400, 300);
     let mut al = FakeAlign(Ok(vec![(0.0, 0.2), (0.2, 0.5), (0.9, 1.0), (1.0, 1.2)]));
     let mut end = CarrierEnding::new(&mut al);
-    assert_eq!(end.tts_text("Der Entscheid."), with_carrier("Der Entscheid."));
+    assert_eq!(
+        end.tts_text("Der Entscheid."),
+        with_carrier("Der Entscheid.")
+    );
     let (cut, clean) = end.finish(&w, SR, "Der Entscheid.").unwrap();
     assert!(clean);
     assert_eq!(cut.len(), 650);
     assert_eq!(cut[..500], w[..500]);
     let fade = (CUT_FADE_SECS * SR as f64) as usize;
-    assert!(cut[650 - fade..].iter().all(|&v| v == 0.0), "fade lies in the silence");
+    assert!(
+        cut[650 - fade..].iter().all(|&v| v == 0.0),
+        "fade lies in the silence"
+    );
 }
 
 #[test]

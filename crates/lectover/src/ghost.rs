@@ -10,7 +10,11 @@ use std::time::Duration;
 use crate::settings::SiteSettings;
 
 /// Everything except RFC 3986 unreserved characters is escaped (Python `quote(safe='')`).
-const QUOTE: &AsciiSet = &NON_ALPHANUMERIC.remove(b'-').remove(b'.').remove(b'_').remove(b'~');
+const QUOTE: &AsciiSet = &NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GhostConfig {
@@ -79,10 +83,7 @@ pub fn slug_from_arg(arg: &str) -> Result<String> {
     let arg = arg.trim();
     if arg.starts_with("http://") || arg.starts_with("https://") {
         let parsed = url::Url::parse(arg).map_err(|_| anyhow!("no post slug in URL: {arg}"))?;
-        let last = parsed
-            .path()
-            .split('/')
-            .rfind(|s| !s.is_empty());
+        let last = parsed.path().split('/').rfind(|s| !s.is_empty());
         return match last {
             Some(s) => Ok(s.to_string()),
             None => bail!("no post slug in URL: {arg}"),
@@ -102,7 +103,11 @@ pub fn post_api_url(cfg: &GhostConfig, slug: &str) -> String {
 
 /// The settings endpoint, a cheap authenticated request used to probe a site and its key.
 pub fn settings_api_url(cfg: &GhostConfig) -> String {
-    format!("{}/ghost/api/content/settings/?key={}", cfg.url, utf8_percent_encode(&cfg.key, QUOTE))
+    format!(
+        "{}/ghost/api/content/settings/?key={}",
+        cfg.url,
+        utf8_percent_encode(&cfg.key, QUOTE)
+    )
 }
 
 /// Fetch a post by slug. `get` performs the HTTP GET and returns `Err` only for
@@ -135,7 +140,11 @@ pub fn fetch_post(
 
 pub fn require_public(post: &Post) -> Result<()> {
     if post.visibility != "public" {
-        let slug = if post.slug.is_empty() { "?" } else { &post.slug };
+        let slug = if post.slug.is_empty() {
+            "?"
+        } else {
+            &post.slug
+        };
         let vis = if post.visibility.is_empty() {
             "None".to_string()
         } else {

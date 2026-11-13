@@ -36,7 +36,11 @@ const GGML_MAX_NAME: u32 = 128;
 const PASSTHROUGH_ENV: &[&str] = &["GPU_TARGETS", "GGML_NATIVE", "CMAKE_CUDA_ARCHITECTURES"];
 
 fn on(b: bool) -> &'static str {
-    if b { "ON" } else { "OFF" }
+    if b {
+        "ON"
+    } else {
+        "OFF"
+    }
 }
 
 fn feature(name: &str) -> bool {
@@ -65,18 +69,32 @@ fn main() {
     for p in ["native/CMakeLists.txt", "wrapper.h", "build.rs"] {
         println!("cargo:rerun-if-changed={p}");
     }
-    for d in ["vendor/llama.cpp/ggml",
-              "vendor/qwentts.cpp/CMakeLists.txt", "vendor/qwentts.cpp/src",
-              "vendor/qwen3-asr.cpp/CMakeLists.txt", "vendor/qwen3-asr.cpp/src",
-              "vendor/qwen3-asr.cpp/include",
-              "vendor/reuse.cpp/CMakeLists.txt", "vendor/reuse.cpp/src", "vendor/reuse.cpp/include"] {
+    for d in [
+        "vendor/llama.cpp/ggml",
+        "vendor/qwentts.cpp/CMakeLists.txt",
+        "vendor/qwentts.cpp/src",
+        "vendor/qwen3-asr.cpp/CMakeLists.txt",
+        "vendor/qwen3-asr.cpp/src",
+        "vendor/qwen3-asr.cpp/include",
+        "vendor/reuse.cpp/CMakeLists.txt",
+        "vendor/reuse.cpp/src",
+        "vendor/reuse.cpp/include",
+    ] {
         println!("cargo:rerun-if-changed={d}");
     }
-    for v in PASSTHROUGH_ENV.iter().chain(&["HIPCXX", "HIP_PATH", "CUDA_PATH", "VULKAN_SDK"]) {
+    for v in PASSTHROUGH_ENV
+        .iter()
+        .chain(&["HIPCXX", "HIP_PATH", "CUDA_PATH", "VULKAN_SDK"])
+    {
         println!("cargo:rerun-if-env-changed={v}");
     }
 
-    let (metal, cuda, hip, vulkan) = (feature("metal"), feature("cuda"), feature("hip"), feature("vulkan"));
+    let (metal, cuda, hip, vulkan) = (
+        feature("metal"),
+        feature("cuda"),
+        feature("hip"),
+        feature("vulkan"),
+    );
 
     let mut cfg = cmake::Config::new(manifest.join("native"));
     cfg.define("LLAMA_DIR", &llama)
@@ -163,7 +181,11 @@ fn link(lib: &Path, metal: bool, cuda: bool, hip: bool, vulkan: bool) {
     }
     if cuda {
         let root = env::var("CUDA_PATH").unwrap_or_else(|_| "/usr/local/cuda".into());
-        for dir in [format!("{root}/lib64"), format!("{root}/lib"), format!("{root}/targets/x86_64-linux/lib")] {
+        for dir in [
+            format!("{root}/lib64"),
+            format!("{root}/lib"),
+            format!("{root}/targets/x86_64-linux/lib"),
+        ] {
             if Path::new(&dir).is_dir() {
                 println!("cargo:rustc-link-search=native={dir}");
             }
@@ -174,11 +196,18 @@ fn link(lib: &Path, metal: bool, cuda: bool, hip: bool, vulkan: bool) {
     }
     if hip {
         // HIP_PATH first, then `hipconfig -R`, then the default ROCm location.
-        let root = env::var("HIP_PATH").ok().filter(|r| !r.is_empty()).or_else(|| {
-            let out = std::process::Command::new("hipconfig").arg("-R").output().ok()?;
-            let root = String::from_utf8(out.stdout).ok()?.trim().to_string();
-            (out.status.success() && !root.is_empty()).then_some(root)
-        }).unwrap_or_else(|| "/opt/rocm".into());
+        let root = env::var("HIP_PATH")
+            .ok()
+            .filter(|r| !r.is_empty())
+            .or_else(|| {
+                let out = std::process::Command::new("hipconfig")
+                    .arg("-R")
+                    .output()
+                    .ok()?;
+                let root = String::from_utf8(out.stdout).ok()?.trim().to_string();
+                (out.status.success() && !root.is_empty()).then_some(root)
+            })
+            .unwrap_or_else(|| "/opt/rocm".into());
         let dir = format!("{root}/lib");
         if Path::new(&dir).is_dir() {
             println!("cargo:rustc-link-search=native={dir}");

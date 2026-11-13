@@ -10,8 +10,8 @@ use anyhow::{bail, Context, Result};
 use crate::audio::denoise::{check_clean_len, noise_floor_db, Denoise};
 use crate::audio::read_wav;
 use crate::cli::CleanArgs;
-use crate::settings::Settings;
 use crate::design::{check_target, clip_paths, keep_old, write_wav16};
+use crate::settings::Settings;
 use crate::voices::add_voice;
 
 /// Checks that need no model: the source is registered, `dst` differs from it and is free
@@ -27,7 +27,11 @@ fn preflight(voices_dir: &Path, src: &str, dst: &str, force: bool) -> Result<Str
             .with_context(|| format!("parsing {}", registry.display()))?,
         Err(_) => Default::default(),
     };
-    let Some(label) = map.get(src).and_then(|v| v.get("label")).and_then(|l| l.as_str()) else {
+    let Some(label) = map
+        .get(src)
+        .and_then(|v| v.get("label"))
+        .and_then(|l| l.as_str())
+    else {
         bail!("unknown voice {src:?} in {}", voices_dir.display());
     };
     let (wav, txt) = clip_paths(voices_dir, src);
@@ -67,7 +71,8 @@ pub fn clean_voice(
 
     keep_old(&[&wav, &txt], log)?;
     write_wav16(&wav, &cleaned, sr)?;
-    fs::copy(&src_txt, &txt).with_context(|| format!("copying {} to {}", src_txt.display(), txt.display()))?;
+    fs::copy(&src_txt, &txt)
+        .with_context(|| format!("copying {} to {}", src_txt.display(), txt.display()))?;
     add_voice(voices_dir, dst, label)?;
     writeln!(log, "cleaned voice {src} -> {dst} ({})", wav.display())?;
     Ok(wav)
@@ -76,14 +81,32 @@ pub fn clean_voice(
 /// `lectover voice clean`.
 pub fn run(args: &CleanArgs, settings: &Settings) -> Result<()> {
     let voices_dir = &settings.voices;
-    let dst = args.as_id.clone().unwrap_or_else(|| format!("{}reuse", args.id));
+    let dst = args
+        .as_id
+        .clone()
+        .unwrap_or_else(|| format!("{}reuse", args.id));
     let src_label = preflight(voices_dir, &args.id, &dst, args.force)?; // before any model work
-    let label = args.label.clone().unwrap_or_else(|| format!("{src_label} (RE-USE)"));
+    let label = args
+        .label
+        .clone()
+        .unwrap_or_else(|| format!("{src_label} (RE-USE)"));
     let mut out = std::io::stdout();
-    let gguf = crate::models::ensure_reuse_gguf(&settings.models, &crate::ffi::convert_reuse, &mut out)?;
-    let mut denoiser = crate::ffi::ReuseDenoiser::load(&gguf, crate::ffi::resolve_device(args.device.or(settings.device))?)?;
+    let gguf =
+        crate::models::ensure_reuse_gguf(&settings.models, &crate::ffi::convert_reuse, &mut out)?;
+    let mut denoiser = crate::ffi::ReuseDenoiser::load(
+        &gguf,
+        crate::ffi::resolve_device(args.device.or(settings.device))?,
+    )?;
     denoiser.set_progress(crate::audio::denoise::stderr_progress_hook());
-    let result = clean_voice(&mut denoiser, voices_dir, &args.id, &dst, &label, args.force, &mut out);
+    let result = clean_voice(
+        &mut denoiser,
+        voices_dir,
+        &args.id,
+        &dst,
+        &label,
+        args.force,
+        &mut out,
+    );
     drop(denoiser); // before exit: a Metal device still holding buffers aborts
     result.map(|_| ())
 }

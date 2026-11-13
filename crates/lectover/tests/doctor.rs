@@ -46,7 +46,16 @@ impl Install {
         let env = |k: &str| (k == "GHOST_CONTENT_KEY").then(|| "secret-value".to_string());
         let http = |_: &str| -> anyhow::Result<HttpReply> { unreachable!("offline") };
         let free_bytes = move |_: &Path| Some(free);
-        checks(&settings, site, true, &Probe { env: &env, http_get: &http, free_bytes: &free_bytes })
+        checks(
+            &settings,
+            site,
+            true,
+            &Probe {
+                env: &env,
+                http_get: &http,
+                free_bytes: &free_bytes,
+            },
+        )
     }
 }
 
@@ -74,7 +83,11 @@ fn missing_site_voice_fails_with_hint() {
     let f = failing(&cs);
     assert_eq!(f.len(), 1, "{}", render_report(&cs));
     assert!(f[0].detail.contains("zz"));
-    assert!(f[0].hint.as_deref().unwrap().contains("lectover voice record"));
+    assert!(f[0]
+        .hint
+        .as_deref()
+        .unwrap()
+        .contains("lectover voice record"));
     assert_eq!(exit_code(&cs), 1);
 }
 
@@ -92,7 +105,9 @@ fn unknown_key_is_a_warning_not_a_failure() {
     let i = Install::new(&format!("bogus = 1\n{}", site_cfg("a.example", "")));
     let cs = i.run(None, PLENTY);
     assert!(failing(&cs).is_empty(), "{}", render_report(&cs));
-    assert!(cs.iter().any(|c| c.status == Status::Warn && c.detail.contains("unknown key bogus")));
+    assert!(cs
+        .iter()
+        .any(|c| c.status == Status::Warn && c.detail.contains("unknown key bogus")));
 }
 
 #[test]
@@ -112,7 +127,14 @@ fn loose_ssh_key_permissions_fail() {
     std::fs::write(&key, "k").unwrap();
     std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o644)).unwrap();
     let cfg = i.home.path().join(".config/lectover/config.toml");
-    std::fs::write(&cfg, format!("[upload]\ntarget = \"h:/x\"\nssh_key = \"{}\"\n", key.display())).unwrap();
+    std::fs::write(
+        &cfg,
+        format!(
+            "[upload]\ntarget = \"h:/x\"\nssh_key = \"{}\"\n",
+            key.display()
+        ),
+    )
+    .unwrap();
     let cs = i.run(None, PLENTY);
     let f = failing(&cs);
     assert_eq!(f.len(), 1, "{}", render_report(&cs));
@@ -136,22 +158,41 @@ fn site_filter_limits_site_checks() {
     let i = Install::new(&cfg);
     let cs = i.run(Some("a.example"), PLENTY);
     assert!(cs.iter().any(|c| c.what.contains("a.example")));
-    assert!(cs.iter().all(|c| !c.what.contains("b.example") && !c.detail.contains("b.example")));
+    assert!(cs
+        .iter()
+        .all(|c| !c.what.contains("b.example") && !c.detail.contains("b.example")));
 }
 
 #[test]
 fn low_disk_space_warns() {
     let i = Install::new("");
     let cs = i.run(None, 1 << 30);
-    assert!(cs.iter().any(|c| c.status == Status::Warn && c.what == "disk space models"));
+    assert!(cs
+        .iter()
+        .any(|c| c.status == Status::Warn && c.what == "disk space models"));
 }
 
 #[test]
 fn report_format() {
     let cs = vec![
-        Check { status: Status::Ok, what: "config".into(), detail: "fine".into(), hint: None },
-        Check { status: Status::Warn, what: "disk".into(), detail: "low".into(), hint: Some("free space".into()) },
-        Check { status: Status::Fail, what: "models".into(), detail: "missing".into(), hint: None },
+        Check {
+            status: Status::Ok,
+            what: "config".into(),
+            detail: "fine".into(),
+            hint: None,
+        },
+        Check {
+            status: Status::Warn,
+            what: "disk".into(),
+            detail: "low".into(),
+            hint: Some("free space".into()),
+        },
+        Check {
+            status: Status::Fail,
+            what: "models".into(),
+            detail: "missing".into(),
+            hint: None,
+        },
     ];
     assert_eq!(
         render_report(&cs),
@@ -160,22 +201,40 @@ fn report_format() {
 }
 
 /// Runs the checks online with a fake HTTP layer and the key `s3cr3t`.
-fn run_online(cfg: &str, http: &dyn Fn(&str) -> anyhow::Result<HttpReply>, offline: bool) -> Vec<Check> {
+fn run_online(
+    cfg: &str,
+    http: &dyn Fn(&str) -> anyhow::Result<HttpReply>,
+    offline: bool,
+) -> Vec<Check> {
     let i = Install::new(cfg);
     let env = |k: &str| (k == "GHOST_CONTENT_KEY").then(|| "s3cr3t".to_string());
     let free = |_: &Path| Some(PLENTY);
-    checks(&i.settings(), None, offline, &Probe { env: &env, http_get: http, free_bytes: &free })
+    checks(
+        &i.settings(),
+        None,
+        offline,
+        &Probe {
+            env: &env,
+            http_get: http,
+            free_bytes: &free,
+        },
+    )
 }
 
 fn ghost<'a>(cs: &'a [Check]) -> &'a Check {
-    cs.iter().find(|c| c.what.contains("Ghost Content API")).expect("ghost check")
+    cs.iter()
+        .find(|c| c.what.contains("Ghost Content API"))
+        .expect("ghost check")
 }
 
 #[test]
 fn ghost_ok() {
     let http = |u: &str| -> anyhow::Result<HttpReply> {
         assert!(u.starts_with("https://a.example/ghost/api/content/settings/?key="));
-        Ok(HttpReply { status: 200, body: br#"{"settings":{"title":"T"}}"#.to_vec() })
+        Ok(HttpReply {
+            status: 200,
+            body: br#"{"settings":{"title":"T"}}"#.to_vec(),
+        })
     };
     let cs = run_online(&site_cfg("a.example", ""), &http, false);
     assert_eq!(ghost(&cs).status, Status::Ok);
@@ -184,7 +243,12 @@ fn ghost_ok() {
 
 #[test]
 fn ghost_ok_without_title() {
-    let http = |_: &str| -> anyhow::Result<HttpReply> { Ok(HttpReply { status: 200, body: b"nope".to_vec() }) };
+    let http = |_: &str| -> anyhow::Result<HttpReply> {
+        Ok(HttpReply {
+            status: 200,
+            body: b"nope".to_vec(),
+        })
+    };
     let cs = run_online(&site_cfg("a.example", ""), &http, false);
     assert_eq!(ghost(&cs).status, Status::Ok);
     assert_eq!(ghost(&cs).detail, "reachable");
@@ -192,7 +256,12 @@ fn ghost_ok_without_title() {
 
 #[test]
 fn ghost_key_rejected() {
-    let http = |_: &str| -> anyhow::Result<HttpReply> { Ok(HttpReply { status: 401, body: vec![] }) };
+    let http = |_: &str| -> anyhow::Result<HttpReply> {
+        Ok(HttpReply {
+            status: 401,
+            body: vec![],
+        })
+    };
     let cs = run_online(&site_cfg("a.example", ""), &http, false);
     let g = ghost(&cs);
     assert_eq!(g.status, Status::Fail);
@@ -202,7 +271,12 @@ fn ghost_key_rejected() {
 
 #[test]
 fn ghost_other_status_fails() {
-    let http = |_: &str| -> anyhow::Result<HttpReply> { Ok(HttpReply { status: 502, body: vec![] }) };
+    let http = |_: &str| -> anyhow::Result<HttpReply> {
+        Ok(HttpReply {
+            status: 502,
+            body: vec![],
+        })
+    };
     let cs = run_online(&site_cfg("a.example", ""), &http, false);
     assert!(ghost(&cs).detail.contains("502"));
 }
@@ -210,7 +284,9 @@ fn ghost_other_status_fails() {
 #[test]
 fn ghost_errors_never_leak_the_key() {
     let http = |u: &str| -> anyhow::Result<HttpReply> {
-        Err(anyhow::anyhow!("error sending request for url ({u}): connection refused; key s3cr3t"))
+        Err(anyhow::anyhow!(
+            "error sending request for url ({u}): connection refused; key s3cr3t"
+        ))
     };
     let cs = run_online(&site_cfg("a.example", ""), &http, false);
     assert_eq!(ghost(&cs).status, Status::Fail);
@@ -229,7 +305,11 @@ fn offline_skips_ghost() {
 #[test]
 fn failed_key_skips_ghost_check() {
     let http = |_: &str| -> anyhow::Result<HttpReply> { panic!("no key, no request") };
-    let cs = run_online(&site_cfg("a.example", "ghost_key = { env = \"NOPE\" }"), &http, false);
+    let cs = run_online(
+        &site_cfg("a.example", "ghost_key = { env = \"NOPE\" }"),
+        &http,
+        false,
+    );
     assert!(cs.iter().all(|c| !c.what.contains("Ghost Content API")));
 }
 

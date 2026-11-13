@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 
 /// Read a WAV file as mono f32 in [-1, 1] (channels averaged) and its sample rate.
 pub fn read_wav(path: &Path) -> Result<(Vec<f32>, u32)> {
-    let mut reader =
-        hound::WavReader::open(path).with_context(|| format!("cannot open WAV {}", path.display()))?;
+    let mut reader = hound::WavReader::open(path)
+        .with_context(|| format!("cannot open WAV {}", path.display()))?;
     let spec = reader.spec();
     let interleaved: Vec<f32> = match spec.sample_format {
         hound::SampleFormat::Float => reader.samples::<f32>().collect::<Result<_, _>>(),

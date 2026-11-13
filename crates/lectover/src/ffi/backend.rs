@@ -87,7 +87,8 @@ struct GgmlDevice {
 
 impl GgmlDevice {
     fn gpu(&self) -> bool {
-        self.ty == sys::GGML_BACKEND_DEVICE_TYPE_GPU || self.ty == sys::GGML_BACKEND_DEVICE_TYPE_IGPU
+        self.ty == sys::GGML_BACKEND_DEVICE_TYPE_GPU
+            || self.ty == sys::GGML_BACKEND_DEVICE_TYPE_IGPU
     }
 }
 
@@ -129,10 +130,18 @@ pub fn asr_library_device() -> Device {
 
 /// [`asr_library_device`] over a given device list.
 fn asr_device_in(devices: &[GgmlDevice]) -> Device {
-    [sys::GGML_BACKEND_DEVICE_TYPE_GPU, sys::GGML_BACKEND_DEVICE_TYPE_IGPU]
-        .into_iter()
-        .find_map(|ty| devices.iter().filter(|g| g.ty == ty).find_map(|g| Device::from_reg_name(&g.reg)))
-        .unwrap_or(Device::Cpu)
+    [
+        sys::GGML_BACKEND_DEVICE_TYPE_GPU,
+        sys::GGML_BACKEND_DEVICE_TYPE_IGPU,
+    ]
+    .into_iter()
+    .find_map(|ty| {
+        devices
+            .iter()
+            .filter(|g| g.ty == ty)
+            .find_map(|g| Device::from_reg_name(&g.reg))
+    })
+    .unwrap_or(Device::Cpu)
 }
 
 /// The device to run on: the requested one if it is compiled in and present, otherwise
@@ -248,7 +257,11 @@ pub(super) fn ggml_log_passes(level: u32, verbose: bool) -> bool {
     verbose || level == sys::GGML_LOG_LEVEL_WARN as u32 || level == sys::GGML_LOG_LEVEL_ERROR as u32
 }
 
-unsafe extern "C" fn ggml_log_cb(level: sys::ggml_log_level, text: *const c_char, user: *mut std::ffi::c_void) {
+unsafe extern "C" fn ggml_log_cb(
+    level: sys::ggml_log_level,
+    text: *const c_char,
+    user: *mut std::ffi::c_void,
+) {
     use std::io::Write;
     if text.is_null() || !ggml_log_passes(level as u32, !user.is_null()) {
         return;
@@ -264,8 +277,15 @@ unsafe extern "C" fn ggml_log_cb(level: sys::ggml_log_level, text: *const c_char
 pub fn init_ggml_logging() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        let verbose = matches!(std::env::var("LECTOVER_GGML_LOG").as_deref(), Ok("debug") | Ok("all"));
-        let user = if verbose { 1usize as *mut std::ffi::c_void } else { std::ptr::null_mut() };
+        let verbose = matches!(
+            std::env::var("LECTOVER_GGML_LOG").as_deref(),
+            Ok("debug") | Ok("all")
+        );
+        let user = if verbose {
+            1usize as *mut std::ffi::c_void
+        } else {
+            std::ptr::null_mut()
+        };
         // SAFETY: the callback is a plain fn; `user` is only a flag, never dereferenced.
         unsafe { sys::ggml_log_set(Some(ggml_log_cb), user) };
     });
@@ -290,7 +310,9 @@ pub(crate) fn unified_memory_warning(env_set: bool, cuda_or_hip: bool) -> Option
 /// Print the `GGML_CUDA_ENABLE_UNIFIED_MEMORY` warning to stderr when it applies.
 pub fn warn_unified_memory() {
     let env_set = std::env::var_os(UNIFIED_MEMORY_ENV).is_some();
-    if let Some(w) = unified_memory_warning(env_set, Device::Cuda.compiled() || Device::Hip.compiled()) {
+    if let Some(w) =
+        unified_memory_warning(env_set, Device::Cuda.compiled() || Device::Hip.compiled())
+    {
         eprintln!("{w}");
     }
 }
@@ -303,7 +325,12 @@ mod log_tests {
     fn log_filter_levels() {
         assert!(ggml_log_passes(sys::GGML_LOG_LEVEL_ERROR as u32, false));
         assert!(ggml_log_passes(sys::GGML_LOG_LEVEL_WARN as u32, false));
-        for l in [sys::GGML_LOG_LEVEL_DEBUG, sys::GGML_LOG_LEVEL_INFO, sys::GGML_LOG_LEVEL_CONT, sys::GGML_LOG_LEVEL_NONE] {
+        for l in [
+            sys::GGML_LOG_LEVEL_DEBUG,
+            sys::GGML_LOG_LEVEL_INFO,
+            sys::GGML_LOG_LEVEL_CONT,
+            sys::GGML_LOG_LEVEL_NONE,
+        ] {
             assert!(!ggml_log_passes(l as u32, false));
             assert!(ggml_log_passes(l as u32, true));
         }
@@ -315,16 +342,30 @@ mod tests {
     use super::*;
 
     fn dev(reg: &str, ty: sys::ggml_backend_dev_type) -> GgmlDevice {
-        GgmlDevice { reg: reg.into(), name: format!("{reg}0"), description: String::new(), ty }
+        GgmlDevice {
+            reg: reg.into(),
+            name: format!("{reg}0"),
+            description: String::new(),
+            ty,
+        }
     }
 
     #[test]
     fn asr_device_follows_the_library_gpu_then_igpu_rule() {
-        use sys::{GGML_BACKEND_DEVICE_TYPE_CPU as CPU, GGML_BACKEND_DEVICE_TYPE_GPU as GPU, GGML_BACKEND_DEVICE_TYPE_IGPU as IGPU};
+        use sys::{
+            GGML_BACKEND_DEVICE_TYPE_CPU as CPU, GGML_BACKEND_DEVICE_TYPE_GPU as GPU,
+            GGML_BACKEND_DEVICE_TYPE_IGPU as IGPU,
+        };
         // an APU (Strix Halo under HIP) is an IGPU: the ASR runs there, not on the CPU
-        assert_eq!(asr_device_in(&[dev("CPU", CPU), dev("ROCm", IGPU)]), Device::Hip);
+        assert_eq!(
+            asr_device_in(&[dev("CPU", CPU), dev("ROCm", IGPU)]),
+            Device::Hip
+        );
         // a discrete GPU wins over an integrated one, wherever it is listed
-        assert_eq!(asr_device_in(&[dev("Vulkan", IGPU), dev("CUDA", GPU)]), Device::Cuda);
+        assert_eq!(
+            asr_device_in(&[dev("Vulkan", IGPU), dev("CUDA", GPU)]),
+            Device::Cuda
+        );
         assert_eq!(asr_device_in(&[dev("MTL", GPU)]), Device::Metal);
         assert_eq!(asr_device_in(&[dev("CPU", CPU)]), Device::Cpu);
     }
@@ -334,6 +375,10 @@ mod tests {
         let w = unified_memory_warning(true, true).expect("set on HIP/CUDA: warn");
         assert!(w.contains("GGML_CUDA_ENABLE_UNIFIED_MEMORY"), "{w}");
         assert_eq!(unified_memory_warning(false, true), None);
-        assert_eq!(unified_memory_warning(true, false), None, "Metal/Vulkan/CPU builds never read it");
+        assert_eq!(
+            unified_memory_warning(true, false),
+            None,
+            "Metal/Vulkan/CPU builds never read it"
+        );
     }
 }

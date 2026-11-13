@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use crate::config::UploadConfig;
-use crate::ffi::{backend_banner, resolve_device, unified_memory_warning, Device, UNIFIED_MEMORY_ENV};
+use crate::ffi::{
+    backend_banner, resolve_device, unified_memory_warning, Device, UNIFIED_MEMORY_ENV,
+};
 use crate::ghost::{settings_api_url, GhostConfig};
 use crate::models::{DesignFiles, ModelFiles};
 use crate::settings::{Settings, SiteSettings};
@@ -46,7 +48,12 @@ pub struct Check {
 
 impl Check {
     fn new(status: Status, what: impl Into<String>, detail: impl Into<String>) -> Check {
-        Check { status, what: what.into(), detail: detail.into(), hint: None }
+        Check {
+            status,
+            what: what.into(),
+            detail: detail.into(),
+            hint: None,
+        }
     }
     fn ok(what: impl Into<String>, detail: impl Into<String>) -> Check {
         Check::new(Status::Ok, what, detail)
@@ -78,26 +85,44 @@ pub fn checks(settings: &Settings, site: Option<&str>, offline: bool, probe: &Pr
     check_models(settings, &mut out);
     let registry = load_registry(&settings.voices);
     match &registry {
-        Ok(r) => out.push(Check::ok("voice registry", format!("{} voices in {}", r.len(), settings.voices.display()))),
+        Ok(r) => out.push(Check::ok(
+            "voice registry",
+            format!("{} voices in {}", r.len(), settings.voices.display()),
+        )),
         Err(e) => out.push(
             Check::fail("voice registry", format!("{e:#}"))
                 .hint("record one with `lectover voice record <id> --label <name>`"),
         ),
     }
-    let known: Option<HashSet<&str>> = registry.as_ref().ok().map(|r| r.keys().map(String::as_str).collect());
+    let known: Option<HashSet<&str>> = registry
+        .as_ref()
+        .ok()
+        .map(|r| r.keys().map(String::as_str).collect());
     for domain in site_domains(settings, site) {
         match settings.site(&domain) {
             Ok(s) => check_site(&s, known.as_ref(), offline, probe, &mut out),
-            Err(e) => out.push(Check::fail(format!("site {domain}"), format!("{e:#}").lines().next().unwrap_or(""))),
+            Err(e) => out.push(Check::fail(
+                format!("site {domain}"),
+                format!("{e:#}").lines().next().unwrap_or(""),
+            )),
         }
     }
-    if let Some(u) = settings.config.as_ref().and_then(|l| l.config.upload.as_ref()) {
+    if let Some(u) = settings
+        .config
+        .as_ref()
+        .and_then(|l| l.config.upload.as_ref())
+    {
         check_upload(u, &mut out);
     }
     check_gpu(settings, &mut out);
     let env_set = (probe.env)(UNIFIED_MEMORY_ENV).is_some();
-    if let Some(w) = unified_memory_warning(env_set, Device::Cuda.compiled() || Device::Hip.compiled()) {
-        out.push(Check::warn(UNIFIED_MEMORY_ENV, w.trim_start_matches("warning: ")).hint(format!("unset {UNIFIED_MEMORY_ENV}")));
+    if let Some(w) =
+        unified_memory_warning(env_set, Device::Cuda.compiled() || Device::Hip.compiled())
+    {
+        out.push(
+            Check::warn(UNIFIED_MEMORY_ENV, w.trim_start_matches("warning: "))
+                .hint(format!("unset {UNIFIED_MEMORY_ENV}")),
+        );
     }
     out
 }
@@ -136,7 +161,11 @@ pub fn exit_code(checks: &[Check]) -> u8 {
 fn site_domains(settings: &Settings, site: Option<&str>) -> Vec<String> {
     match site {
         Some(s) => vec![s.to_string()],
-        None => settings.config.iter().flat_map(|l| l.config.site.keys().cloned()).collect(),
+        None => settings
+            .config
+            .iter()
+            .flat_map(|l| l.config.site.keys().cloned())
+            .collect(),
     }
 }
 
@@ -150,10 +179,16 @@ fn check_config(settings: &Settings, out: &mut Vec<Check>) {
         Some(l) => {
             out.push(Check::ok("config", format!("{path} parsed")));
             for w in &l.warnings {
-                out.push(Check::warn("config", w.clone()).hint("check the spelling against the documented keys"));
+                out.push(
+                    Check::warn("config", w.clone())
+                        .hint("check the spelling against the documented keys"),
+                );
             }
         }
-        None => out.push(Check::warn("config", format!("no config file at {path}")).hint("create it to configure sites")),
+        None => out.push(
+            Check::warn("config", format!("no config file at {path}"))
+                .hint("create it to configure sites"),
+        ),
     }
 }
 
@@ -173,28 +208,45 @@ fn check_dir(what: &str, dir: &Path, out: &mut Vec<Check>) {
     if dir.is_dir() {
         out.push(Check::ok(what, format!("{shown} exists")));
     } else if dir.exists() {
-        out.push(Check::fail(what, format!("{shown} exists but is not a directory")));
+        out.push(Check::fail(
+            what,
+            format!("{shown} exists but is not a directory"),
+        ));
     } else {
         match nearest_existing(dir) {
-            Some(parent) if parent.is_dir() && writable(parent) => {
-                out.push(Check::ok(what, format!("{shown} will be created ({} is writable)", parent.display())))
-            }
+            Some(parent) if parent.is_dir() && writable(parent) => out.push(Check::ok(
+                what,
+                format!("{shown} will be created ({} is writable)", parent.display()),
+            )),
             Some(parent) => out.push(
-                Check::fail(what, format!("{shown} is missing and {} is not writable", parent.display()))
-                    .hint(format!("create {shown} or choose another path")),
+                Check::fail(
+                    what,
+                    format!(
+                        "{shown} is missing and {} is not writable",
+                        parent.display()
+                    ),
+                )
+                .hint(format!("create {shown} or choose another path")),
             ),
-            None => out.push(Check::fail(what, format!("{shown} is missing and has no existing parent"))),
+            None => out.push(Check::fail(
+                what,
+                format!("{shown} is missing and has no existing parent"),
+            )),
         }
     }
 }
 
 fn check_free(what: &str, dir: &Path, min: u64, probe: &Probe, out: &mut Vec<Check>) {
-    let Some(free) = nearest_existing(dir).and_then(|d| (probe.free_bytes)(d)) else { return };
+    let Some(free) = nearest_existing(dir).and_then(|d| (probe.free_bytes)(d)) else {
+        return;
+    };
     let gb = |b: u64| format!("{:.1} GB", b as f64 / GB as f64);
     if free < min {
         out.push(
-            Check::warn(what, format!("{} free, {} recommended", gb(free), gb(min)))
-                .hint(format!("free some space on the file system of {}", dir.display())),
+            Check::warn(what, format!("{} free, {} recommended", gb(free), gb(min))).hint(format!(
+                "free some space on the file system of {}",
+                dir.display()
+            )),
         );
     } else {
         out.push(Check::ok(what, format!("{} free", gb(free))));
@@ -207,24 +259,48 @@ fn check_dirs(settings: &Settings, probe: &Probe, out: &mut Vec<Check>) {
     check_dir("site dir", &settings.site_root, out);
     check_dir("voices dir", &settings.voices, out);
     check_dir("state dir", &settings.dirs.state, out);
-    check_free("disk space models", &settings.models, MODELS_MIN_FREE, probe, out);
-    check_free("disk space site", &settings.site_root, SITE_MIN_FREE, probe, out);
+    check_free(
+        "disk space models",
+        &settings.models,
+        MODELS_MIN_FREE,
+        probe,
+        out,
+    );
+    check_free(
+        "disk space site",
+        &settings.site_root,
+        SITE_MIN_FREE,
+        probe,
+        out,
+    );
 }
 
 fn check_models(settings: &Settings, out: &mut Vec<Check>) {
     match ModelFiles::check(&settings.models) {
         Ok(_) => out.push(Check::ok("models", "all four render models present")),
-        Err(e) => out.push(Check::fail("models", e.to_string().replace('\n', " ")).hint("lectover models fetch")),
+        Err(e) => out.push(
+            Check::fail("models", e.to_string().replace('\n', " ")).hint("lectover models fetch"),
+        ),
     }
     match DesignFiles::check(&settings.models) {
         Ok(_) => out.push(Check::ok("voice design model", "present")),
         Err(_) => out.push(
-            Check::warn("voice design model", "missing; only `voice design` needs it").hint("lectover models fetch --design"),
+            Check::warn(
+                "voice design model",
+                "missing; only `voice design` needs it",
+            )
+            .hint("lectover models fetch --design"),
         ),
     }
 }
 
-fn check_site(s: &SiteSettings, registry: Option<&HashSet<&str>>, offline: bool, probe: &Probe, out: &mut Vec<Check>) {
+fn check_site(
+    s: &SiteSettings,
+    registry: Option<&HashSet<&str>>,
+    offline: bool,
+    probe: &Probe,
+    out: &mut Vec<Check>,
+) {
     let d = &s.domain;
     if let Some(known) = registry {
         for v in s.voices.iter().filter(|v| !known.contains(v.id.as_str())) {
@@ -237,7 +313,11 @@ fn check_site(s: &SiteSettings, registry: Option<&HashSet<&str>>, offline: bool,
             let detail = if s.voices.is_empty() {
                 "none configured; the registry's first voice is used".to_string()
             } else {
-                s.voices.iter().map(|v| v.id.as_str()).collect::<Vec<_>>().join(", ")
+                s.voices
+                    .iter()
+                    .map(|v| v.id.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             };
             out.push(Check::ok(format!("site {d}: voices"), detail));
         }
@@ -247,20 +327,36 @@ fn check_site(s: &SiteSettings, registry: Option<&HashSet<&str>>, offline: bool,
     } else {
         out.push(Check::fail(
             format!("site {d}: language"),
-            format!("unsupported language \"{}\"; supported: {}", s.language, LANGUAGES.join(", ")),
+            format!(
+                "unsupported language \"{}\"; supported: {}",
+                s.language,
+                LANGUAGES.join(", ")
+            ),
         ));
     }
     match load_lexicon(&s.lexicon) {
-        Ok(l) if s.lexicon.exists() => out.push(Check::ok(format!("site {d}: lexicon"), format!("{} entries", l.len()))),
+        Ok(l) if s.lexicon.exists() => out.push(Check::ok(
+            format!("site {d}: lexicon"),
+            format!("{} entries", l.len()),
+        )),
         Ok(_) => out.push(Check::ok(format!("site {d}: lexicon"), "none")),
-        Err(e) => out.push(Check::fail(format!("site {d}: lexicon"), format!("{}: {e}", s.lexicon.display()))),
+        Err(e) => out.push(Check::fail(
+            format!("site {d}: lexicon"),
+            format!("{}: {e}", s.lexicon.display()),
+        )),
     }
     if !s.sounds_dir.exists() {
         out.push(Check::ok(format!("site {d}: sounds"), "no sounds"));
     } else {
         match std::fs::read_dir(&s.sounds_dir) {
-            Ok(_) => out.push(Check::ok(format!("site {d}: sounds"), s.sounds_dir.display().to_string())),
-            Err(e) => out.push(Check::fail(format!("site {d}: sounds"), format!("{}: {e}", s.sounds_dir.display()))),
+            Ok(_) => out.push(Check::ok(
+                format!("site {d}: sounds"),
+                s.sounds_dir.display().to_string(),
+            )),
+            Err(e) => out.push(Check::fail(
+                format!("site {d}: sounds"),
+                format!("{}: {e}", s.sounds_dir.display()),
+            )),
         }
     }
     let key_what = format!("site {d}: ghost key");
@@ -272,7 +368,10 @@ fn check_site(s: &SiteSettings, registry: Option<&HashSet<&str>>, offline: bool,
             }
         }
         // The error names the source only, never the value.
-        Err(e) => out.push(Check::fail(key_what, format!("cannot read {}", s.ghost_key.describe())).hint(format!("{e:#}"))),
+        Err(e) => out.push(
+            Check::fail(key_what, format!("cannot read {}", s.ghost_key.describe()))
+                .hint(format!("{e:#}")),
+        ),
     }
 }
 
@@ -285,11 +384,17 @@ fn redact(text: &str, secret: &str) -> String {
         let (head, tail) = rest.split_at(i + 4);
         out.push_str(head);
         out.push_str("***");
-        let end = tail.find(|c: char| c == '&' || c == '"' || c == '\'' || c.is_whitespace()).unwrap_or(tail.len());
+        let end = tail
+            .find(|c: char| c == '&' || c == '"' || c == '\'' || c.is_whitespace())
+            .unwrap_or(tail.len());
         rest = &tail[end..];
     }
     out.push_str(rest);
-    if secret.is_empty() { out } else { out.replace(secret, "***") }
+    if secret.is_empty() {
+        out
+    } else {
+        out.replace(secret, "***")
+    }
 }
 
 fn check_ghost(s: &SiteSettings, probe: &Probe) -> Check {
@@ -304,23 +409,34 @@ fn check_ghost(s: &SiteSettings, probe: &Probe) -> Check {
             let title = serde_json::from_slice::<serde_json::Value>(&r.body)
                 .ok()
                 .and_then(|v| v["settings"]["title"].as_str().map(str::to_string));
-            Check::ok(what, title.map_or_else(|| "reachable".to_string(), |t| redact(&t, secret)))
+            Check::ok(
+                what,
+                title.map_or_else(|| "reachable".to_string(), |t| redact(&t, secret)),
+            )
         }
         Ok(r) if r.status == 401 || r.status == 403 => Check::fail(what, "key rejected")
             .hint(format!("check the key in {}", s.ghost_key.describe())),
         Ok(r) => Check::fail(what, format!("{} answered HTTP {}", s.ghost_url, r.status)),
-        Err(e) => Check::fail(what, redact(&format!("{e:#}"), secret))
-            .hint(format!("check that {} is reachable", redact(&s.ghost_url, secret))),
+        Err(e) => Check::fail(what, redact(&format!("{e:#}"), secret)).hint(format!(
+            "check that {} is reachable",
+            redact(&s.ghost_url, secret)
+        )),
     }
 }
 
 fn check_upload(u: &UploadConfig, out: &mut Vec<Check>) {
     let key: &PathBuf = &u.ssh_key;
     match std::fs::metadata(key) {
-        Err(e) => out.push(Check::fail("upload ssh key", format!("{}: {e}", key.display()))),
+        Err(e) => out.push(Check::fail(
+            "upload ssh key",
+            format!("{}: {e}", key.display()),
+        )),
         Ok(m) if m.permissions().mode() & 0o077 != 0 => out.push(
-            Check::fail("upload ssh key", format!("{} is accessible by others", key.display()))
-                .hint(format!("chmod 600 {}", key.display())),
+            Check::fail(
+                "upload ssh key",
+                format!("{} is accessible by others", key.display()),
+            )
+            .hint(format!("chmod 600 {}", key.display())),
         ),
         Ok(_) => out.push(Check::ok("upload ssh key", key.display().to_string())),
     }

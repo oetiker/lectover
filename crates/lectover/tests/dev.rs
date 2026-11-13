@@ -24,7 +24,12 @@ fn root() -> PathBuf {
 }
 
 fn post(title: &str, html: &str, reading_time: Option<u32>) -> Post {
-    Post { title: title.into(), html: html.into(), reading_time, ..Post::default() }
+    Post {
+        title: title.into(),
+        html: html.into(),
+        reading_time,
+        ..Post::default()
+    }
 }
 
 // --- page --------------------------------------------------------------------------------
@@ -44,7 +49,10 @@ fn render_dev_page_shell() {
         r#"<span class="byline-reading-time"><span class="bull">•</span> 3 Minuten Lesezeit</span>"#
     ));
     assert!(page.contains(r#"class="article-byline-meta""#));
-    assert!(page.contains(&format!(r#"<section class="gh-content gh-canvas">{}</section>"#, p.html)));
+    assert!(page.contains(&format!(
+        r#"<section class="gh-content gh-canvas">{}</section>"#,
+        p.html
+    )));
     assert!(page.contains(r#"<script src="/js?domain=olten.jetzt" defer></script>"#));
 }
 
@@ -58,7 +66,10 @@ fn render_dev_page_default_reading_time() {
 #[test]
 fn reading_time_singular() {
     let page = render_dev_page(&post("T", "<p>x</p>", Some(1)), "olten.jetzt");
-    assert!(page.contains("<span class=\"bull\">•</span> 1 Minute Lesezeit</span>"), "{page}");
+    assert!(
+        page.contains("<span class=\"bull\">•</span> 1 Minute Lesezeit</span>"),
+        "{page}"
+    );
     assert!(!page.contains("Minuten"), "{page}");
     let page = render_dev_page(&post("T", "<p>x</p>", Some(2)), "olten.jetzt");
     assert!(page.contains("> 2 Minuten Lesezeit</span>"), "{page}");
@@ -67,49 +78,86 @@ fn reading_time_singular() {
 #[test]
 fn title_and_domain_are_escaped_like_python_html_escape() {
     let page = render_dev_page(&post(r#"A & "B" 'C'"#, "", None), r#"x"y"#);
-    assert!(page.contains("<title>A &amp; &quot;B&quot; &#x27;C&#x27;</title>"), "{page}");
-    assert!(page.contains(r#"<script src="/js?domain=x&quot;y" defer></script>"#), "{page}");
+    assert!(
+        page.contains("<title>A &amp; &quot;B&quot; &#x27;C&#x27;</title>"),
+        "{page}"
+    );
+    assert!(
+        page.contains(r#"<script src="/js?domain=x&quot;y" defer></script>"#),
+        "{page}"
+    );
 }
 
 #[test]
 fn page_path_matches_audio_layout() {
     let tmp = Path::new("/t");
-    assert_eq!(page_path(tmp, "olten.jetzt", "a-b"), tmp.join("olten.jetzt").join("a-b").join("index.html"));
+    assert_eq!(
+        page_path(tmp, "olten.jetzt", "a-b"),
+        tmp.join("olten.jetzt").join("a-b").join("index.html")
+    );
 }
 
 #[test]
 fn build_writes_page_next_to_audio_and_refuses_non_public() {
     let site = tempfile::tempdir().unwrap();
-    let cfg = GhostConfig { url: "https://www.Olten.jetzt".into(), key: "k".into() };
+    let cfg = GhostConfig {
+        url: "https://www.Olten.jetzt".into(),
+        key: "k".into(),
+    };
     let reply = |vis: &str| {
         let body = json!({"posts": [{"slug": "a-b", "html": "<p>Text.</p>", "visibility": vis,
                                       "title": "Titel", "reading_time": 4}]});
-        HttpReply { status: 200, body: body.to_string().into_bytes() }
+        HttpReply {
+            status: 200,
+            body: body.to_string().into_bytes(),
+        }
     };
     let get = |url: &str| -> Result<HttpReply> {
         assert!(url.contains("/posts/slug/a-b/"), "{url}");
         Ok(reply("public"))
     };
-    let page = build(&cfg, "olten.jetzt", "https://olten.jetzt/a-b/", site.path(), &get).unwrap();
+    let page = build(
+        &cfg,
+        "olten.jetzt",
+        "https://olten.jetzt/a-b/",
+        site.path(),
+        &get,
+    )
+    .unwrap();
     assert_eq!(page, site.path().join("olten.jetzt/a-b/index.html"));
     let html = fs::read_to_string(&page).unwrap();
-    assert!(html.contains("<h1>Titel</h1>") && html.contains("4 Minuten Lesezeit"), "{html}");
+    assert!(
+        html.contains("<h1>Titel</h1>") && html.contains("4 Minuten Lesezeit"),
+        "{html}"
+    );
 
     let get = |_: &str| -> Result<HttpReply> { Ok(reply("members")) };
-    let err = build(&cfg, "olten.jetzt", "geheim", site.path(), &get).unwrap_err().to_string();
+    let err = build(&cfg, "olten.jetzt", "geheim", site.path(), &get)
+        .unwrap_err()
+        .to_string();
     assert!(err.contains("not public"), "{err}");
 }
 
 #[test]
 fn build_uses_the_configured_domain_not_the_ghost_host() {
     let site = tempfile::tempdir().unwrap();
-    let cfg = GhostConfig { url: "https://b.example".into(), key: "k".into() };
+    let cfg = GhostConfig {
+        url: "https://b.example".into(),
+        key: "k".into(),
+    };
     let body = json!({"posts": [{"slug": "a-b", "html": "<p>x</p>", "visibility": "public",
                                   "title": "T", "reading_time": 1}]});
-    let get = |_: &str| -> Result<HttpReply> { Ok(HttpReply { status: 200, body: body.to_string().into_bytes() }) };
+    let get = |_: &str| -> Result<HttpReply> {
+        Ok(HttpReply {
+            status: 200,
+            body: body.to_string().into_bytes(),
+        })
+    };
     let page = build(&cfg, "a.example", "a-b", site.path(), &get).unwrap();
     assert_eq!(page, site.path().join("a.example/a-b/index.html"));
-    assert!(fs::read_to_string(&page).unwrap().contains("/js?domain=a.example"));
+    assert!(fs::read_to_string(&page)
+        .unwrap()
+        .contains("/js?domain=a.example"));
 }
 
 // --- server ------------------------------------------------------------------------------
@@ -122,7 +170,10 @@ struct Reply {
 
 impl Reply {
     fn header(&self, name: &str) -> Option<&str> {
-        self.headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+        self.headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case(name))
+            .map(|(_, v)| v.as_str())
     }
 }
 
@@ -142,11 +193,23 @@ fn get(url: &str, range: Option<&str>) -> Reply {
     let headers = resp
         .headers()
         .iter()
-        .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or_default().to_string()))
+        .map(|(k, v)| {
+            (
+                k.as_str().to_string(),
+                v.to_str().unwrap_or_default().to_string(),
+            )
+        })
         .collect();
     let mut body = Vec::new();
-    resp.into_body().into_reader().read_to_end(&mut body).unwrap();
-    Reply { status, headers, body }
+    resp.into_body()
+        .into_reader()
+        .read_to_end(&mut body)
+        .unwrap();
+    Reply {
+        status,
+        headers,
+        body,
+    }
 }
 
 /// A server on an ephemeral port over a temp dir with `ten.bin` and `a.ogg`.
@@ -154,7 +217,12 @@ fn server() -> (tempfile::TempDir, DevServer) {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("ten.bin"), b"0123456789").unwrap();
     fs::write(dir.path().join("a.ogg"), b"OggS").unwrap();
-    let srv = DevServer::start("127.0.0.1:0", dir.path(), &root().join("player/lectover.js")).unwrap();
+    let srv = DevServer::start(
+        "127.0.0.1:0",
+        dir.path(),
+        &root().join("player/lectover.js"),
+    )
+    .unwrap();
     (dir, srv)
 }
 
@@ -205,7 +273,10 @@ fn suffix_and_unsatisfiable_ranges() {
     assert_eq!(r.header("Content-Range"), Some("bytes 7-9/10"));
     // a suffix longer than the file is the whole file (RFC 7233 2.1)
     let r = get(&url, Some("bytes=-99"));
-    assert_eq!((r.status, r.body.as_slice()), (206, b"0123456789".as_slice()));
+    assert_eq!(
+        (r.status, r.body.as_slice()),
+        (206, b"0123456789".as_slice())
+    );
     assert_eq!(r.header("Content-Range"), Some("bytes 0-9/10"));
     // a zero-length suffix and a first byte at the end are unsatisfiable
     for range in ["bytes=-0", "bytes=10-", "bytes=10-12"] {
@@ -217,9 +288,19 @@ fn suffix_and_unsatisfiable_ranges() {
     let r = get(&url, Some("bytes=9-9"));
     assert_eq!((r.status, r.body.as_slice()), (206, b"9".as_slice()));
     // syntactically invalid or multi-range headers are ignored: the whole file (RFC 7233 3.1)
-    for range in ["bytes=5-2", "bytes=-", "items=0-1", "bytes=0-1,3-4", "bytes=x-1"] {
+    for range in [
+        "bytes=5-2",
+        "bytes=-",
+        "items=0-1",
+        "bytes=0-1,3-4",
+        "bytes=x-1",
+    ] {
         let r = get(&url, Some(range));
-        assert_eq!((r.status, r.body.as_slice()), (200, b"0123456789".as_slice()), "{range}");
+        assert_eq!(
+            (r.status, r.body.as_slice()),
+            (200, b"0123456789".as_slice()),
+            "{range}"
+        );
     }
     srv.stop();
 }
@@ -230,7 +311,10 @@ fn ogg_content_type() {
     let r = get(&format!("{}/a.ogg", srv.url()), None);
     assert_eq!(r.header("Content-Type"), Some("audio/ogg"));
     let r = get(&format!("{}/a.ogg", srv.url()), Some("bytes=0-1"));
-    assert_eq!((r.status, r.header("Content-Type")), (206, Some("audio/ogg")));
+    assert_eq!(
+        (r.status, r.header("Content-Type")),
+        (206, Some("audio/ogg"))
+    );
     srv.stop();
 }
 
@@ -251,7 +335,10 @@ fn directories_serve_index_html_and_missing_files_404() {
     fs::create_dir_all(page.parent().unwrap()).unwrap();
     fs::write(&page, "<html>dev</html>").unwrap();
     let r = get(&format!("{}/olten.jetzt/a-b/", srv.url()), None);
-    assert_eq!((r.status, r.body.as_slice()), (200, b"<html>dev</html>".as_slice()));
+    assert_eq!(
+        (r.status, r.body.as_slice()),
+        (200, b"<html>dev</html>".as_slice())
+    );
     assert_eq!(r.header("Content-Type"), Some("text/html"));
     // like Python's handler: a directory without the trailing slash redirects
     let r = get(&format!("{}/olten.jetzt/a-b?x=1", srv.url()), None);
@@ -269,7 +356,11 @@ fn paths_cannot_escape_the_site() {
     fs::create_dir(&site).unwrap();
     fs::write(site.join("ok.txt"), b"ok").unwrap();
     let srv = DevServer::start("127.0.0.1:0", &site, &root().join("player/lectover.js")).unwrap();
-    for path in ["/../secret.txt", "/%2e%2e/secret.txt", "/x/..%2F..%2Fsecret.txt"] {
+    for path in [
+        "/../secret.txt",
+        "/%2e%2e/secret.txt",
+        "/x/..%2F..%2Fsecret.txt",
+    ] {
         let r = get(&format!("{}{path}", srv.url()), None);
         assert_ne!(r.body, b"secret", "{path}");
     }
@@ -291,7 +382,11 @@ fn symlinks_out_of_the_site_are_404() {
     symlink("../secret.txt", site.join("link.txt")).unwrap();
     symlink(outer.path(), site.join("updir")).unwrap();
     fs::create_dir(site.join("page")).unwrap();
-    symlink(outer.path().join("secret.txt"), site.join("page/index.html")).unwrap();
+    symlink(
+        outer.path().join("secret.txt"),
+        site.join("page/index.html"),
+    )
+    .unwrap();
     // targets inside the site
     symlink("ok.txt", site.join("inner.txt")).unwrap();
     symlink("real", site.join("alias")).unwrap();
@@ -303,7 +398,10 @@ fn symlinks_out_of_the_site_are_404() {
     }
     let r = get(&format!("{}/link.txt", srv.url()), Some("bytes=0-2"));
     assert_eq!(r.status, 404);
-    for (path, body) in [("/inner.txt", b"ok".as_slice()), ("/alias/x.txt", b"x".as_slice())] {
+    for (path, body) in [
+        ("/inner.txt", b"ok".as_slice()),
+        ("/alias/x.txt", b"x".as_slice()),
+    ] {
         let r = get(&format!("{}{path}", srv.url()), None);
         assert_eq!((r.status, r.body.as_slice()), (200, body), "{path}");
     }
@@ -351,16 +449,33 @@ impl VoiceDesigner for FakeDesigner {
         24000
     }
 
-    fn design(&mut self, text: &str, instruct: &str, max_tokens: usize, seed: u64, temperature: f32) -> Result<Vec<f32>> {
-        self.calls.push((text.into(), instruct.into(), max_tokens, seed, temperature));
+    fn design(
+        &mut self,
+        text: &str,
+        instruct: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> Result<Vec<f32>> {
+        self.calls
+            .push((text.into(), instruct.into(), max_tokens, seed, temperature));
         let mut wav = vec![0.0f32; 12000];
-        wav.extend((0..48000).map(|i| 0.3 * (i as f32 * 440.0 * std::f32::consts::TAU / 24000.0).sin()));
+        wav.extend(
+            (0..48000).map(|i| 0.3 * (i as f32 * 440.0 * std::f32::consts::TAU / 24000.0).sin()),
+        );
         wav.extend(vec![0.0f32; 12000]);
         Ok(wav)
     }
 }
 
-fn req(id: &str, label: &str, instruct: &str, seed: u64, temperature: f32, force: bool) -> DesignRequest {
+fn req(
+    id: &str,
+    label: &str,
+    instruct: &str,
+    seed: u64,
+    temperature: f32,
+    force: bool,
+) -> DesignRequest {
     DesignRequest {
         id: id.into(),
         label: label.into(),
@@ -372,7 +487,11 @@ fn req(id: &str, label: &str, instruct: &str, seed: u64, temperature: f32, force
 }
 
 fn existing_voice(dir: &Path) {
-    fs::write(dir.join("voices.json"), "{\n  \"alt\": {\n    \"label\": \"Alt\"\n  },\n  \"b\": {\n    \"label\": \"B\"\n  }\n}\n").unwrap();
+    fs::write(
+        dir.join("voices.json"),
+        "{\n  \"alt\": {\n    \"label\": \"Alt\"\n  },\n  \"b\": {\n    \"label\": \"B\"\n  }\n}\n",
+    )
+    .unwrap();
     for v in ["alt", "b"] {
         fs::write(dir.join(format!("{v}.wav")), b"old wav").unwrap();
         fs::write(dir.join(format!("{v}.txt")), b"old text\n").unwrap();
@@ -384,14 +503,34 @@ fn design_writes_clip_transcript_and_registers() {
     let dir = tempfile::tempdir().unwrap();
     let mut fake = FakeDesigner { calls: Vec::new() };
     let mut log = Vec::new();
-    let wav = design_voice(&mut fake, dir.path(), &req("neu", "Neue Stimme", "Eine Stimme.", 7, 0.8, false), &mut log)
-        .unwrap();
+    let wav = design_voice(
+        &mut fake,
+        dir.path(),
+        &req("neu", "Neue Stimme", "Eine Stimme.", 7, 0.8, false),
+        &mut log,
+    )
+    .unwrap();
     assert_eq!(wav, dir.path().join("neu.wav"));
-    assert_eq!(fake.calls, vec![(REF_TEXT.to_string(), "Eine Stimme.".to_string(), MAX_TOKENS, 7, 0.8)]);
-    assert_eq!(fs::read_to_string(dir.path().join("neu.txt")).unwrap(), format!("{REF_TEXT}\n"));
+    assert_eq!(
+        fake.calls,
+        vec![(
+            REF_TEXT.to_string(),
+            "Eine Stimme.".to_string(),
+            MAX_TOKENS,
+            7,
+            0.8
+        )]
+    );
+    assert_eq!(
+        fs::read_to_string(dir.path().join("neu.txt")).unwrap(),
+        format!("{REF_TEXT}\n")
+    );
     let reader = hound::WavReader::open(&wav).unwrap();
     let spec = reader.spec();
-    assert_eq!((spec.channels, spec.sample_rate, spec.bits_per_sample), (1, 24000, 16));
+    assert_eq!(
+        (spec.channels, spec.sample_rate, spec.bits_per_sample),
+        (1, 24000, 16)
+    );
     assert_eq!(spec.sample_format, hound::SampleFormat::Int);
     // trimmed like design_voices.py (longform.trim_and_level): 2 s tone + 0.1 s kept per edge
     let secs = reader.duration() as f64 / 24000.0;
@@ -407,19 +546,38 @@ fn design_refuses_existing_id_without_force() {
     let dir = tempfile::tempdir().unwrap();
     existing_voice(dir.path());
     let mut fake = FakeDesigner { calls: Vec::new() };
-    let err = design_voice(&mut fake, dir.path(), &req("alt", "Neu", "I", 42, 0.9, false), &mut Vec::new())
-        .unwrap_err()
-        .to_string();
+    let err = design_voice(
+        &mut fake,
+        dir.path(),
+        &req("alt", "Neu", "I", 42, 0.9, false),
+        &mut Vec::new(),
+    )
+    .unwrap_err()
+    .to_string();
     assert!(err.contains("alt") && err.contains("--force"), "{err}");
-    assert!(fake.calls.is_empty(), "nothing is designed for a refused id");
+    assert!(
+        fake.calls.is_empty(),
+        "nothing is designed for a refused id"
+    );
     assert_eq!(fs::read(dir.path().join("alt.wav")).unwrap(), b"old wav");
 
     // a stray clip without a registry entry counts as existing, too
     fs::write(dir.path().join("lose.wav"), b"x").unwrap();
-    assert!(design_voice(&mut fake, dir.path(), &req("lose", "L", "I", 42, 0.9, false), &mut Vec::new()).is_err());
-    let err = design_voice(&mut fake, dir.path(), &req("Bad_Id", "L", "I", 42, 0.9, false), &mut Vec::new())
-        .unwrap_err()
-        .to_string();
+    assert!(design_voice(
+        &mut fake,
+        dir.path(),
+        &req("lose", "L", "I", 42, 0.9, false),
+        &mut Vec::new()
+    )
+    .is_err());
+    let err = design_voice(
+        &mut fake,
+        dir.path(),
+        &req("Bad_Id", "L", "I", 42, 0.9, false),
+        &mut Vec::new(),
+    )
+    .unwrap_err()
+    .to_string();
     assert!(err.contains("invalid voice id"), "{err}");
 }
 
@@ -430,7 +588,13 @@ fn design_force_keeps_old_voice_with_timestamp() {
     existing_voice(dir.path());
     let mut fake = FakeDesigner { calls: Vec::new() };
     let mut log = Vec::new();
-    design_voice(&mut fake, dir.path(), &req("alt", "Neu", "I", 42, 0.9, true), &mut log).unwrap();
+    design_voice(
+        &mut fake,
+        dir.path(),
+        &req("alt", "Neu", "I", 42, 0.9, true),
+        &mut log,
+    )
+    .unwrap();
     let backups: Vec<String> = fs::read_dir(dir.path())
         .unwrap()
         .map(|e| e.unwrap().file_name().into_string().unwrap())
@@ -441,14 +605,26 @@ fn design_force_keeps_old_voice_with_timestamp() {
         // alt.YYYYmmdd-HHMMSS.wav|txt
         let stamp = &b["alt.".len()..b.len() - 4];
         assert_eq!(stamp.len(), 15, "{b}");
-        assert!(stamp.chars().enumerate().all(|(i, c)| if i == 8 { c == '-' } else { c.is_ascii_digit() }), "{b}");
+        assert!(
+            stamp.chars().enumerate().all(|(i, c)| if i == 8 {
+                c == '-'
+            } else {
+                c.is_ascii_digit()
+            }),
+            "{b}"
+        );
         let old = fs::read(dir.path().join(b)).unwrap();
         assert!(old == b"old wav" || old == b"old text\n", "{b}");
     }
     assert_ne!(fs::read(dir.path().join("alt.wav")).unwrap(), b"old wav");
     // the existing entry keeps its position and takes the new label
     let reg = load_registry(dir.path()).unwrap();
-    assert_eq!(reg.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect::<Vec<_>>(), [("alt", "Neu"), ("b", "B")]);
+    assert_eq!(
+        reg.iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect::<Vec<_>>(),
+        [("alt", "Neu"), ("b", "B")]
+    );
     assert!(String::from_utf8(log).unwrap().contains("kept old voice"));
 }
 
@@ -457,23 +633,46 @@ fn design_force_keeps_old_voice_with_timestamp() {
 #[test]
 fn cli_dev_and_voice_defaults() {
     let cli = Cli::try_parse_from(["lectover", "dev", "build", "a-b"]).unwrap();
-    let Commands::Dev(DevCommand::Build { post, out, site }) = cli.command else { panic!() };
+    let Commands::Dev(DevCommand::Build { post, out, site }) = cli.command else {
+        panic!()
+    };
     assert_eq!((post.as_str(), out, site), ("a-b", None, None));
     let cli = Cli::try_parse_from(["lectover", "dev", "serve"]).unwrap();
-    let Commands::Dev(DevCommand::Serve { port, out }) = cli.command else { panic!() };
+    let Commands::Dev(DevCommand::Serve { port, out }) = cli.command else {
+        panic!()
+    };
     assert_eq!((port, out), (8000, None));
 
-    let cli = Cli::try_parse_from(["lectover", "voice", "design", "neu", "--label", "Neu", "--instruct", "Eine Stimme."])
-        .unwrap();
-    let Commands::Voice(VoiceCommand::Design(a)) = cli.command else { panic!() };
-    assert_eq!((a.id.as_str(), a.label.as_str(), a.instruct.as_str()), ("neu", "Neu", "Eine Stimme."));
+    let cli = Cli::try_parse_from([
+        "lectover",
+        "voice",
+        "design",
+        "neu",
+        "--label",
+        "Neu",
+        "--instruct",
+        "Eine Stimme.",
+    ])
+    .unwrap();
+    let Commands::Voice(VoiceCommand::Design(a)) = cli.command else {
+        panic!()
+    };
+    assert_eq!(
+        (a.id.as_str(), a.label.as_str(), a.instruct.as_str()),
+        ("neu", "Neu", "Eine Stimme.")
+    );
     assert_eq!((a.seed, a.temperature, a.force), (42, 0.9, false));
     assert!(a.voices.is_none());
     assert!(a.models.is_none() && a.device.is_none());
-    assert!(Cli::try_parse_from(["lectover", "voice", "design", "neu", "--label", "Neu"]).is_err(), "--instruct is required");
+    assert!(
+        Cli::try_parse_from(["lectover", "voice", "design", "neu", "--label", "Neu"]).is_err(),
+        "--instruct is required"
+    );
 
     let cli = Cli::try_parse_from(["lectover", "models", "fetch", "--design"]).unwrap();
-    let Commands::Models(ModelsCommand::Fetch { design, .. }) = cli.command else { panic!() };
+    let Commands::Models(ModelsCommand::Fetch { design, .. }) = cli.command else {
+        panic!()
+    };
     assert!(design);
 }
 
@@ -481,15 +680,27 @@ fn cli_dev_and_voice_defaults() {
 fn design_model_is_pinned_like_the_talker() {
     assert_eq!(DESIGN_TALKER, "qwen-talker-1.7b-voicedesign-BF16.gguf");
     assert_eq!(DESIGN_SOURCES.len(), 1);
-    assert_eq!((DESIGN_SOURCES[0].file, DESIGN_SOURCES[0].size), (DESIGN_TALKER, 3_839_585_184));
+    assert_eq!(
+        (DESIGN_SOURCES[0].file, DESIGN_SOURCES[0].size),
+        (DESIGN_TALKER, 3_839_585_184)
+    );
     let talker = lectover::models::MODEL_SOURCES[0];
-    assert_eq!(DESIGN_SOURCES[0].origin, talker.origin, "same repo and revision as the base talker");
+    assert_eq!(
+        DESIGN_SOURCES[0].origin, talker.origin,
+        "same repo and revision as the base talker"
+    );
 
     let dir = tempfile::tempdir().unwrap();
     let err = DesignFiles::check(dir.path()).unwrap_err().to_string();
-    assert!(err.contains(DESIGN_TALKER) && err.contains("qwen-tokenizer-12hz-F32.gguf"), "{err}");
+    assert!(
+        err.contains(DESIGN_TALKER) && err.contains("qwen-tokenizer-12hz-F32.gguf"),
+        "{err}"
+    );
     assert!(err.contains("models fetch --design"), "{err}");
-    assert!(!err.contains("qwen3-asr"), "voice design needs no ASR: {err}");
+    assert!(
+        !err.contains("qwen3-asr"),
+        "voice design needs no ASR: {err}"
+    );
 }
 
 /// `voice design` refuses an existing id before it looks for models.
@@ -499,7 +710,16 @@ fn voice_design_cli_refuses_existing_id_before_models() {
     existing_voice(voices.path());
     let models = tempfile::tempdir().unwrap();
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_lectover"))
-        .args(["voice", "design", "alt", "--label", "X", "--instruct", "I", "--voices"])
+        .args([
+            "voice",
+            "design",
+            "alt",
+            "--label",
+            "X",
+            "--instruct",
+            "I",
+            "--voices",
+        ])
         .arg(voices.path())
         .arg("--models")
         .arg(models.path())
@@ -518,22 +738,33 @@ fn voice_design_cli_refuses_existing_id_before_models() {
 fn design_smoke_with_qwentts_voice_design() {
     use lectover::design::load_designer;
     use lectover::ffi::resolve_device;
-    let models = PathBuf::from(std::env::var_os("LECTOVER_MODELS").expect("LECTOVER_MODELS is unset"));
+    let models =
+        PathBuf::from(std::env::var_os("LECTOVER_MODELS").expect("LECTOVER_MODELS is unset"));
     let files = DesignFiles::check(&models).unwrap();
     let voices = tempfile::tempdir().unwrap();
-    let instruct = "Ein ruhiger Mann mittleren Alters mit warmer, tiefer Stimme. Er spricht klares \
+    let instruct =
+        "Ein ruhiger Mann mittleren Alters mit warmer, tiefer Stimme. Er spricht klares \
                     Schweizer Hochdeutsch, sachlich und überlegt.";
     {
         let mut designer = load_designer(&files, resolve_device(None).unwrap()).unwrap();
-        let wav = design_voice(&mut *designer, voices.path(), &req("probe", "Probe", instruct, 42, 0.9, false), &mut Vec::new())
-            .unwrap();
+        let wav = design_voice(
+            &mut *designer,
+            voices.path(),
+            &req("probe", "Probe", instruct, 42, 0.9, false),
+            &mut Vec::new(),
+        )
+        .unwrap();
         let reader = hound::WavReader::open(&wav).unwrap();
         let secs = reader.duration() as f64 / 24000.0;
         // REF_TEXT read aloud takes roughly 6-12 s
         assert!((3.0..20.0).contains(&secs), "{secs} s");
         // same seed, same handle: identical take
-        let a = designer.design(REF_TEXT, instruct, MAX_TOKENS, 42, 0.9).unwrap();
-        let b = designer.design(REF_TEXT, instruct, MAX_TOKENS, 42, 0.9).unwrap();
+        let a = designer
+            .design(REF_TEXT, instruct, MAX_TOKENS, 42, 0.9)
+            .unwrap();
+        let b = designer
+            .design(REF_TEXT, instruct, MAX_TOKENS, 42, 0.9)
+            .unwrap();
         assert_eq!(a, b);
         // the handle is dropped here, before the process exits (Metal aborts otherwise)
     }

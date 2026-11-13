@@ -22,11 +22,16 @@ pub fn encode_mp3(audio: &[f32], sr: u32, path: &Path) -> Result<()> {
     } else {
         std::borrow::Cow::Owned(resample(audio, sr, MP3_RATE))
     };
-    let mut enc = Mp3Encoder::new(Mp3EncoderConfig { bitrate_kbps: MP3_KBPS, vbr_quality: None });
-    enc.push_pcm_f32(&audio, 1, MP3_RATE).map_err(|e| anyhow!("mp3 encode: {e:?}"))?;
+    let mut enc = Mp3Encoder::new(Mp3EncoderConfig {
+        bitrate_kbps: MP3_KBPS,
+        vbr_quality: None,
+    });
+    enc.push_pcm_f32(&audio, 1, MP3_RATE)
+        .map_err(|e| anyhow!("mp3 encode: {e:?}"))?;
     enc.finish();
 
-    let mut out = BufWriter::new(File::create(path).with_context(|| format!("create {}", path.display()))?);
+    let mut out =
+        BufWriter::new(File::create(path).with_context(|| format!("create {}", path.display()))?);
     // After finish() the first packet is the completed Info tag.
     loop {
         match enc.next_packet() {
@@ -91,14 +96,24 @@ mod tests {
             decoded += f.samples.len() / f.channels as usize;
         }
         // Encoder delay + decoder delay (1057) at the front, up to two frames of padding at the end.
-        assert!(decoded >= input.len(), "decoded {decoded} < input {}", input.len());
-        assert!(decoded <= input.len() + 1057 + 2 * 576, "decoded {decoded} too long");
+        assert!(
+            decoded >= input.len(),
+            "decoded {decoded} < input {}",
+            input.len()
+        );
+        assert!(
+            decoded <= input.len() + 1057 + 2 * 576,
+            "decoded {decoded} too long"
+        );
     }
 
     #[test]
     fn mp3_is_deterministic() {
         let input = sine(24_000, 0.5);
-        assert_eq!(encode_to_bytes(&input, 24_000), encode_to_bytes(&input, 24_000));
+        assert_eq!(
+            encode_to_bytes(&input, 24_000),
+            encode_to_bytes(&input, 24_000)
+        );
     }
 
     /// Writes the encoder-delay probe (`probe.ogg`, `probe.mp3`, `delay.html`) to
@@ -116,7 +131,8 @@ mod tests {
         let mut audio = vec![0f32; 3 * rate];
         for onset in [rate, 2 * rate] {
             for i in 0..rate / 200 {
-                audio[onset + i] = (2.0 * std::f32::consts::PI * 1000.0 * i as f32 / MP3_RATE as f32).cos();
+                audio[onset + i] =
+                    (2.0 * std::f32::consts::PI * 1000.0 * i as f32 / MP3_RATE as f32).cos();
             }
         }
         crate::audio::encode_opus(&audio, MP3_RATE, &dir.join("probe.ogg")).unwrap();

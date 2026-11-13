@@ -1,7 +1,7 @@
 use lectover::plan::{bucket_for, max_tokens_for, plan_chunks, Chunk, ChunkKind};
-use lectover::text::{collapse, tokens, Block};
 use lectover::text::normalize::{load_lexicon, spoken_groups, Group, Lexicon};
 use lectover::text::spoken_words::spoken_words;
+use lectover::text::{collapse, tokens, Block};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -60,7 +60,10 @@ fn long_block_splits_at_sentence_ends_only() {
     let texts: Vec<&str> = chunks.iter().map(|c| c.text.as_str()).collect();
     assert_eq!(
         texts,
-        ["Am fünfundzwanzigsten November war es.", "Dann kam der Schnee."]
+        [
+            "Am fünfundzwanzigsten November war es.",
+            "Dann kam der Schnee."
+        ]
     );
     let kinds: Vec<ChunkKind> = chunks.iter().map(|c| c.kind).collect();
     assert_eq!(kinds, [ChunkKind::Sentence, ChunkKind::Paragraph]);
@@ -68,7 +71,10 @@ fn long_block_splits_at_sentence_ends_only() {
 
 #[test]
 fn chunks_never_span_blocks_and_cover_groups_in_order() {
-    let a = blk("p", "Das ist der erste Satz hier. Und noch ein zweiter Satz folgt.");
+    let a = blk(
+        "p",
+        "Das ist der erste Satz hier. Und noch ein zweiter Satz folgt.",
+    );
     let c = blk("p", "Ein weiterer Absatz beginnt. Er hat auch zwei Sätze.");
     let lens = [a.1.len(), c.1.len()];
     let chunks = plan(&[a, c], 40);
@@ -101,7 +107,10 @@ fn abbreviation_does_not_end_sentence() {
 
 #[test]
 fn spoken_words_match_aligner_tokenizer() {
-    assert_eq!(spoken_words("S-B-O sagt: – «hallo»"), ["SBO", "sagt", "hallo"]);
+    assert_eq!(
+        spoken_words("S-B-O sagt: – «hallo»"),
+        ["SBO", "sagt", "hallo"]
+    );
 }
 
 #[test]
@@ -202,11 +211,26 @@ fn chunks_match_goldens() {
 
 #[test]
 fn title_tts_text_ends_with_a_full_stop() {
-    let chunk = |text: &str, kind| Chunk { block: 0, g0: 0, g1: 1, text: text.into(), kind };
-    assert_eq!(chunk("Die Debatte", ChunkKind::Title).tts_text(), "Die Debatte.");
+    let chunk = |text: &str, kind| Chunk {
+        block: 0,
+        g0: 0,
+        g1: 1,
+        text: text.into(),
+        kind,
+    };
+    assert_eq!(
+        chunk("Die Debatte", ChunkKind::Title).tts_text(),
+        "Die Debatte."
+    );
     assert_eq!(chunk("Erstens:", ChunkKind::Title).tts_text(), "Erstens.");
     assert_eq!(chunk("Was nun?", ChunkKind::Title).tts_text(), "Was nun?");
-    assert_eq!(chunk("Was Olten jetzt! dazu sagt", ChunkKind::Title).tts_text(), "Was Olten jetzt! dazu sagt.");
+    assert_eq!(
+        chunk("Was Olten jetzt! dazu sagt", ChunkKind::Title).tts_text(),
+        "Was Olten jetzt! dazu sagt."
+    );
     // body chunks are sent as they are
-    assert_eq!(chunk("und dann", ChunkKind::Sentence).tts_text(), "und dann");
+    assert_eq!(
+        chunk("und dann", ChunkKind::Sentence).tts_text(),
+        "und dann"
+    );
 }

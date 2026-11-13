@@ -73,7 +73,7 @@ pub fn encode_opus(audio: &[f32], sr: u32, path: &Path) -> Result<()> {
     let pre_skip = to_granule(lookahead);
 
     let frame = rate as usize / 50; // 20 ms
-    // encode enough frames that the lookahead delay still flushes the last real sample
+                                    // encode enough frames that the lookahead delay still flushes the last real sample
     let n_frames = (audio.len() + lookahead).div_ceil(frame).max(1);
     let end_granule = pre_skip + to_granule(audio.len());
 

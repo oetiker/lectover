@@ -8,7 +8,9 @@ use anyhow::{bail, Result};
 use lectover_sys as sys;
 
 use super::backend::{asr_library_device, check_ggml_layout};
-use super::{c_len, c_path, c_str, c_string, require_file, Align, Device, FillSpanError, Transcribe};
+use super::{
+    c_len, c_path, c_str, c_string, require_file, Align, Device, FillSpanError, Transcribe,
+};
 
 /// The rate both models expect.
 const ASR_RATE: f32 = 16000.0;
@@ -31,7 +33,9 @@ fn check_load(model: &Path, what: &str, device: Device) -> Result<CString> {
     require_file(model, what)?;
     let actual = asr_library_device();
     if actual != device {
-        bail!("{what} cannot run on {device}: qwen3-asr.cpp always uses the first GPU, here {actual}");
+        bail!(
+            "{what} cannot run on {device}: qwen3-asr.cpp always uses the first GPU, here {actual}"
+        );
     }
     c_path(model)
 }
@@ -57,7 +61,11 @@ impl QwenAsr {
         // SAFETY: path is a valid NUL-terminated string for the duration of the call.
         let ctx = unsafe { sys::qwen3_asr_init(path.as_ptr(), DEFAULT_THREADS) };
         if ctx.is_null() {
-            bail!("qwen3_asr_init failed ({}): {}", model.display(), last_error());
+            bail!(
+                "qwen3_asr_init failed ({}): {}",
+                model.display(),
+                last_error()
+            );
         }
         Ok(QwenAsr { ctx })
     }
@@ -80,8 +88,9 @@ impl Transcribe for QwenAsr {
         }
         let n = c_len(pcm16k.len(), "audio")?;
         // SAFETY: ctx is live; pcm16k holds n floats and is only read during the call.
-        let s =
-            AsrString(unsafe { sys::qwen3_asr_transcribe(self.ctx, pcm16k.as_ptr(), n, DEFAULT_MAX_TOKENS) });
+        let s = AsrString(unsafe {
+            sys::qwen3_asr_transcribe(self.ctx, pcm16k.as_ptr(), n, DEFAULT_MAX_TOKENS)
+        });
         if s.0.is_null() {
             bail!("qwen3_asr_transcribe failed: {}", last_error());
         }
@@ -124,11 +133,24 @@ impl QwenAligner {
 /// `align_words`) and reports success. Such a span is never a real alignment of a word of a
 /// multi-word take, and for a single word it would need a timestamp of exactly 0 and one clamped
 /// to the exact duration; treat it as a failure instead of handing out silent zero spans.
-fn check_no_fill_spans(spans: &[sys::qwen3_word_span], words: &[String], n_samples: i32) -> Result<()> {
+fn check_no_fill_spans(
+    spans: &[sys::qwen3_word_span],
+    words: &[String],
+    n_samples: i32,
+) -> Result<()> {
     // Same f32 expression as the C side, so the comparison is exact.
     let duration = n_samples as f32 / ASR_RATE;
-    if let Some(i) = spans.iter().position(|s| s.start_s == 0.0 && s.end_s == duration) {
-        return Err(FillSpanError { word: i + 1, total: words.len(), text: words[i].clone(), duration }.into());
+    if let Some(i) = spans
+        .iter()
+        .position(|s| s.start_s == 0.0 && s.end_s == duration)
+    {
+        return Err(FillSpanError {
+            word: i + 1,
+            total: words.len(),
+            text: words[i].clone(),
+            duration,
+        }
+        .into());
     }
     Ok(())
 }
@@ -196,8 +218,18 @@ mod tests {
         check_no_fill_spans(&ok, &words, n).unwrap();
         let filled = [span(0.48, 0.56), span(0.0, 2.5), span(0.0, 2.5)];
         let err = check_no_fill_spans(&filled, &words, n).unwrap_err();
-        let fill = err.downcast_ref::<FillSpanError>().expect("typed fill-span error");
-        assert_eq!(fill, &FillSpanError { word: 2, total: 3, text: "Bedarf".into(), duration: 2.5 });
+        let fill = err
+            .downcast_ref::<FillSpanError>()
+            .expect("typed fill-span error");
+        assert_eq!(
+            fill,
+            &FillSpanError {
+                word: 2,
+                total: 3,
+                text: "Bedarf".into(),
+                duration: 2.5
+            }
+        );
         let msg = err.to_string();
         assert_eq!(msg, "aligner returned too few timestamps: word 2 of 3 (\"Bedarf\") got the (0, 2.5) fill span");
     }

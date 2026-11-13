@@ -21,7 +21,10 @@ pub const DESIGN_TALKER: &str = "qwen-talker-1.7b-voicedesign-BF16.gguf";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Origin {
     /// A pre-converted GGUF on Hugging Face, pinned to a revision.
-    HuggingFace { repo: &'static str, revision: &'static str },
+    HuggingFace {
+        repo: &'static str,
+        revision: &'static str,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,25 +49,37 @@ pub const MODEL_SOURCES: [ModelSource; 4] = [
         file: TALKER,
         local: TALKER,
         size: 3_876_199_616,
-        origin: Origin::HuggingFace { repo: "Serveurperso/Qwen3-TTS-GGUF", revision: TTS_REVISION },
+        origin: Origin::HuggingFace {
+            repo: "Serveurperso/Qwen3-TTS-GGUF",
+            revision: TTS_REVISION,
+        },
     },
     ModelSource {
         file: CODEC,
         local: CODEC,
         size: 647_263_104,
-        origin: Origin::HuggingFace { repo: "Serveurperso/Qwen3-TTS-GGUF", revision: TTS_REVISION },
+        origin: Origin::HuggingFace {
+            repo: "Serveurperso/Qwen3-TTS-GGUF",
+            revision: TTS_REVISION,
+        },
     },
     ModelSource {
         file: ASR,
         local: ASR,
         size: 1_882_543_424,
-        origin: Origin::HuggingFace { repo: "megaice/Qwen3-ASR-GGUF-Models", revision: ASR_REVISION },
+        origin: Origin::HuggingFace {
+            repo: "megaice/Qwen3-ASR-GGUF-Models",
+            revision: ASR_REVISION,
+        },
     },
     ModelSource {
         file: ALIGNER,
         local: ALIGNER,
         size: 1_842_214_208,
-        origin: Origin::HuggingFace { repo: "megaice/Qwen3-ASR-GGUF-Models", revision: ASR_REVISION },
+        origin: Origin::HuggingFace {
+            repo: "megaice/Qwen3-ASR-GGUF-Models",
+            revision: ASR_REVISION,
+        },
     },
 ];
 
@@ -81,7 +96,10 @@ pub const REUSE_SOURCE: ModelSource = ModelSource {
     file: "model.safetensors",
     local: REUSE_SAFETENSORS,
     size: 38_592_940,
-    origin: Origin::HuggingFace { repo: "nvidia/NVIDIA-NemotronLabs-RE-USE", revision: REUSE_REVISION },
+    origin: Origin::HuggingFace {
+        repo: "nvidia/NVIDIA-NemotronLabs-RE-USE",
+        revision: REUSE_REVISION,
+    },
 };
 
 /// What `models fetch` downloads: render models and RE-USE weights, plus the VoiceDesign talker
@@ -100,7 +118,10 @@ pub const DESIGN_SOURCES: [ModelSource; 1] = [ModelSource {
     file: DESIGN_TALKER,
     local: DESIGN_TALKER,
     size: 3_839_585_184,
-    origin: Origin::HuggingFace { repo: "Serveurperso/Qwen3-TTS-GGUF", revision: TTS_REVISION },
+    origin: Origin::HuggingFace {
+        repo: "Serveurperso/Qwen3-TTS-GGUF",
+        revision: TTS_REVISION,
+    },
 }];
 
 /// Paths of the four model files, all known to exist.
@@ -114,9 +135,16 @@ pub struct ModelFiles {
 
 /// Error naming every one of `files` missing in `dir` and the `fetch` command that gets them.
 fn require_files(dir: &Path, files: &[&str], fetch: &str) -> Result<()> {
-    let missing: Vec<PathBuf> = files.iter().map(|f| dir.join(f)).filter(|p| !p.is_file()).collect();
+    let missing: Vec<PathBuf> = files
+        .iter()
+        .map(|f| dir.join(f))
+        .filter(|p| !p.is_file())
+        .collect();
     if !missing.is_empty() {
-        let list: Vec<String> = missing.iter().map(|p| format!("  {}", p.display())).collect();
+        let list: Vec<String> = missing
+            .iter()
+            .map(|p| format!("  {}", p.display()))
+            .collect();
         bail!(
             "model files missing:\n{}\nrun `{fetch} --models {}` to get them",
             list.join("\n"),
@@ -150,8 +178,15 @@ pub struct DesignFiles {
 impl DesignFiles {
     /// Error naming every missing file and `models fetch --design`.
     pub fn check(dir: &Path) -> Result<DesignFiles> {
-        require_files(dir, &[DESIGN_TALKER, CODEC], "lectover models fetch --design")?;
-        Ok(DesignFiles { talker: dir.join(DESIGN_TALKER), codec: dir.join(CODEC) })
+        require_files(
+            dir,
+            &[DESIGN_TALKER, CODEC],
+            "lectover models fetch --design",
+        )?;
+        Ok(DesignFiles {
+            talker: dir.join(DESIGN_TALKER),
+            codec: dir.join(CODEC),
+        })
     }
 }
 
@@ -165,7 +200,9 @@ impl CleanFiles {
     /// Error naming the missing file and the command that fetches it.
     pub fn check(dir: &Path) -> Result<CleanFiles> {
         require_files(dir, &[REUSE_SAFETENSORS], "lectover models fetch")?;
-        Ok(CleanFiles { reuse: dir.join(REUSE_SAFETENSORS) })
+        Ok(CleanFiles {
+            reuse: dir.join(REUSE_SAFETENSORS),
+        })
     }
 }
 
@@ -185,12 +222,18 @@ pub fn ensure_reuse_gguf(
     let mut part = gguf.as_os_str().to_owned();
     part.push(".part");
     let part = PathBuf::from(part);
-    writeln!(log, "converting {} to {}", clean.reuse.display(), gguf.display())?;
+    writeln!(
+        log,
+        "converting {} to {}",
+        clean.reuse.display(),
+        gguf.display()
+    )?;
     if let Err(e) = convert(&clean.reuse, &part) {
         let _ = fs::remove_file(&part);
         return Err(e.context(format!("converting {}", clean.reuse.display())));
     }
-    fs::rename(&part, &gguf).with_context(|| format!("renaming {} to {}", part.display(), gguf.display()))?;
+    fs::rename(&part, &gguf)
+        .with_context(|| format!("renaming {} to {}", part.display(), gguf.display()))?;
     writeln!(log, "{}", gguf.display())?;
     Ok(gguf)
 }
@@ -216,7 +259,13 @@ pub fn fetch_all(dir: &Path, sources: &[ModelSource], get: Get, log: &mut dyn Wr
     for src in sources {
         let target = dir.join(src.local);
         let Origin::HuggingFace { repo, revision } = src.origin;
-        fetch_one(&target, &hf_url(repo, revision, src.file), src.size, get, log)?;
+        fetch_one(
+            &target,
+            &hf_url(repo, revision, src.file),
+            src.size,
+            get,
+            log,
+        )?;
     }
     Ok(())
 }
@@ -242,7 +291,12 @@ fn fetch_one(target: &Path, url: &str, size: u64, get: Get, log: &mut dyn Write)
     }
     if offset < size {
         if offset > 0 {
-            writeln!(log, "resuming {url} at {} of {} MB", offset / 1_000_000, size / 1_000_000)?;
+            writeln!(
+                log,
+                "resuming {url} at {} of {} MB",
+                offset / 1_000_000,
+                size / 1_000_000
+            )?;
         } else {
             writeln!(log, "downloading {url} ({} MB)", size / 1_000_000)?;
         }
@@ -276,7 +330,8 @@ fn fetch_one(target: &Path, url: &str, size: u64, get: Get, log: &mut dyn Write)
     if got != size {
         return Err(anyhow!("{}: {got} bytes, expected {size}", part.display()));
     }
-    fs::rename(&part, target).with_context(|| format!("renaming {} to {}", part.display(), target.display()))?;
+    fs::rename(&part, target)
+        .with_context(|| format!("renaming {} to {}", part.display(), target.display()))?;
     writeln!(log, "{}", target.display())?;
     Ok(())
 }
@@ -302,5 +357,9 @@ pub fn http_download(url: &str, offset: u64) -> Result<Download> {
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.parse().ok());
     let body = resp.into_body().into_with_config().limit(u64::MAX).reader();
-    Ok(Download { status, content_length, body: Box::new(body) })
+    Ok(Download {
+        status,
+        content_length,
+        body: Box::new(body),
+    })
 }

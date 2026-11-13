@@ -9,7 +9,8 @@ use lectover::check::{key, ratio, score};
 use lectover::ffi::{Align, FillSpanError, Synth, TakeRequest, Transcribe};
 use lectover::plan::{Chunk, ChunkKind};
 use lectover::render::{
-    align_segments_with, synthesize_chunks_with, Ending, Take, MAX_CANDIDATES, MAX_ROUNDS, MIN_SCORE,
+    align_segments_with, synthesize_chunks_with, Ending, Take, MAX_CANDIDATES, MAX_ROUNDS,
+    MIN_SCORE,
 };
 use lectover::text::normalize::Lexicon;
 use lectover::text::spoken_words::spoken_words;
@@ -34,7 +35,14 @@ struct FakeSynth {
 
 impl FakeSynth {
     fn new(heard: Heard, hear: fn(&str, u64) -> String) -> Self {
-        FakeSynth { calls: Vec::new(), temperatures: Vec::new(), first_seed: None, heard, hear, max_batch: 1 }
+        FakeSynth {
+            calls: Vec::new(),
+            temperatures: Vec::new(),
+            first_seed: None,
+            heard,
+            hear,
+            max_batch: 1,
+        }
     }
 }
 
@@ -45,13 +53,19 @@ impl Synth for FakeSynth {
 
     fn generate(&mut self, reqs: &[TakeRequest], temperature: f32) -> Result<Vec<Vec<f32>>> {
         self.temperatures.push(temperature);
-        self.calls.push(reqs.iter().map(|r| (r.max_tokens, r.text.clone(), r.seed)).collect());
+        self.calls.push(
+            reqs.iter()
+                .map(|r| (r.max_tokens, r.text.clone(), r.seed))
+                .collect(),
+        );
         let first = *self.first_seed.get_or_insert(reqs[0].seed);
         Ok(reqs
             .iter()
             .map(|r| {
                 let offset = r.seed - first;
-                self.heard.borrow_mut().push_back((self.hear)(&r.text, offset));
+                self.heard
+                    .borrow_mut()
+                    .push_back((self.hear)(&r.text, offset));
                 vec![1.0; 10 * (offset as usize + 1)]
             })
             .collect())
@@ -71,7 +85,11 @@ impl Transcribe for FakeAsr {
     fn transcribe(&mut self, pcm16k: &[f32]) -> Result<String> {
         assert!(!pcm16k.is_empty());
         self.calls += 1;
-        Ok(self.heard.borrow_mut().pop_front().expect("one transcription per take"))
+        Ok(self
+            .heard
+            .borrow_mut()
+            .pop_front()
+            .expect("one transcription per take"))
     }
 }
 
@@ -96,14 +114,19 @@ fn synthesize_chunks_buckets_and_retries() {
     let heard: Heard = Rc::default();
     // "schlecht" is misheard in round 0 only; every other take is heard verbatim
     let mut tts = FakeSynth::new(heard.clone(), |t, round| {
-        if t == "schlecht" && round == 0 { "Ganz?".into() } else { format!(" {t} ") }
+        if t == "schlecht" && round == 0 {
+            "Ganz?".into()
+        } else {
+            format!(" {t} ")
+        }
     });
     let mut asr = FakeAsr { heard, calls: 0 };
     let mut log = Vec::new();
     let mut warn = Vec::new();
     let wavs = synthesize_chunks_with(
         &mut tts,
-        &mut asr, &mut PlainEnding,
+        &mut asr,
+        &mut PlainEnding,
         &strings(&["kurz", "schlecht", "lang"]),
         &[60, 60, 700],
         42,
@@ -116,11 +139,18 @@ fn synthesize_chunks_buckets_and_retries() {
     assert_eq!(
         tts.calls,
         vec![
-            vec![(100, "kurz".into(), 42), (100, "schlecht".into(), 42), (1000, "lang".into(), 42)],
+            vec![
+                (100, "kurz".into(), 42),
+                (100, "schlecht".into(), 42),
+                (1000, "lang".into(), 42)
+            ],
             vec![(100, "schlecht".into(), 43)],
         ]
     );
-    assert_eq!(wavs.iter().map(Vec::len).collect::<Vec<_>>(), vec![10, 20, 10]);
+    assert_eq!(
+        wavs.iter().map(Vec::len).collect::<Vec<_>>(),
+        vec![10, 20, 10]
+    );
     assert_eq!(asr.calls, 4);
     assert!(warn.is_empty());
     let log = String::from_utf8(log).unwrap();
@@ -145,7 +175,8 @@ fn synthesize_chunks_warns_on_persistent_failure() {
     let mut warn = Vec::new();
     let wavs = synthesize_chunks_with(
         &mut tts,
-        &mut asr, &mut PlainEnding,
+        &mut asr,
+        &mut PlainEnding,
         &strings(&["axyz"]),
         &[60],
         1,
@@ -156,14 +187,24 @@ fn synthesize_chunks_warns_on_persistent_failure() {
     )
     .unwrap();
     assert_eq!(tts.calls.len(), MAX_ROUNDS);
-    assert_eq!(tts.calls.iter().map(|c| c[0].2).collect::<Vec<_>>(), vec![1, 2, 3, 4]);
+    assert_eq!(
+        tts.calls.iter().map(|c| c[0].2).collect::<Vec<_>>(),
+        vec![1, 2, 3, 4]
+    );
     // each re-roll samples cooler: 0.9, 0.8, 0.7, 0.6
-    let temps: Vec<f32> = tts.temperatures.iter().map(|t| (t * 100.0).round() / 100.0).collect();
+    let temps: Vec<f32> = tts
+        .temperatures
+        .iter()
+        .map(|t| (t * 100.0).round() / 100.0)
+        .collect();
     assert_eq!(temps, vec![0.9, 0.8, 0.7, 0.6]);
     assert_eq!(wavs.len(), 1);
     // equal scores keep the first (shortest) take
     assert_eq!(wavs[0].len(), 10);
-    assert_eq!(String::from_utf8(warn).unwrap(), "WARNING: chunk 1 best score 0.20, heard: falsch\n");
+    assert_eq!(
+        String::from_utf8(warn).unwrap(),
+        "WARNING: chunk 1 best score 0.20, heard: falsch\n"
+    );
 }
 
 #[test]
@@ -224,7 +265,10 @@ fn score_disables_autojunk() {
 
 #[test]
 fn key_keeps_lowercase_german_letters_only() {
-    assert_eq!(key("Grüße, Herr Müller!", &Lexicon::new()), "grüßeherrmüller");
+    assert_eq!(
+        key("Grüße, Herr Müller!", &Lexicon::new()),
+        "grüßeherrmüller"
+    );
 }
 
 struct FakeAligner {
@@ -247,7 +291,13 @@ impl Align for FakeAligner {
 }
 
 fn chunk(text: &str, block: usize) -> Chunk {
-    Chunk { block, g0: 0, g1: text.split(' ').count(), text: text.into(), kind: ChunkKind::Paragraph }
+    Chunk {
+        block,
+        g0: 0,
+        g1: text.split(' ').count(),
+        text: text.into(),
+        kind: ChunkKind::Paragraph,
+    }
 }
 
 fn approx(a: f64, b: f64) -> bool {
@@ -259,10 +309,20 @@ fn align_segments_applies_offsets() {
     let chunks = vec![chunk("eins zwei drei", 0), chunk("vier fünf", 1)];
     let parts = vec![(0.0, vec![0.0; SR as usize]), (2.0, vec![0.0; SR as usize])];
     let mut warn = Vec::new();
-    let (times, interp) = align_segments_with(&mut FakeAligner { drop_last: false }, &parts, SR, &chunks, &mut warn).unwrap();
+    let (times, interp) = align_segments_with(
+        &mut FakeAligner { drop_last: false },
+        &parts,
+        SR,
+        &chunks,
+        &mut warn,
+    )
+    .unwrap();
     let flat: Vec<f64> = times[0].iter().flat_map(|&(s, e)| [s, e]).collect();
     let want = [0.0, 0.1, 0.1, 0.2, 0.2, 0.3];
-    assert!(flat.iter().zip(want).all(|(&a, b)| approx(a, b)), "{flat:?}");
+    assert!(
+        flat.iter().zip(want).all(|(&a, b)| approx(a, b)),
+        "{flat:?}"
+    );
     assert!(approx(times[1][0].0, 2.0) && approx(times[1][0].1, 2.1));
     assert_eq!(interp, vec![vec![false; 3], vec![false; 2]]);
     assert!(warn.is_empty());
@@ -274,7 +334,14 @@ fn align_segments_word_count_mismatch_interpolates() {
     assert_eq!(spoken_words(&chunks[0].text).len(), 4);
     let parts = vec![(3.0, vec![0.0; 2 * SR as usize])];
     let mut warn = Vec::new();
-    let (times, interp) = align_segments_with(&mut FakeAligner { drop_last: true }, &parts, SR, &chunks, &mut warn).unwrap();
+    let (times, interp) = align_segments_with(
+        &mut FakeAligner { drop_last: true },
+        &parts,
+        SR,
+        &chunks,
+        &mut warn,
+    )
+    .unwrap();
     assert_eq!(
         String::from_utf8(warn).unwrap(),
         "WARNING: chunk 1: aligner returned 3 words, expected 4; interpolating its word times\n"
@@ -301,9 +368,16 @@ fn align_segments_fill_span_error_interpolates() {
     let parts = vec![(3.0, vec![0.0; 2 * SR as usize])];
     let mut warn = Vec::new();
     let mut aligner = FailingAligner(|| {
-        FillSpanError { word: 2, total: 4, text: "zwei".into(), duration: 2.0 }.into()
+        FillSpanError {
+            word: 2,
+            total: 4,
+            text: "zwei".into(),
+            duration: 2.0,
+        }
+        .into()
     });
-    let (times, interp) = align_segments_with(&mut aligner, &parts, SR, &chunks, &mut warn).unwrap();
+    let (times, interp) =
+        align_segments_with(&mut aligner, &parts, SR, &chunks, &mut warn).unwrap();
     assert_eq!(
         String::from_utf8(warn).unwrap(),
         "WARNING: chunk 1: aligner returned too few timestamps: word 2 of 4 (\"zwei\") got the (0, 2) fill span; \
@@ -362,18 +436,38 @@ impl Ending for SuffixEnding {
 
 #[test]
 fn unclean_ending_is_regenerated_and_the_clean_one_kept() {
-    let heard: Heard = Rc::new(RefCell::new(VecDeque::from(strings(&["Wie es weitergeht", "Wie es weitergeht"]))));
+    let heard: Heard = Rc::new(RefCell::new(VecDeque::from(strings(&[
+        "Wie es weitergeht",
+        "Wie es weitergeht",
+    ]))));
     let mut tts = ShortThenLong { rounds: 0 };
     let mut asr = FakeAsr { heard, calls: 0 };
     let mut ending = SuffixEnding::default();
     let (mut log, mut warn) = (Vec::new(), Vec::new());
     let wavs = synthesize_chunks_with(
-        &mut tts, &mut asr, &mut ending, &strings(&["Wie es weitergeht."]), &[80], 42, 0.9, &Lexicon::new(), &mut log, &mut warn,
+        &mut tts,
+        &mut asr,
+        &mut ending,
+        &strings(&["Wie es weitergeht."]),
+        &[80],
+        42,
+        0.9,
+        &Lexicon::new(),
+        &mut log,
+        &mut warn,
     )
     .unwrap();
     assert_eq!(tts.rounds, 2, "the unclean take must be re-rolled");
-    assert_eq!(wavs[0].len(), 300, "the finished (cut) clean take wins although it is longer");
-    assert_eq!(ending.finished, strings(&["Wie es weitergeht.", "Wie es weitergeht."]), "finished with the chunk text");
+    assert_eq!(
+        wavs[0].len(),
+        300,
+        "the finished (cut) clean take wins although it is longer"
+    );
+    assert_eq!(
+        ending.finished,
+        strings(&["Wie es weitergeht.", "Wie es weitergeht."]),
+        "finished with the chunk text"
+    );
     let log = String::from_utf8(log).unwrap();
     assert!(log.contains("(no clean cut)"), "{log}");
     assert!(warn.is_empty());
@@ -395,21 +489,39 @@ impl Ending for Suffix {
 fn the_ending_chooses_the_synthesised_text_and_scoring_uses_the_chunk() {
     let heard: Heard = Rc::default();
     // the ASR hears the chunk only (the carrier was cut): a pass means scoring used the chunk text
-    let mut tts = FakeSynth::new(heard.clone(), |t, _| t.trim_end_matches(" Neues Kapitel.").into());
+    let mut tts = FakeSynth::new(heard.clone(), |t, _| {
+        t.trim_end_matches(" Neues Kapitel.").into()
+    });
     let mut asr = FakeAsr { heard, calls: 0 };
     let (mut log, mut warn) = (Vec::new(), Vec::new());
     synthesize_chunks_with(
-        &mut tts, &mut asr, &mut Suffix, &strings(&["kurz"]), &[60], 42, 0.9, &Lexicon::new(), &mut log, &mut warn,
+        &mut tts,
+        &mut asr,
+        &mut Suffix,
+        &strings(&["kurz"]),
+        &[60],
+        42,
+        0.9,
+        &Lexicon::new(),
+        &mut log,
+        &mut warn,
     )
     .unwrap();
-    assert_eq!(tts.calls, vec![vec![(100, "kurz Neues Kapitel.".into(), 42)]], "one round: the take passed");
+    assert_eq!(
+        tts.calls,
+        vec![vec![(100, "kurz Neues Kapitel.".into(), 42)]],
+        "one round: the take passed"
+    );
     assert!(warn.is_empty(), "{}", String::from_utf8_lossy(&warn));
 }
 
 #[test]
 fn clipped_beats_ranking_prefers_clean_endings_among_passing_takes() {
     let clean = Take::new(0.95, vec![0.0; 20], String::new());
-    let clipped = Take { clipped: true, ..Take::new(1.0, vec![0.0; 10], String::new()) };
+    let clipped = Take {
+        clipped: true,
+        ..Take::new(1.0, vec![0.0; 10], String::new())
+    };
     assert!(clean.beats(&clipped));
     assert!(!clipped.beats(&clean));
     // a take failing the ASR check never beats a passing one, clipped or not
@@ -422,32 +534,63 @@ fn spare_batch_slots_become_extra_candidates() {
     let heard: Heard = Rc::default();
     // "zäh" is heard right only from the candidate seeded 42 + MAX_ROUNDS * 2 + 1 (round 2, j = 2)
     let mut tts = FakeSynth::new(heard.clone(), |t, off| {
-        if t == "zäh" && off != (MAX_ROUNDS * 2 + 1) as u64 { "Ganz?".into() } else { format!(" {t} ") }
+        if t == "zäh" && off != (MAX_ROUNDS * 2 + 1) as u64 {
+            "Ganz?".into()
+        } else {
+            format!(" {t} ")
+        }
     });
     tts.max_batch = 4;
     let mut asr = FakeAsr { heard, calls: 0 };
     let (mut log, mut warn) = (Vec::new(), Vec::new());
     let wavs = synthesize_chunks_with(
-        &mut tts, &mut asr, &mut PlainEnding, &strings(&["zäh", "gut"]), &[60, 60], 42, 0.9, &Lexicon::new(), &mut log, &mut warn,
+        &mut tts,
+        &mut asr,
+        &mut PlainEnding,
+        &strings(&["zäh", "gut"]),
+        &[60, 60],
+        42,
+        0.9,
+        &Lexicon::new(),
+        &mut log,
+        &mut warn,
     )
     .unwrap();
     let m = MAX_ROUNDS as u64;
-    let seeds = |c: &Vec<(usize, String, u64)>| c.iter().map(|r| (r.1.clone(), r.2)).collect::<Vec<_>>();
+    let seeds =
+        |c: &Vec<(usize, String, u64)>| c.iter().map(|r| (r.1.clone(), r.2)).collect::<Vec<_>>();
     assert_eq!(tts.calls.len(), 2, "round 2 succeeds");
     assert_eq!(
         seeds(&tts.calls[0]),
-        vec![("zäh".into(), 42), ("zäh".into(), 42 + m), ("gut".into(), 42), ("gut".into(), 42 + m)],
+        vec![
+            ("zäh".into(), 42),
+            ("zäh".into(), 42 + m),
+            ("gut".into(), 42),
+            ("gut".into(), 42 + m)
+        ],
         "4 slots, 2 chunks: 2 candidates each"
     );
     assert_eq!(
         seeds(&tts.calls[1]),
-        (0..MAX_CANDIDATES as u64).map(|j| ("zäh".to_string(), 43 + m * j)).collect::<Vec<_>>(),
+        (0..MAX_CANDIDATES as u64)
+            .map(|j| ("zäh".to_string(), 43 + m * j))
+            .collect::<Vec<_>>(),
         "1 chunk left: 4 slots, capped at MAX_CANDIDATES"
     );
-    assert_eq!(wavs[0].len(), 10 * (MAX_ROUNDS * 2 + 2), "the candidate heard right wins");
+    assert_eq!(
+        wavs[0].len(),
+        10 * (MAX_ROUNDS * 2 + 2),
+        "the candidate heard right wins"
+    );
     let log = String::from_utf8(log).unwrap();
-    assert!(log.starts_with("round 1: generating 2 chunk(s), 2 candidates each\n"), "{log}");
-    assert!(log.contains("round 2: generating 1 chunk(s), 3 candidates each\n"), "{log}");
+    assert!(
+        log.starts_with("round 1: generating 2 chunk(s), 2 candidates each\n"),
+        "{log}"
+    );
+    assert!(
+        log.contains("round 2: generating 1 chunk(s), 3 candidates each\n"),
+        "{log}"
+    );
     assert!(warn.is_empty());
 }
 
@@ -458,11 +601,27 @@ fn a_repeated_heading_is_generated_and_scored_once() {
     let mut asr = FakeAsr { heard, calls: 0 };
     let (mut log, mut warn) = (Vec::new(), Vec::new());
     let wavs = synthesize_chunks_with(
-        &mut tts, &mut asr, &mut PlainEnding, &strings(&["Titel", "Text", "Titel"]), &[60, 60, 60], 42, 0.9, &Lexicon::new(), &mut log, &mut warn,
+        &mut tts,
+        &mut asr,
+        &mut PlainEnding,
+        &strings(&["Titel", "Text", "Titel"]),
+        &[60, 60, 60],
+        42,
+        0.9,
+        &Lexicon::new(),
+        &mut log,
+        &mut warn,
     )
     .unwrap();
-    assert_eq!(tts.calls, vec![vec![(100, "Titel".into(), 42), (100, "Text".into(), 42)]]);
+    assert_eq!(
+        tts.calls,
+        vec![vec![(100, "Titel".into(), 42), (100, "Text".into(), 42)]]
+    );
     assert_eq!(asr.calls, 2);
     assert_eq!(wavs[0], wavs[2]);
-    assert_eq!(String::from_utf8(log).unwrap().lines().count(), 4, "every chunk is still logged");
+    assert_eq!(
+        String::from_utf8(log).unwrap().lines().count(),
+        4,
+        "every chunk is still logged"
+    );
 }

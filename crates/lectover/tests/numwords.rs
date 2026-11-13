@@ -4,8 +4,8 @@ use std::fs;
 use std::path::PathBuf;
 
 fn golden(section: &str) -> Vec<(u64, String)> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/goldens/numbers.json");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/goldens/numbers.json");
     let v: Value = serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
     let entries: Vec<_> = v[section]
         .as_object()
