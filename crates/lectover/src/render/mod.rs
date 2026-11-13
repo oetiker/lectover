@@ -14,5 +14,6 @@ pub use carrier::{
 };
 pub use segments::{align_segments, align_segments_with};
 pub use takes::{
-    synthesize_chunks, synthesize_chunks_with, Take, MAX_CANDIDATES, MAX_ROUNDS, MIN_SCORE,
+    synthesize_chunks, synthesize_chunks_with, ChunkRequest, Take, MAX_CANDIDATES, MAX_ROUNDS,
+    MIN_SCORE,
 };

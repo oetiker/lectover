@@ -25,8 +25,17 @@ jobs:
     with:
       ref: ${{ inputs.ref }}
 
-  # lectover's own jobs: a fresh recursive clone with the four submodules,
-  # the native build and the fast tests (ci-local.yml).
+  # fmt, clippy -D warnings and the tests on Linux (CPU backend), from a
+  # fresh recursive clone of the four submodules.
+  rust:
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'github-actions[bot]') }}
+    uses: oposs/repo-infra/.github/workflows/ri-ci-rust.yml@v2
+    with:
+      ref: ${{ inputs.ref }}
+      submodules: recursive
+
+  # The Metal build and its tests on macOS (ci-local.yml): ri-ci-rust runs
+  # on Linux only.
   local:
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'github-actions[bot]') }}
     uses: ./.github/workflows/ci-local.yml
@@ -78,7 +87,7 @@ jobs:
   # PR tested exactly the head that carries the release-built status.
   ci-passed:
     if: always()
-    needs: [man, local, player, release-pr-current, release-verdict]
+    needs: [man, rust, local, player, release-pr-current, release-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

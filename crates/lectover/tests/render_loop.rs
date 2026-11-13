@@ -9,8 +9,8 @@ use lectover::check::{key, ratio, score};
 use lectover::ffi::{Align, FillSpanError, Synth, TakeRequest, Transcribe};
 use lectover::plan::{Chunk, ChunkKind};
 use lectover::render::{
-    align_segments_with, synthesize_chunks_with, Ending, Take, MAX_CANDIDATES, MAX_ROUNDS,
-    MIN_SCORE,
+    align_segments_with, synthesize_chunks_with, ChunkRequest, Ending, Take, MAX_CANDIDATES,
+    MAX_ROUNDS, MIN_SCORE,
 };
 use lectover::text::normalize::Lexicon;
 use lectover::text::spoken_words::spoken_words;
@@ -127,11 +127,13 @@ fn synthesize_chunks_buckets_and_retries() {
         &mut tts,
         &mut asr,
         &mut PlainEnding,
-        &strings(&["kurz", "schlecht", "lang"]),
-        &[60, 60, 700],
-        42,
-        0.9,
-        &Lexicon::new(),
+        &ChunkRequest {
+            texts: &strings(&["kurz", "schlecht", "lang"]),
+            budgets: &[60, 60, 700],
+            seed: 42,
+            temperature: 0.9,
+            lex: &Lexicon::new(),
+        },
         &mut log,
         &mut warn,
     )
@@ -177,11 +179,13 @@ fn synthesize_chunks_warns_on_persistent_failure() {
         &mut tts,
         &mut asr,
         &mut PlainEnding,
-        &strings(&["axyz"]),
-        &[60],
-        1,
-        0.9,
-        &Lexicon::new(),
+        &ChunkRequest {
+            texts: &strings(&["axyz"]),
+            budgets: &[60],
+            seed: 1,
+            temperature: 0.9,
+            lex: &Lexicon::new(),
+        },
         &mut log,
         &mut warn,
     )
@@ -448,11 +452,13 @@ fn unclean_ending_is_regenerated_and_the_clean_one_kept() {
         &mut tts,
         &mut asr,
         &mut ending,
-        &strings(&["Wie es weitergeht."]),
-        &[80],
-        42,
-        0.9,
-        &Lexicon::new(),
+        &ChunkRequest {
+            texts: &strings(&["Wie es weitergeht."]),
+            budgets: &[80],
+            seed: 42,
+            temperature: 0.9,
+            lex: &Lexicon::new(),
+        },
         &mut log,
         &mut warn,
     )
@@ -498,11 +504,13 @@ fn the_ending_chooses_the_synthesised_text_and_scoring_uses_the_chunk() {
         &mut tts,
         &mut asr,
         &mut Suffix,
-        &strings(&["kurz"]),
-        &[60],
-        42,
-        0.9,
-        &Lexicon::new(),
+        &ChunkRequest {
+            texts: &strings(&["kurz"]),
+            budgets: &[60],
+            seed: 42,
+            temperature: 0.9,
+            lex: &Lexicon::new(),
+        },
         &mut log,
         &mut warn,
     )
@@ -547,11 +555,13 @@ fn spare_batch_slots_become_extra_candidates() {
         &mut tts,
         &mut asr,
         &mut PlainEnding,
-        &strings(&["zäh", "gut"]),
-        &[60, 60],
-        42,
-        0.9,
-        &Lexicon::new(),
+        &ChunkRequest {
+            texts: &strings(&["zäh", "gut"]),
+            budgets: &[60, 60],
+            seed: 42,
+            temperature: 0.9,
+            lex: &Lexicon::new(),
+        },
         &mut log,
         &mut warn,
     )
@@ -604,11 +614,13 @@ fn a_repeated_heading_is_generated_and_scored_once() {
         &mut tts,
         &mut asr,
         &mut PlainEnding,
-        &strings(&["Titel", "Text", "Titel"]),
-        &[60, 60, 60],
-        42,
-        0.9,
-        &Lexicon::new(),
+        &ChunkRequest {
+            texts: &strings(&["Titel", "Text", "Titel"]),
+            budgets: &[60, 60, 60],
+            seed: 42,
+            temperature: 0.9,
+            lex: &Lexicon::new(),
+        },
         &mut log,
         &mut warn,
     )

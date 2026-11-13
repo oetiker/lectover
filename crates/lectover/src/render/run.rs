@@ -21,10 +21,12 @@ use crate::ghost::{
 };
 use crate::models::ModelFiles;
 use crate::plan::{max_tokens_for, plan_steps, Chunk};
-use crate::render::{align_segments, synthesize_chunks, with_carrier, CarrierEnding, TakeCache};
+use crate::render::{
+    align_segments, synthesize_chunks, with_carrier, CarrierEnding, ChunkRequest, TakeCache,
+};
 use crate::script::{build_script, intro_text, SiteSounds, Sting};
 use crate::settings::Settings;
-use crate::site::{encode_and_publish, prune_stale};
+use crate::site::{encode_and_publish, prune_stale, VoiceTarget};
 use crate::text::normalize::{load_lexicon, spoken_groups, Group, Lexicon};
 use crate::text::{extract_marks, Block};
 use crate::timings::{alignment_report, assemble_token_times, build_timings, round3};
@@ -217,13 +219,23 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
         &settings.takes,
         &slug,
         &prep,
-        &sounds,
-        voices_dir,
-        &lexicon,
+        &SiteInputs {
+            sounds: &sounds,
+            voices_dir,
+            lexicon: &lexicon,
+        },
         &mut models,
     );
     drop(models);
     result
+}
+
+/// The per-site inputs of a render besides the post: its sounds, the voice registry and the
+/// pronunciation lexicon.
+struct SiteInputs<'a> {
+    sounds: &'a SiteSounds,
+    voices_dir: &'a Path,
+    lexicon: &'a Lexicon,
 }
 
 fn render_voices(
@@ -232,9 +244,7 @@ fn render_voices(
     cache_dir: &Path,
     slug: &str,
     prep: &Prepared,
-    sounds: &SiteSounds,
-    voices_dir: &Path,
-    lexicon: &Lexicon,
+    site: &SiteInputs,
     models: &mut Models,
 ) -> Result<()> {
     let sr = models.tts.sample_rate();
@@ -252,7 +262,7 @@ fn render_voices(
     let levelled: Vec<(usize, Option<Vec<f32>>)> = prep
         .stings
         .iter()
-        .filter_map(|&(i, s)| match (s, sounds.get(s)) {
+        .filter_map(|&(i, s)| match (s, site.sounds.get(s)) {
             (_, Some((wav, from))) => Some((i, Some(level_sting(wav, *from, sr)))),
             (Sting::Intro, None) => None,
             (Sting::Break, None) => Some((i, None)),
@@ -271,7 +281,7 @@ fn render_voices(
 
     for voice in &prep.voices {
         let t0 = Instant::now();
-        let (wav, text) = voice_ref(voices_dir, voice)?;
+        let (wav, text) = voice_ref(site.voices_dir, voice)?;
         models.tts.set_voice(&wav, &text)?;
         let mut cached;
         let tts: &mut dyn Synth = if args.no_cache {
@@ -285,11 +295,13 @@ fn render_voices(
             tts,
             &mut models.asr,
             &mut ending,
-            &texts,
-            &budgets,
-            args.seed,
-            args.temperature,
-            lexicon,
+            &ChunkRequest {
+                texts: &texts,
+                budgets: &budgets,
+                seed: args.seed,
+                temperature: args.temperature,
+                lex: site.lexicon,
+            },
         )?;
         let takes: Vec<_> = wavs
             .into_iter()
@@ -306,12 +318,14 @@ fn render_voices(
         let mut manifest = encode_and_publish(
             &audio,
             sr,
-            slug_dir,
-            voice,
-            label,
+            &VoiceTarget {
+                slug_dir,
+                voice,
+                label,
+                default: &prep.voices[0],
+                post: &prep.post,
+            },
             &timings,
-            &prep.post,
-            &prep.voices[0],
             encode_opus,
             encode_mp3,
         )?;

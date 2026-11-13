@@ -562,7 +562,7 @@ pub fn run(args: &RecordArgs, settings: &crate::settings::Settings) -> Result<()
 
 #[cfg(target_os = "macos")]
 pub fn create_session() -> Result<Box<dyn AudioSession>> {
-    MacAudioSession::new()
+    MacAudioSession::open()
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -829,7 +829,7 @@ mod macos {
     }
 
     impl MacAudioSession {
-        pub fn new() -> Result<Box<dyn AudioSession>> {
+        pub fn open() -> Result<Box<dyn AudioSession>> {
             // Fail before touching the audio device if there is no tty.
             let term = RawTerminal::enter()?;
 

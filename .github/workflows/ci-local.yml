@@ -9,9 +9,8 @@ name: Build and test
 # recursive clone and caches no build directory, so the submodule sources are
 # fetched and compiled on every run.
 #
-# Linux builds the CPU backend: the Vulkan backend needs glslc and the Vulkan
-# and SPIRV headers, which the runner image does not carry (the release builds
-# it in the Containerfile). macOS builds the Metal backend of the
+# Linux (CPU backend, plus fmt and clippy) runs in ri-ci-rust, called from
+# ci.yml. This file keeps the macOS leg, which builds the Metal backend of the
 # release. The model tests (`-- --ignored`) need the model downloads and stay
 # out of CI.
 on:
@@ -35,8 +34,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            features: ''
           - os: macos-latest
             features: metal
     env:

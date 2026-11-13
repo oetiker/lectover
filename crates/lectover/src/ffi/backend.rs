@@ -253,8 +253,8 @@ pub fn check_ggml_layout() -> Result<()> {
 
 /// Whether a ggml log line of `level` is printed. WARN and ERROR always; everything else
 /// (DEBUG, INFO, CONT, NONE) only when `verbose`.
-pub(super) fn ggml_log_passes(level: u32, verbose: bool) -> bool {
-    verbose || level == sys::GGML_LOG_LEVEL_WARN as u32 || level == sys::GGML_LOG_LEVEL_ERROR as u32
+pub(super) fn ggml_log_passes(level: sys::ggml_log_level, verbose: bool) -> bool {
+    verbose || level == sys::GGML_LOG_LEVEL_WARN || level == sys::GGML_LOG_LEVEL_ERROR
 }
 
 unsafe extern "C" fn ggml_log_cb(
@@ -263,7 +263,7 @@ unsafe extern "C" fn ggml_log_cb(
     user: *mut std::ffi::c_void,
 ) {
     use std::io::Write;
-    if text.is_null() || !ggml_log_passes(level as u32, !user.is_null()) {
+    if text.is_null() || !ggml_log_passes(level, !user.is_null()) {
         return;
     }
     // SAFETY: ggml passes a NUL-terminated string valid for this call.
@@ -282,7 +282,7 @@ pub fn init_ggml_logging() {
             Ok("debug") | Ok("all")
         );
         let user = if verbose {
-            1usize as *mut std::ffi::c_void
+            std::ptr::dangling_mut::<std::ffi::c_void>()
         } else {
             std::ptr::null_mut()
         };
@@ -323,16 +323,16 @@ mod log_tests {
 
     #[test]
     fn log_filter_levels() {
-        assert!(ggml_log_passes(sys::GGML_LOG_LEVEL_ERROR as u32, false));
-        assert!(ggml_log_passes(sys::GGML_LOG_LEVEL_WARN as u32, false));
+        assert!(ggml_log_passes(sys::GGML_LOG_LEVEL_ERROR, false));
+        assert!(ggml_log_passes(sys::GGML_LOG_LEVEL_WARN, false));
         for l in [
             sys::GGML_LOG_LEVEL_DEBUG,
             sys::GGML_LOG_LEVEL_INFO,
             sys::GGML_LOG_LEVEL_CONT,
             sys::GGML_LOG_LEVEL_NONE,
         ] {
-            assert!(!ggml_log_passes(l as u32, false));
-            assert!(ggml_log_passes(l as u32, true));
+            assert!(!ggml_log_passes(l, false));
+            assert!(ggml_log_passes(l, true));
         }
     }
 }
