@@ -33,6 +33,14 @@ jobs:
     with:
       ref: ${{ inputs.ref }}
 
+  # The web player in player/: syntax check and the jsdom tests.
+  player:
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'github-actions[bot]') }}
+    uses: oposs/repo-infra/.github/workflows/ri-ci-node-pnpm.yml@v2
+    with:
+      ref: ${{ inputs.ref }}
+      directory: player
+
   release-pr-current:
     if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/') && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'github-actions[bot]') }}
     uses: oposs/repo-infra/.github/workflows/ri-release-pr-current.yml@v2
@@ -70,7 +78,7 @@ jobs:
   # PR tested exactly the head that carries the release-built status.
   ci-passed:
     if: always()
-    needs: [man, local, release-pr-current, release-verdict]
+    needs: [man, local, player, release-pr-current, release-verdict]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

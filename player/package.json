@@ -2,8 +2,11 @@
   "name": "lectover",
   "private": true,
   "license": "AGPL-3.0-or-later",
+  "packageManager": "pnpm@11.20.0",
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\""
+    "check": "node --check lectover.js",
+    "test": "node --test \"test/*.test.mjs\"",
+    "build": "node -e \"console.log('lectover.js ships as written; nothing to build')\""
   },
   "devDependencies": {
     "jsdom": "^30.1.3"
