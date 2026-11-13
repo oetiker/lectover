@@ -22,3 +22,10 @@ updates:
     labels:
       - dependencies
       - no-changelog
+  - package-ecosystem: npm
+    directory: /player
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - no-changelog
