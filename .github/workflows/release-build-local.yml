@@ -5,11 +5,15 @@ name: Release archives
 # <bin>/man/lectover.1, <bin>/README.md and <bin>/LICENSE, for three targets:
 #
 #   aarch64-apple-darwin       Metal, on the macOS runner
-#   x86_64-unknown-linux-gnu   Vulkan, in pkg/linux/Containerfile
-#   aarch64-unknown-linux-gnu  Vulkan, in pkg/linux/Containerfile on the arm runner
+#   x86_64-unknown-linux-gnu   Vulkan, in the Containerfile (Ubuntu 24.04)
+#   aarch64-unknown-linux-gnu  Vulkan, in the Containerfile on the arm runner
 #
 # The Linux binaries link glibc and libvulkan.so.1: a static musl binary
 # cannot load the system's Vulkan driver. HIP and CUDA are built from source.
+#
+# GGML_NATIVE=OFF: ggml tunes its CPU code to the build machine by default
+# (-march=native, -mcpu=native), and an archive built on a runner with a newer
+# CPU than the user's stops with an illegal instruction.
 on:
   workflow_call:
     inputs:
@@ -79,6 +83,7 @@ jobs:
             container: true
     env:
       CARGO_TERM_COLOR: always
+      GGML_NATIVE: 'OFF'
       BIN: lectover
       VERSION: ${{ inputs.version }}
       TARGET: ${{ matrix.target }}
@@ -111,8 +116,8 @@ jobs:
         if: ${{ matrix.container }}
         run: |
           set -euo pipefail
-          docker build -t lectover-release-linux -f pkg/linux/Containerfile pkg/linux
-          docker run --rm -v "$PWD:/src" -e CARGO_TARGET_DIR=/src/target/linux \
+          docker build -t lectover-release-linux --target build-deps - < Containerfile
+          docker run --rm -v "$PWD:/src" -e CARGO_TARGET_DIR=/src/target/linux -e GGML_NATIVE \
             lectover-release-linux cargo build --release --locked --features "$FEATURES"
           mkdir -p out
           cp target/linux/release/lectover out/

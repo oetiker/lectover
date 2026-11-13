@@ -11,7 +11,7 @@ name: Build and test
 #
 # Linux builds the CPU backend: the Vulkan backend needs glslc and the Vulkan
 # and SPIRV headers, which the runner image does not carry (the release builds
-# it in pkg/linux/Containerfile). macOS builds the Metal backend of the
+# it in the Containerfile). macOS builds the Metal backend of the
 # release. The model tests (`-- --ignored`) need the model downloads and stay
 # out of CI.
 on:

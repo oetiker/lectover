@@ -3,8 +3,10 @@ name: Release build
 # Called by Create release PR on the release branch before the pull request
 # exists (D28). The archives need the submodules, a cargo feature per GPU
 # backend and the Vulkan build environment, which no repo-infra release piece
-# provides, so release-build-local.yml builds them. Read-only: nothing here
-# writes the repository.
+# provides, so release-build-local.yml builds them. The Linux packages are
+# built per distribution release by ri-release-distro-packages, from the
+# Containerfile, the Makefile and nfpm.yaml at the top. Read-only: nothing
+# here writes the repository.
 on:
   workflow_call:
     inputs:
@@ -26,3 +28,13 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ inputs.ref }}
+
+  # Every release the piece builds except debian-12 and ubuntu-22.04 (the
+  # linux-packages exception in .github/repo-infra.json).
+  packages:
+    uses: oposs/repo-infra/.github/workflows/ri-release-distro-packages.yml@v2
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ inputs.ref }}
+      submodules: recursive
+      distributions: debian-13 ubuntu-24.04 ubuntu-26.04 almalinux-9 almalinux-10 fedora alpine-3.23 alpine-3.24

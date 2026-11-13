@@ -1,0 +1,43 @@
+# The Linux packages of lectover, read by ri-release-distro-packages. The
+# piece fills in every dollar-brace name before nfpm reads this file: STAGE
+# is the `make install DESTDIR=` tree built in the image of one distribution
+# release, DEPENDS the libraries the piece found the binary linked against
+# (libvulkan among them).
+name: lectover
+arch: "${ARCH}"
+platform: linux
+version: "${VERSION}"
+version_schema: none
+release: "${PKG_RELEASE}"
+mtime: "${MTIME}"
+maintainer: Tobias Oetiker <tobi@oetiker.ch>
+homepage: https://github.com/oetiker/lectover
+license: AGPL-3.0-or-later
+description: |
+  Renders Ghost blog posts as narrated audio with word timings
+  lectover speaks a public Ghost post with Qwen3-TTS through ggml (Vulkan
+  backend), checks every take with Qwen3 ASR, aligns the words and writes
+  Ogg/Opus, MP3 and word timings for its read-aloud web player, which is
+  installed as /usr/share/lectover/lectover.js. Needs a Vulkan driver.
+depends: [${DEPENDS}]
+contents:
+  - src: ${STAGE}/usr/bin/lectover
+    dst: /usr/bin/lectover
+    file_info:
+      mode: 0755
+  - src: ${STAGE}/usr/share/man/man1/lectover.1
+    dst: /usr/share/man/man1/lectover.1
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/usr/share/lectover/lectover.js
+    dst: /usr/share/lectover/lectover.js
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/usr/share/doc/lectover/README.md
+    dst: /usr/share/doc/lectover/README.md
+    file_info:
+      mode: 0644
+  - src: ${STAGE}/usr/share/doc/lectover/CHANGES.md
+    dst: /usr/share/doc/lectover/CHANGES.md
+    file_info:
+      mode: 0644
