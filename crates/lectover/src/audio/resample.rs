@@ -16,7 +16,11 @@ fn sinc(x: f64) -> f64 {
 }
 
 fn gcd(a: u64, b: u64) -> u64 {
-    if b == 0 { a } else { gcd(b, a % b) }
+    if b == 0 {
+        a
+    } else {
+        gcd(b, a % b)
+    }
 }
 
 /// Largest reduced output-phase count for which a kernel table per phase is precomputed.
@@ -61,7 +65,9 @@ fn resample_with(wav: &[f32], from: u32, to: u32, max_phases: u64) -> Vec<f32> {
             let frac = r as f64 / p as f64;
             let kmin = (frac - half).ceil() as i64;
             let kmax = (frac + half).floor() as i64;
-            let w = (kmin..=kmax).map(|k| weight(k as f64 - frac, cutoff, half)).collect();
+            let w = (kmin..=kmax)
+                .map(|k| weight(k as f64 - frac, cutoff, half))
+                .collect();
             Phase { kmin, w }
         })
         .collect();
@@ -79,7 +85,11 @@ fn resample_with(wav: &[f32], from: u32, to: u32, max_phases: u64) -> Vec<f32> {
                 return 0.0;
             }
             let src = &wav[(base + skip as i64) as usize..(base + end as i64) as usize];
-            let acc: f64 = src.iter().zip(&ph.w[skip..end]).map(|(&v, &w)| v as f64 * w).sum();
+            let acc: f64 = src
+                .iter()
+                .zip(&ph.w[skip..end])
+                .map(|(&v, &w)| v as f64 * w)
+                .sum();
             acc as f32
         })
         .collect()
@@ -108,12 +118,20 @@ fn resample_direct(wav: &[f32], out_len: usize, ratio: f64, cutoff: f64, half: f
             for i in lo..=hi {
                 let x = i as f64 - t;
                 let win = 0.42 + 0.5 * cur_ca + 0.08 * (2.0 * cur_ca * cur_ca - 1.0);
-                let sc = if (2.0 * cutoff * x).abs() < 1e-12 { 1.0 } else { cur_sb / (db * x) };
+                let sc = if (2.0 * cutoff * x).abs() < 1e-12 {
+                    1.0
+                } else {
+                    cur_sb / (db * x)
+                };
                 w.push(2.0 * cutoff * sc * win);
                 (cur_ca, cur_sa) = (cur_ca * ca - cur_sa * sa, cur_sa * ca + cur_ca * sa);
                 (cur_cb, cur_sb) = (cur_cb * cb - cur_sb * sb, cur_sb * cb + cur_cb * sb);
             }
-            let acc: f64 = wav[lo..=hi].iter().zip(&w).map(|(&v, &w)| v as f64 * w).sum();
+            let acc: f64 = wav[lo..=hi]
+                .iter()
+                .zip(&w)
+                .map(|(&v, &w)| v as f64 * w)
+                .sum();
             acc as f32
         })
         .collect()
@@ -153,14 +171,18 @@ mod tests {
     }
 
     fn sine(n: usize, rate: u32) -> Vec<f32> {
-        (0..n).map(|i| (2.0 * PI * 440.0 * i as f64 / rate as f64).sin() as f32 * 0.8).collect()
+        (0..n)
+            .map(|i| (2.0 * PI * 440.0 * i as f64 / rate as f64).sin() as f32 * 0.8)
+            .collect()
     }
 
     fn noise(n: usize) -> Vec<f32> {
         let mut s: u64 = 0x1234_5678_9abc_def0;
         (0..n)
             .map(|_| {
-                s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                s = s
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 ((s >> 40) as f64 / (1u64 << 24) as f64 * 2.0 - 1.0) as f32
             })
             .collect()
@@ -168,10 +190,19 @@ mod tests {
 
     fn max_err(a: &[f32], b: &[f32]) -> f32 {
         assert_eq!(a.len(), b.len());
-        a.iter().zip(b).map(|(x, y)| (x - y).abs()).fold(0.0, f32::max)
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y).abs())
+            .fold(0.0, f32::max)
     }
 
-    const CASES: [(u32, u32); 5] = [(24000, 16000), (16000, 24000), (24000, 48000), (44100, 24000), (22050, 24000)];
+    const CASES: [(u32, u32); 5] = [
+        (24000, 16000),
+        (16000, 24000),
+        (24000, 48000),
+        (44100, 24000),
+        (22050, 24000),
+    ];
 
     #[test]
     fn matches_reference_sine_and_noise() {
@@ -201,7 +232,11 @@ mod tests {
         for (from, to) in CASES {
             for n in [0usize, 1, 7, 100, 4999, 24001] {
                 let wav = noise(n);
-                let expect = if n == 0 { 0 } else { (n as f64 * to as f64 / from as f64).round() as usize };
+                let expect = if n == 0 {
+                    0
+                } else {
+                    (n as f64 * to as f64 / from as f64).round() as usize
+                };
                 assert_eq!(resample(&wav, from, to).len(), expect, "{from}->{to} n={n}");
             }
         }
@@ -214,7 +249,10 @@ mod tests {
             let (new, old) = (resample(&wav, from, to), resample_reference(&wav, from, to));
             let k = 64.min(new.len());
             assert!(max_err(&new[..k], &old[..k]) < 1e-5, "{from}->{to} head");
-            assert!(max_err(&new[new.len() - k..], &old[old.len() - k..]) < 1e-5, "{from}->{to} tail");
+            assert!(
+                max_err(&new[new.len() - k..], &old[old.len() - k..]) < 1e-5,
+                "{from}->{to} tail"
+            );
         }
     }
 
@@ -240,6 +278,10 @@ mod tests {
         let t = Instant::now();
         let new = resample(&wav, 24000, 16000);
         let t_new = t.elapsed();
-        eprintln!("old {t_old:?}  new {t_new:?}  speedup {:.1}x  err {:e}", t_old.as_secs_f64() / t_new.as_secs_f64(), max_err(&new, &old));
+        eprintln!(
+            "old {t_old:?}  new {t_new:?}  speedup {:.1}x  err {:e}",
+            t_old.as_secs_f64() / t_new.as_secs_f64(),
+            max_err(&new, &old)
+        );
     }
 }

@@ -30,7 +30,13 @@ pub fn key(text: &str, lex: &Lexicon) -> String {
 /// Deviates from longform.py:96 on purpose: the ratio runs with autojunk disabled. With
 /// autojunk, keys of 200+ letters lose their common letters, so a take with one error per
 /// 25 letters scores 0.49-0.85 instead of 0.96 and every long chunk burns all retry rounds.
-pub fn score(asr: &mut dyn Transcribe, wav: &[f32], sr: u32, target: &str, lex: &Lexicon) -> Result<(f64, String)> {
+pub fn score(
+    asr: &mut dyn Transcribe,
+    wav: &[f32],
+    sr: u32,
+    target: &str,
+    lex: &Lexicon,
+) -> Result<(f64, String)> {
     let heard = asr.transcribe(&resample(wav, sr, ASR_SR))?;
     let heard = heard.trim_matches(py_is_space).to_string();
     Ok((ratio(&key(&heard, lex), &key(target, lex), false), heard))
@@ -72,7 +78,13 @@ impl<'a> Matcher<'a> {
     }
 
     /// `find_longest_match`; the junk set is empty, so only the non-junk extension loops apply.
-    fn find_longest_match(&self, alo: usize, ahi: usize, blo: usize, bhi: usize) -> (usize, usize, usize) {
+    fn find_longest_match(
+        &self,
+        alo: usize,
+        ahi: usize,
+        blo: usize,
+        bhi: usize,
+    ) -> (usize, usize, usize) {
         let (a, b) = (self.a, self.b);
         let (mut besti, mut bestj, mut bestsize) = (alo, blo, 0);
         let mut j2len: HashMap<usize, usize> = HashMap::new();
@@ -86,7 +98,12 @@ impl<'a> Matcher<'a> {
                     if j >= bhi {
                         break;
                     }
-                    let k = j.checked_sub(1).and_then(|p| j2len.get(&p)).copied().unwrap_or(0) + 1;
+                    let k = j
+                        .checked_sub(1)
+                        .and_then(|p| j2len.get(&p))
+                        .copied()
+                        .unwrap_or(0)
+                        + 1;
                     newj2len.insert(j, k);
                     if k > bestsize {
                         (besti, bestj, bestsize) = (i + 1 - k, j + 1 - k, k);
@@ -98,7 +115,10 @@ impl<'a> Matcher<'a> {
         while besti > alo && bestj > blo && a[besti - 1] == b[bestj - 1] {
             (besti, bestj, bestsize) = (besti - 1, bestj - 1, bestsize + 1);
         }
-        while besti + bestsize < ahi && bestj + bestsize < bhi && a[besti + bestsize] == b[bestj + bestsize] {
+        while besti + bestsize < ahi
+            && bestj + bestsize < bhi
+            && a[besti + bestsize] == b[bestj + bestsize]
+        {
             bestsize += 1;
         }
         (besti, bestj, bestsize)

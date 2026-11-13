@@ -1,6 +1,6 @@
 use lectover::config::SecretRef;
 use lectover::ghost::{
-    fetch_post, post_api_url, require_public, domain_of_url, slug_from_arg, GhostConfig, HttpReply,
+    domain_of_url, fetch_post, post_api_url, require_public, slug_from_arg, GhostConfig, HttpReply,
     Post,
 };
 use lectover::settings::SiteSettings;
@@ -48,7 +48,9 @@ fn slug_from_url_and_plain() {
         "frohburg-spiel-satz-patt"
     );
     assert_eq!(
-        slug_from_arg("https://olten.jetzt/").unwrap_err().to_string(),
+        slug_from_arg("https://olten.jetzt/")
+            .unwrap_err()
+            .to_string(),
         "no post slug in URL: https://olten.jetzt/"
     );
 }
@@ -67,20 +69,33 @@ fn site(url: &str, key: SecretRef) -> SiteSettings {
 
 #[test]
 fn ghost_for_site_uses_secret_ref() {
-    let key = SecretRef::Env { env: "KEY_EXAMPLE".into() };
-    let c = GhostConfig::for_site(&site("https://example.org", key.clone()), &env_of(&[("KEY_EXAMPLE", "k")])).unwrap();
+    let key = SecretRef::Env {
+        env: "KEY_EXAMPLE".into(),
+    };
+    let c = GhostConfig::for_site(
+        &site("https://example.org", key.clone()),
+        &env_of(&[("KEY_EXAMPLE", "k")]),
+    )
+    .unwrap();
     assert_eq!(c, cfg("https://example.org", "k"));
-    let err = GhostConfig::for_site(&site("https://example.org", key), &env_of(&[("GHOST_CONTENT_KEY", "other")]))
-        .unwrap_err();
+    let err = GhostConfig::for_site(
+        &site("https://example.org", key),
+        &env_of(&[("GHOST_CONTENT_KEY", "other")]),
+    )
+    .unwrap_err();
     let text = format!("{err:#}");
-    assert!(text.contains("KEY_EXAMPLE") && text.contains("example.org"), "{text}");
+    assert!(
+        text.contains("KEY_EXAMPLE") && text.contains("example.org"),
+        "{text}"
+    );
     assert!(!text.contains("other"), "{text}");
 }
 
 #[test]
 fn ghost_for_site_strips_trailing_slash() {
     let key = SecretRef::Env { env: "K".into() };
-    let c = GhostConfig::for_site(&site("https://example.org/", key), &env_of(&[("K", "k")])).unwrap();
+    let c =
+        GhostConfig::for_site(&site("https://example.org/", key), &env_of(&[("K", "k")])).unwrap();
     assert_eq!(c, cfg("https://example.org", "k"));
 }
 
@@ -137,7 +152,9 @@ fn require_public_refuses() {
     for vis in ["members", "paid", "tiers", ""] {
         assert!(require_public(&post_with(vis)).is_err(), "vis={vis:?}");
     }
-    let msg = require_public(&post_with("members")).unwrap_err().to_string();
+    let msg = require_public(&post_with("members"))
+        .unwrap_err()
+        .to_string();
     assert_eq!(
         msg,
         "post a is not public (visibility='members'); refusing to render"

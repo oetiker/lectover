@@ -165,8 +165,14 @@ pub fn extract_blocks(html: &str) -> Vec<Block> {
 /// The blocks of [`extract_blocks`] plus the document-order [`Mark`]s around them.
 pub fn extract_marks(html: &str) -> (Vec<Block>, Vec<Mark>) {
     let context = QualName::new(None, ns!(html), local_name!("body"));
-    let dom = parse_fragment(RcDom::default(), ParseOpts::default(), context, vec![], false)
-        .one(html);
+    let dom = parse_fragment(
+        RcDom::default(),
+        ParseOpts::default(),
+        context,
+        vec![],
+        false,
+    )
+    .one(html);
     // The fragment parser wraps the content in a synthetic <html> root.
     let root = dom.document.children.borrow().first().cloned();
     let mut blocks = Vec::new();

@@ -92,9 +92,12 @@ pub fn build(
     let post = fetch_post(cfg, &slug, get)?;
     require_public(&post)?;
     let page = page_path(site, domain, &post.slug);
-    let dir = page.parent().ok_or_else(|| anyhow!("no parent of {}", page.display()))?;
+    let dir = page
+        .parent()
+        .ok_or_else(|| anyhow!("no parent of {}", page.display()))?;
     fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-    fs::write(&page, render_dev_page(&post, domain)).with_context(|| format!("writing {}", page.display()))?;
+    fs::write(&page, render_dev_page(&post, domain))
+        .with_context(|| format!("writing {}", page.display()))?;
     Ok(page)
 }
 
@@ -111,7 +114,8 @@ pub struct DevServer {
 impl DevServer {
     /// Listen on `addr` (port 0 picks a free one) and serve `site`, with `/js` answered by `player`.
     pub fn start(addr: &str, site: &Path, player: &Path) -> Result<DevServer> {
-        let server = Arc::new(Server::http(addr).map_err(|e| anyhow!("cannot listen on {addr}: {e}"))?);
+        let server =
+            Arc::new(Server::http(addr).map_err(|e| anyhow!("cannot listen on {addr}: {e}"))?);
         let local = server
             .server_addr()
             .to_ip()
@@ -131,7 +135,12 @@ impl DevServer {
                 }
             })
         };
-        Ok(DevServer { server, stopping, accept, url: format!("http://{local}") })
+        Ok(DevServer {
+            server,
+            stopping,
+            accept,
+            url: format!("http://{local}"),
+        })
     }
 
     /// `http://<ip>:<port>` the server listens on.
@@ -171,13 +180,19 @@ fn reply(status: u16, headers: Vec<Header>, body: Box<dyn Read + Send>, len: u64
     let mut headers = headers;
     headers.push(header("Accept-Ranges", "bytes"));
     // A fixed Content-Length even for large files (tiny_http would switch to chunked).
-    Response::new(StatusCode(status), headers, body, Some(len as usize), None).with_chunked_threshold(usize::MAX)
+    Response::new(StatusCode(status), headers, body, Some(len as usize), None)
+        .with_chunked_threshold(usize::MAX)
 }
 
 fn text_reply(status: u16, msg: &str) -> Reply {
     let body = msg.as_bytes().to_vec();
     let len = body.len() as u64;
-    reply(status, vec![header("Content-Type", "text/plain; charset=utf-8")], Box::new(std::io::Cursor::new(body)), len)
+    reply(
+        status,
+        vec![header("Content-Type", "text/plain; charset=utf-8")],
+        Box::new(std::io::Cursor::new(body)),
+        len,
+    )
 }
 
 /// Where files come from. Every served file is canonicalised (symlinks resolved) and must lie
@@ -193,15 +208,23 @@ struct Roots {
 
 impl Roots {
     fn new(site: &Path, player: &Path) -> Result<Roots> {
-        let site_canon = fs::canonicalize(site)
-            .with_context(|| format!("site directory {} not found (run `lectover dev build` first)", site.display()))?;
+        let site_canon = fs::canonicalize(site).with_context(|| {
+            format!(
+                "site directory {} not found (run `lectover dev build` first)",
+                site.display()
+            )
+        })?;
         let dir = match player.parent() {
             Some(d) if !d.as_os_str().is_empty() => d,
             _ => Path::new("."),
         };
-        let player_root =
-            fs::canonicalize(dir).with_context(|| format!("player directory {} not found", dir.display()))?;
-        Ok(Roots { site: site_canon, player: player.to_path_buf(), player_root })
+        let player_root = fs::canonicalize(dir)
+            .with_context(|| format!("player directory {} not found", dir.display()))?;
+        Ok(Roots {
+            site: site_canon,
+            player: player.to_path_buf(),
+            player_root,
+        })
     }
 }
 
@@ -262,7 +285,11 @@ fn respond(url: &str, range: Option<&str>, roots: &Roots) -> Reply {
         let empty: Box<dyn Read + Send> = Box::new(std::io::empty());
         return reply(301, vec![header("Location", &location)], empty, 0);
     }
-    match ["index.html", "index.htm"].iter().map(|i| dir.join(i)).find(|p| p.is_file()) {
+    match ["index.html", "index.htm"]
+        .iter()
+        .map(|i| dir.join(i))
+        .find(|p| p.is_file())
+    {
         Some(index) => serve_file(&index, &roots.site, range),
         None => listing(&dir, path),
     }
@@ -274,7 +301,11 @@ fn listing(dir: &Path, path: &str) -> Reply {
             .filter_map(|e| e.ok())
             .map(|e| {
                 let name = e.file_name().to_string_lossy().into_owned();
-                if e.path().is_dir() { format!("{name}/") } else { name }
+                if e.path().is_dir() {
+                    format!("{name}/")
+                } else {
+                    name
+                }
             })
             .collect(),
         Err(_) => return text_reply(404, "not found"),
@@ -291,12 +322,21 @@ fn listing(dir: &Path, path: &str) -> Reply {
     )
     .into_bytes();
     let len = body.len() as u64;
-    reply(200, vec![header("Content-Type", "text/html; charset=utf-8")], Box::new(std::io::Cursor::new(body)), len)
+    reply(
+        200,
+        vec![header("Content-Type", "text/html; charset=utf-8")],
+        Box::new(std::io::Cursor::new(body)),
+        len,
+    )
 }
 
 /// Content type by extension, as Python's `mimetypes` (plus `.ogg` → `audio/ogg`) answers.
 fn content_type(path: &Path) -> &'static str {
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     match ext.as_str() {
         "html" | "htm" => "text/html",
         "js" | "mjs" => "text/javascript",
@@ -337,8 +377,12 @@ fn parse_range(header: Option<&str>, size: u64) -> RangeAnswer {
     let Some(spec) = header.and_then(|h| h.trim().strip_prefix("bytes=")) else {
         return RangeAnswer::Whole;
     };
-    let Some((first, last)) = spec.trim().split_once('-') else { return RangeAnswer::Whole };
-    let (Some(first), Some(last)) = (digits(first), digits(last)) else { return RangeAnswer::Whole };
+    let Some((first, last)) = spec.trim().split_once('-') else {
+        return RangeAnswer::Whole;
+    };
+    let (Some(first), Some(last)) = (digits(first), digits(last)) else {
+        return RangeAnswer::Whole;
+    };
     match (first, last) {
         (None, None) => RangeAnswer::Whole,
         // last-byte-pos < first-byte-pos makes the spec invalid (2.1): ignore the header
@@ -354,8 +398,12 @@ fn parse_range(header: Option<&str>, size: u64) -> RangeAnswer {
 /// Serve `path` if it resolves to a file under the canonical `root`; the content type follows
 /// the requested name.
 fn serve_file(path: &Path, root: &Path, range: Option<&str>) -> Reply {
-    let Some(real) = confine(path, root) else { return text_reply(404, "not found") };
-    let Ok(mut f) = File::open(&real) else { return text_reply(404, "not found") };
+    let Some(real) = confine(path, root) else {
+        return text_reply(404, "not found");
+    };
+    let Ok(mut f) = File::open(&real) else {
+        return text_reply(404, "not found");
+    };
     let size = match f.metadata() {
         Ok(m) if m.is_file() => m.len(),
         _ => return text_reply(404, "not found"),
@@ -365,7 +413,12 @@ fn serve_file(path: &Path, root: &Path, range: Option<&str>) -> Reply {
         RangeAnswer::Whole => reply(200, vec![ctype], Box::new(f), size),
         RangeAnswer::Unsatisfiable => {
             let empty: Box<dyn Read + Send> = Box::new(std::io::empty());
-            reply(416, vec![header("Content-Range", &format!("bytes */{size}"))], empty, 0)
+            reply(
+                416,
+                vec![header("Content-Range", &format!("bytes */{size}"))],
+                empty,
+                0,
+            )
         }
         RangeAnswer::Part(start, end) => {
             if f.seek(SeekFrom::Start(start)).is_err() {
@@ -387,8 +440,14 @@ mod tests {
         use RangeAnswer::*;
         assert_eq!(parse_range(Some("bytes=2-5"), 10), Part(2, 5));
         assert_eq!(parse_range(Some(" bytes=7- "), 10), Part(7, 9));
-        assert_eq!(parse_range(Some("bytes=8-99999999999999999999999"), 10), Part(8, 9));
-        assert_eq!(parse_range(Some("bytes=99999999999999999999999-"), 10), Unsatisfiable);
+        assert_eq!(
+            parse_range(Some("bytes=8-99999999999999999999999"), 10),
+            Part(8, 9)
+        );
+        assert_eq!(
+            parse_range(Some("bytes=99999999999999999999999-"), 10),
+            Unsatisfiable
+        );
         assert_eq!(parse_range(Some("bytes=-3"), 10), Part(7, 9));
         assert_eq!(parse_range(Some("bytes=-3"), 0), Unsatisfiable);
         assert_eq!(parse_range(Some("bytes=0-"), 0), Unsatisfiable);

@@ -122,7 +122,11 @@ fn republish_replaces_previous_set() {
     assert_eq!(fs::read(&mp3s[0]).unwrap(), b"mtwo");
     assert_eq!(m["voices"][0]["mp3"], name(&mp3s[0]));
     let entry = &m["voices"][0];
-    assert_eq!(m["voices"].as_array().unwrap().len(), 2, "one entry per voice");
+    assert_eq!(
+        m["voices"].as_array().unwrap().len(),
+        2,
+        "one entry per voice"
+    );
     assert_eq!(entry["audio"], name(&oggs[0]));
     assert_eq!(entry["timings"], name(&jsons[0]));
     assert_eq!(oggs[0].file_stem(), jsons[0].file_stem());

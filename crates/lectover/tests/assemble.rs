@@ -2,11 +2,11 @@
 
 use std::f64::consts::PI;
 
-use lectover::audio::{
-    assemble_parts, resample, room_tone, stretch, trim_and_level, ROOM_TONE_DB, START_LEAD_SECS, TRIM_KEEP_SECS,
-    TRIM_KEEP_TAIL_SECS,
-};
 use lectover::audio::assemble::{apply_trim, trim_and_level_with};
+use lectover::audio::{
+    assemble_parts, resample, room_tone, stretch, trim_and_level, ROOM_TONE_DB, START_LEAD_SECS,
+    TRIM_KEEP_SECS, TRIM_KEEP_TAIL_SECS,
+};
 use lectover::plan::{ChunkKind, TITLE_LEAD_SECS};
 
 fn sine(sr: u32, secs: f64, freq: f64, amp: f64) -> Vec<f32> {
@@ -60,9 +60,16 @@ fn assemble_parts_offsets_match_layout() {
     let (audio, parts) = assemble_parts(&takes, sr, false);
     let tol = 1.0 / sr as f64;
     // the file opens with a lead, so an output that wakes up first (Bluetooth) loses no speech
-    assert!((parts[0].0 - START_LEAD_SECS).abs() <= tol, "{}", parts[0].0);
+    assert!(
+        (parts[0].0 - START_LEAD_SECS).abs() <= tol,
+        "{}",
+        parts[0].0
+    );
     let lead = (START_LEAD_SECS * sr as f64) as usize;
-    assert!(rms_db(&audio[..lead]) < ROOM_TONE_DB + 3.0, "lead is room tone only");
+    assert!(
+        rms_db(&audio[..lead]) < ROOM_TONE_DB + 3.0,
+        "lead is room tone only"
+    );
     let p1 = parts[0].0 + parts[0].1.len() as f64 / sr as f64 + ChunkKind::Sentence.pause_secs();
     assert!((parts[1].0 - p1).abs() <= tol, "{} vs {p1}", parts[1].0);
     // a heading gets the longer lead-in pause, not the paragraph pause
@@ -205,13 +212,18 @@ fn level_segments_evens_out_sentences_inside_a_take() {
     wav.extend((0..sec(3.0)).map(|i| tone(i, 0.3 / 10f32.powf(0.5))));
     let out = lectover::audio::level_segments(&wav, sr);
     assert_eq!(out.len(), wav.len());
-    let db = |x: &[f32]| 10.0 * (x.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / x.len() as f64).log10();
+    let db = |x: &[f32]| {
+        10.0 * (x.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / x.len() as f64).log10()
+    };
     let (a, b) = (db(&out[sec(0.5)..sec(2.5)]), db(&out[sec(4.0)..sec(6.0)]));
     assert!((a - b).abs() < 1.0, "sentences at {a:.1} and {b:.1} dB");
     // the overall level stays where chunk levelling put it (between the two)
     let before = db(&wav[..]);
     let after = db(&out[..]);
-    assert!((before - after).abs() < 3.0, "overall {before:.1} -> {after:.1} dB");
+    assert!(
+        (before - after).abs() < 3.0,
+        "overall {before:.1} -> {after:.1} dB"
+    );
     // a short gap (< 0.3 s) inside a sentence is not a segment boundary
     let mut word_gap: Vec<f32> = (0..sec(2.0)).map(|i| tone(i, 0.3)).collect();
     word_gap.extend(vec![0.0; sec(0.15)]);
@@ -219,4 +231,3 @@ fn level_segments_evens_out_sentences_inside_a_take() {
     let out = lectover::audio::level_segments(&word_gap, sr);
     assert_eq!(out, word_gap);
 }
-

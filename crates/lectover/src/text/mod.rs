@@ -5,6 +5,7 @@ pub mod normalize;
 pub mod numwords;
 
 pub use blocks::{
-    block_hash, collapse, extract_blocks, extract_marks, tokens, Block, Mark, HEADING_TAGS, SPACE_CLASS,
+    block_hash, collapse, extract_blocks, extract_marks, tokens, Block, Mark, HEADING_TAGS,
+    SPACE_CLASS,
 };
 pub mod spoken_words;

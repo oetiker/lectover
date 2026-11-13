@@ -31,7 +31,8 @@ fn root() -> PathBuf {
 }
 
 fn env_dir(name: &str) -> PathBuf {
-    let dir = std::env::var_os(name).unwrap_or_else(|| panic!("{name} is unset (see the module docs)"));
+    let dir =
+        std::env::var_os(name).unwrap_or_else(|| panic!("{name} is unset (see the module docs)"));
     PathBuf::from(dir)
 }
 
@@ -49,7 +50,11 @@ fn decode_ogg_opus(path: &Path) -> Vec<f32> {
     let mut buf = vec![0f32; 5760];
     while let Some(pkt) = rdr.read_packet().unwrap() {
         let n = dec
-            .decode_float(Some((&pkt.data).try_into().unwrap()), (&mut buf[..]).try_into().unwrap(), false)
+            .decode_float(
+                Some((&pkt.data).try_into().unwrap()),
+                (&mut buf[..]).try_into().unwrap(),
+                false,
+            )
             .unwrap();
         out.extend_from_slice(&buf[..n]);
     }
@@ -62,26 +67,45 @@ fn decode_ogg_opus(path: &Path) -> Vec<f32> {
 fn g4_checker_scores_python_takes() {
     let models = env_dir("LECTOVER_MODELS");
     let post_dir = env_dir("LECTOVER_G4_POST");
-    let manifest: Value = serde_json::from_str(&fs::read_to_string(post_dir.join("manifest.json")).unwrap()).unwrap();
+    let manifest: Value =
+        serde_json::from_str(&fs::read_to_string(post_dir.join("manifest.json")).unwrap()).unwrap();
     let entry = &manifest["voices"][0];
-    let timings: Value =
-        serde_json::from_str(&fs::read_to_string(post_dir.join(entry["timings"].as_str().unwrap())).unwrap()).unwrap();
+    let timings: Value = serde_json::from_str(
+        &fs::read_to_string(post_dir.join(entry["timings"].as_str().unwrap())).unwrap(),
+    )
+    .unwrap();
     let audio = decode_ogg_opus(&post_dir.join(entry["audio"].as_str().unwrap()));
     let duration = audio.len() as f64 / OPUS_SR as f64;
-    println!("decoded {:.3} s, timings say {}", duration, timings["duration"]);
+    println!(
+        "decoded {:.3} s, timings say {}",
+        duration, timings["duration"]
+    );
     assert!((duration - timings["duration"].as_f64().unwrap()).abs() < 0.05);
 
     // the text plan of the saved post, checked against the published timings and the golden
     let lexicon = load_lexicon(&root().join("examples/olten.jetzt/lexicon.txt")).unwrap();
-    let html = fs::read_to_string(root().join(format!("tests/fixtures/goldens/posts/{SLUG}.html"))).unwrap();
+    let html = fs::read_to_string(root().join(format!("tests/fixtures/goldens/posts/{SLUG}.html")))
+        .unwrap();
     let blocks = extract_blocks(&html);
-    let groups: Vec<Vec<Group>> = blocks.iter().map(|b| spoken_groups(&b.text, &lexicon)).collect();
+    let groups: Vec<Vec<Group>> = blocks
+        .iter()
+        .map(|b| spoken_groups(&b.text, &lexicon))
+        .collect();
     let chunks = plan_chunks(&blocks, &groups, 600);
-    let golden: Value =
-        serde_json::from_str(&fs::read_to_string(root().join(format!("tests/fixtures/goldens/{SLUG}.json"))).unwrap())
-            .unwrap();
-    let golden_texts: Vec<&str> = golden["chunks"].as_array().unwrap().iter().map(|c| c["text"].as_str().unwrap()).collect();
-    assert_eq!(chunks.iter().map(|c| c.text.as_str()).collect::<Vec<_>>(), golden_texts);
+    let golden: Value = serde_json::from_str(
+        &fs::read_to_string(root().join(format!("tests/fixtures/goldens/{SLUG}.json"))).unwrap(),
+    )
+    .unwrap();
+    let golden_texts: Vec<&str> = golden["chunks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["text"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        chunks.iter().map(|c| c.text.as_str()).collect::<Vec<_>>(),
+        golden_texts
+    );
     let tblocks = timings["blocks"].as_array().unwrap();
     assert_eq!(tblocks.len(), blocks.len());
     for (b, t) in blocks.iter().zip(tblocks) {
@@ -101,20 +125,37 @@ fn g4_checker_scores_python_takes() {
         .collect();
     let cuts: Vec<(f64, f64)> = (0..spans.len())
         .map(|i| {
-            let s = if i == 0 { 0.0 } else { (spans[i - 1].1 + spans[i].0) / 2.0 };
-            let e = if i + 1 == spans.len() { duration } else { (spans[i].1 + spans[i + 1].0) / 2.0 };
+            let s = if i == 0 {
+                0.0
+            } else {
+                (spans[i - 1].1 + spans[i].0) / 2.0
+            };
+            let e = if i + 1 == spans.len() {
+                duration
+            } else {
+                (spans[i].1 + spans[i + 1].0) / 2.0
+            };
             (s, e)
         })
         .collect();
     let at = |t: f64| ((t * OPUS_SR as f64).round() as usize).min(audio.len());
-    let parts: Vec<(f64, Vec<f32>)> = cuts.iter().map(|&(s, e)| (s, audio[at(s)..at(e)].to_vec())).collect();
+    let parts: Vec<(f64, Vec<f32>)> = cuts
+        .iter()
+        .map(|&(s, e)| (s, audio[at(s)..at(e)].to_vec()))
+        .collect();
 
     let device = asr_library_device();
     let mut asr = QwenAsr::load(&models.join("qwen3-asr-0.6b-f16.gguf"), device).unwrap();
     let mut real = Vec::new();
     for (i, ((_, wav), c)) in parts.iter().zip(&chunks).enumerate() {
         let (s, heard) = score(&mut asr, wav, OPUS_SR, &c.text, &lexicon).unwrap();
-        println!("G4 real  chunk {}: {:.3} ({:.2}-{:.2} s) heard: {heard}", i + 1, s, cuts[i].0, cuts[i].1);
+        println!(
+            "G4 real  chunk {}: {:.3} ({:.2}-{:.2} s) heard: {heard}",
+            i + 1,
+            s,
+            cuts[i].0,
+            cuts[i].1
+        );
         real.push(s);
     }
     // wrong takes: the audio of one chunk scored against the text of another
@@ -127,12 +168,22 @@ fn g4_checker_scores_python_takes() {
     drop(asr);
 
     // Python's interpolated share, measured with the Rust aligner on the Python takes
-    let mut aligner = QwenAligner::load(&models.join("qwen3-forced-aligner-0.6b-f16.gguf"), device).unwrap();
+    let mut aligner =
+        QwenAligner::load(&models.join("qwen3-forced-aligner-0.6b-f16.gguf"), device).unwrap();
     let (ct, ci) = align_segments(&mut aligner, &parts, OPUS_SR, &chunks).unwrap();
     drop(aligner);
     let (_, interp) = assemble_token_times(&blocks, &groups, &chunks, &ct, &ci).unwrap();
-    println!("G5 baseline (Python takes, Rust aligner): {}", alignment_report(&blocks, &interp));
+    println!(
+        "G5 baseline (Python takes, Rust aligner): {}",
+        alignment_report(&blocks, &interp)
+    );
 
-    assert!(real.iter().all(|&s| s >= MIN_SCORE), "real takes below {MIN_SCORE}: {real:?}");
-    assert!(wrong.iter().all(|&s| s < MIN_SCORE), "wrong takes not below {MIN_SCORE}: {wrong:?}");
+    assert!(
+        real.iter().all(|&s| s >= MIN_SCORE),
+        "real takes below {MIN_SCORE}: {real:?}"
+    );
+    assert!(
+        wrong.iter().all(|&s| s < MIN_SCORE),
+        "wrong takes not below {MIN_SCORE}: {wrong:?}"
+    );
 }

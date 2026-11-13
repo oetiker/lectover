@@ -41,9 +41,18 @@ pub fn noise_floor_db(wav: &[f32], sr: u32) -> f64 {
 
 /// Render `fraction` (clamped to [0, 1]) as `[#####-----]  50%`, `width` cells wide.
 pub fn progress_bar(fraction: f32, width: usize) -> String {
-    let f = if fraction.is_nan() { 0.0 } else { fraction.clamp(0.0, 1.0) };
+    let f = if fraction.is_nan() {
+        0.0
+    } else {
+        fraction.clamp(0.0, 1.0)
+    };
     let filled = ((f * width as f32).round() as usize).min(width);
-    format!("[{}{}] {:3}%", "#".repeat(filled), "-".repeat(width - filled), (f * 100.0).round() as u32)
+    format!(
+        "[{}{}] {:3}%",
+        "#".repeat(filled),
+        "-".repeat(width - filled),
+        (f * 100.0).round() as u32
+    )
 }
 
 /// Redraws one progress line on `out` with `\r`, only when the whole percent changes, and
@@ -56,11 +65,19 @@ pub struct ProgressLine<W: Write> {
 
 impl<W: Write> ProgressLine<W> {
     pub fn new(out: W, prefix: impl Into<String>) -> Self {
-        ProgressLine { out, prefix: prefix.into(), last_pct: None }
+        ProgressLine {
+            out,
+            prefix: prefix.into(),
+            last_pct: None,
+        }
     }
 
     pub fn update(&mut self, fraction: f32) {
-        let f = if fraction.is_nan() { 0.0 } else { fraction.clamp(0.0, 1.0) };
+        let f = if fraction.is_nan() {
+            0.0
+        } else {
+            fraction.clamp(0.0, 1.0)
+        };
         let pct = (f * 100.0).round() as u32;
         if self.last_pct == Some(pct) {
             return;

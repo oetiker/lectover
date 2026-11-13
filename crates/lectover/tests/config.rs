@@ -226,7 +226,9 @@ fn describe_never_contains_the_value() {
 fn empty_secret_file_is_an_error_without_content() {
     let dir = tempfile::tempdir().unwrap();
     for body in ["", " \n\t\n"] {
-        let r = SecretRef::File { file: key_file(dir.path(), 0o600, body) };
+        let r = SecretRef::File {
+            file: key_file(dir.path(), 0o600, body),
+        };
         let err = format!("{:#}", r.resolve(&|_| None).unwrap_err());
         assert!(err.contains("is empty"), "{err}");
     }
@@ -235,6 +237,8 @@ fn empty_secret_file_is_an_error_without_content() {
 #[test]
 fn example_config_parses() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/olten.jetzt/config.toml");
-    let l = Config::load(&path, Path::new(HOME)).unwrap().expect("example config exists");
+    let l = Config::load(&path, Path::new(HOME))
+        .unwrap()
+        .expect("example config exists");
     assert!(l.warnings.is_empty(), "{:?}", l.warnings);
 }

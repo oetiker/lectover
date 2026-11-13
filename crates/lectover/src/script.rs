@@ -106,7 +106,17 @@ fn split_paragraphs(s: &str) -> Vec<String> {
 }
 
 const MONTHS: [&str; 12] = [
-    "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November",
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
     "Dezember",
 ];
 
@@ -138,9 +148,18 @@ pub fn intro_text(post: &Post) -> Option<String> {
     if title.is_empty() {
         return None;
     }
-    let names: Vec<String> = post.authors.iter().map(|a| collapse(&a.name)).filter(|n| !n.is_empty()).collect();
+    let names: Vec<String> = post
+        .authors
+        .iter()
+        .map(|a| collapse(&a.name))
+        .filter(|n| !n.is_empty())
+        .collect();
     let names: Vec<&str> = names.iter().map(String::as_str).collect();
-    let stop = if title.ends_with(['.', '!', '?']) { "" } else { "." };
+    let stop = if title.ends_with(['.', '!', '?']) {
+        ""
+    } else {
+        "."
+    };
     let mut text = format!("Sie hören: «{title}»{stop}");
     if !names.is_empty() {
         text.push_str(&format!(" Verfasst von {}.", join_names(&names)));
@@ -152,7 +171,12 @@ pub fn intro_text(post: &Post) -> Option<String> {
 }
 
 fn spoken_block(text: String) -> Block {
-    Block { tag: "p".into(), hash: block_hash(&text), tokens: tokens(&text), text }
+    Block {
+        tag: "p".into(),
+        hash: block_hash(&text),
+        tokens: tokens(&text),
+        text,
+    }
 }
 
 /// The spoken order: optional intro + intro sting, then the page in document order with
@@ -183,7 +207,11 @@ pub fn build_script(page: Vec<Block>, marks: &[Mark], intro: Option<String>) -> 
             }
         }
     }
-    Script { blocks, page_blocks, steps }
+    Script {
+        blocks,
+        page_blocks,
+        steps,
+    }
 }
 
 /// A site's sounds, as read from `sites/<domain>/`: `intro.wav` after the spoken intro,
@@ -199,7 +227,11 @@ impl SiteSounds {
     pub fn load(dir: &Path) -> Result<Self> {
         let read = |name: &str| -> Result<Option<(Vec<f32>, u32)>> {
             let path = dir.join(name);
-            if path.exists() { read_wav(&path).map(Some) } else { Ok(None) }
+            if path.exists() {
+                read_wav(&path).map(Some)
+            } else {
+                Ok(None)
+            }
         };
         let intro = read("intro.wav")?;
         let brk = match read("break.wav")? {

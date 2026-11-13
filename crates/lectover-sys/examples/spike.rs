@@ -24,15 +24,23 @@ const LANG: &str = "german";
 const BUCKETS: [i32; 4] = [100, 250, 500, 1000];
 
 fn main() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .unwrap();
     let models = std::env::var("LECTOVER_MODELS")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/lectover/models"));
-    let out = std::env::var("SPIKE_OUT").map(PathBuf::from).unwrap_or_else(|_| root.join("out/spike"));
+        .unwrap_or_else(|_| {
+            PathBuf::from(std::env::var("HOME").unwrap()).join(".cache/lectover/models")
+        });
+    let out = std::env::var("SPIKE_OUT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| root.join("out/spike"));
     std::fs::create_dir_all(&out).unwrap();
 
     let golden: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(root.join("tests/fixtures/goldens/frohburg-spiel-satz-patt.json")).unwrap(),
+        &std::fs::read_to_string(root.join("tests/fixtures/goldens/frohburg-spiel-satz-patt.json"))
+            .unwrap(),
     )
     .unwrap();
     struct Chunk {
@@ -45,14 +53,26 @@ fn main() {
         .map(|c| Chunk {
             text: c["text"].as_str().unwrap().to_owned(),
             max_tokens: c["max_tokens"].as_i64().unwrap() as i32,
-            words: c["spoken_words"].as_array().unwrap().iter().map(|w| w.as_str().unwrap().to_owned()).collect(),
+            words: c["spoken_words"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|w| w.as_str().unwrap().to_owned())
+                .collect(),
         })
         .collect();
 
     let (ref_audio, ref_sr) = read_wav_mono(&root.join("tests/fixtures/voices/erzaehler.wav"));
     assert_eq!(ref_sr, 24000, "reference must be 24 kHz");
-    let ref_text = std::fs::read_to_string(root.join("tests/fixtures/voices/erzaehler.txt")).unwrap().trim().to_owned();
-    println!("ref: {} samples ({:.2} s), text: {ref_text:?}", ref_audio.len(), ref_audio.len() as f32 / 24000.0);
+    let ref_text = std::fs::read_to_string(root.join("tests/fixtures/voices/erzaehler.txt"))
+        .unwrap()
+        .trim()
+        .to_owned();
+    println!(
+        "ref: {} samples ({:.2} s), text: {ref_text:?}",
+        ref_audio.len(),
+        ref_audio.len() as f32 / 24000.0
+    );
 
     // ---------------------------------------------------------------- TTS
     let mut takes: Vec<(String, Vec<f32>)> = Vec::new(); // (label, 24 kHz samples)
@@ -70,9 +90,19 @@ fn main() {
         );
         let t = Instant::now();
         let q = sys::qt_init(&ip);
-        assert!(!q.is_null(), "qt_init failed: {}", cstr(sys::qt_last_error()));
-        println!("qt_init: {:.2} s, model_type={}", t.elapsed().as_secs_f32(), cstr(sys::qt_model_type(q)));
-        let langs: Vec<String> = (0..sys::qt_n_languages(q)).map(|i| cstr(sys::qt_language_name(q, i))).collect();
+        assert!(
+            !q.is_null(),
+            "qt_init failed: {}",
+            cstr(sys::qt_last_error())
+        );
+        println!(
+            "qt_init: {:.2} s, model_type={}",
+            t.elapsed().as_secs_f32(),
+            cstr(sys::qt_model_type(q))
+        );
+        let langs: Vec<String> = (0..sys::qt_n_languages(q))
+            .map(|i| cstr(sys::qt_language_name(q, i)))
+            .collect();
         println!("languages: {langs:?}");
 
         let lang = CString::new(LANG).unwrap();
@@ -103,12 +133,21 @@ fn main() {
             p.ref_text = rtext.as_ptr();
             p.seed = SEED;
             p.temperature = TEMPERATURE;
-            p.max_new_tokens = BUCKETS.iter().copied().find(|&b| b >= max_tokens).unwrap_or(1000);
+            p.max_new_tokens = BUCKETS
+                .iter()
+                .copied()
+                .find(|&b| b >= max_tokens)
+                .unwrap_or(1000);
             let mut a: sys::qt_audio = std::mem::zeroed();
             let t = Instant::now();
             let st = sys::qt_synthesize(q, &p, &mut a);
             let dt = t.elapsed().as_secs_f32();
-            assert_eq!(st, sys::QT_STATUS_OK, "qt_synthesize({label}) = {st}: {}", cstr(sys::qt_last_error()));
+            assert_eq!(
+                st,
+                sys::QT_STATUS_OK,
+                "qt_synthesize({label}) = {st}: {}",
+                cstr(sys::qt_last_error())
+            );
             assert_eq!((a.sample_rate, a.channels), (24000, 1));
             let s = std::slice::from_raw_parts(a.samples, a.n_samples as usize).to_vec();
             sys::qt_audio_free(&mut a);
@@ -134,8 +173,12 @@ fn main() {
         let first = &takes[0].1;
         let same_len = first.len() == again.len();
         let n = first.len().min(again.len());
-        let diffs = (0..n).filter(|&i| first[i].to_bits() != again[i].to_bits()).count();
-        let maxd = (0..n).map(|i| (first[i] - again[i]).abs()).fold(0f32, f32::max);
+        let diffs = (0..n)
+            .filter(|&i| first[i].to_bits() != again[i].to_bits())
+            .count();
+        let maxd = (0..n)
+            .map(|i| (first[i] - again[i]).abs())
+            .fold(0f32, f32::max);
         println!(
             "determinism: len {} vs {} (same={same_len}), differing samples={diffs}/{n}, max |diff|={maxd:e} => identical={}",
             first.len(),
@@ -146,25 +189,44 @@ fn main() {
         sys::qt_free(q);
     }
 
-    let takes16: Vec<(String, Vec<f32>)> = takes.iter().map(|(l, s)| (l.clone(), resample_24k_to_16k(s))).collect();
+    let takes16: Vec<(String, Vec<f32>)> = takes
+        .iter()
+        .map(|(l, s)| (l.clone(), resample_24k_to_16k(s)))
+        .collect();
 
     // ---------------------------------------------------------------- ASR
     unsafe {
         let p = cpath(&models.join(ASR));
         let t = Instant::now();
         let ctx = sys::qwen3_asr_init(p.as_ptr(), 0);
-        assert!(!ctx.is_null(), "qwen3_asr_init: {}", cstr(sys::qwen3_asr_last_error()));
+        assert!(
+            !ctx.is_null(),
+            "qwen3_asr_init: {}",
+            cstr(sys::qwen3_asr_last_error())
+        );
         println!("asr init: {:.2} s", t.elapsed().as_secs_f32());
         for (label, s) in &takes16 {
-            let ref_text = &chunks[if label.starts_with("chunk1") { 0 } else { label[5..6].parse::<usize>().unwrap() - 1 }].text;
+            let ref_text = &chunks[if label.starts_with("chunk1") {
+                0
+            } else {
+                label[5..6].parse::<usize>().unwrap() - 1
+            }]
+            .text;
             let t = Instant::now();
             let r = sys::qwen3_asr_transcribe(ctx, s.as_ptr(), s.len() as i32, 0);
             let dt = t.elapsed().as_secs_f32();
-            assert!(!r.is_null(), "transcribe({label}): {}", cstr(sys::qwen3_asr_last_error()));
+            assert!(
+                !r.is_null(),
+                "transcribe({label}): {}",
+                cstr(sys::qwen3_asr_last_error())
+            );
             let text = cstr(r);
             sys::qwen3_asr_string_free(r);
             let (errs, nref) = word_errors(ref_text, &text);
-            println!("asr {label} ({dt:.2} s): WER {errs}/{nref} = {:.1}%", 100.0 * errs as f32 / nref as f32);
+            println!(
+                "asr {label} ({dt:.2} s): WER {errs}/{nref} = {:.1}%",
+                100.0 * errs as f32 / nref as f32
+            );
             println!("  chunk: {ref_text}");
             println!("  asr:   {text}");
         }
@@ -176,13 +238,26 @@ fn main() {
         let p = cpath(&models.join(ALIGNER));
         let t = Instant::now();
         let ctx = sys::qwen3_aligner_init(p.as_ptr(), 0);
-        assert!(!ctx.is_null(), "qwen3_aligner_init: {}", cstr(sys::qwen3_asr_last_error()));
+        assert!(
+            !ctx.is_null(),
+            "qwen3_aligner_init: {}",
+            cstr(sys::qwen3_asr_last_error())
+        );
         println!("aligner init: {:.2} s", t.elapsed().as_secs_f32());
         let lang = CString::new("German").unwrap();
         let align = |label: &str, s: &[f32], words: &[String]| -> Vec<sys::qwen3_word_span> {
-            let cw: Vec<CString> = words.iter().map(|w| CString::new(w.as_str()).unwrap()).collect();
+            let cw: Vec<CString> = words
+                .iter()
+                .map(|w| CString::new(w.as_str()).unwrap())
+                .collect();
             let ptrs: Vec<*const c_char> = cw.iter().map(|c| c.as_ptr()).collect();
-            let mut spans = vec![sys::qwen3_word_span { start_s: -1.0, end_s: -1.0 }; words.len()];
+            let mut spans = vec![
+                sys::qwen3_word_span {
+                    start_s: -1.0,
+                    end_s: -1.0
+                };
+                words.len()
+            ];
             let t = Instant::now();
             let rc = sys::qwen3_aligner_align(
                 ctx,
@@ -193,11 +268,23 @@ fn main() {
                 lang.as_ptr(),
                 spans.as_mut_ptr(),
             );
-            assert_eq!(rc, 0, "align({label}) = {rc}: {}", cstr(sys::qwen3_asr_last_error()));
+            assert_eq!(
+                rc,
+                0,
+                "align({label}) = {rc}: {}",
+                cstr(sys::qwen3_asr_last_error())
+            );
             let dur = s.len() as f32 / 16000.0;
             // The library fills (0, duration) when it got fewer than 2*words timestamps.
-            let filled = spans.iter().skip(1).filter(|sp| sp.start_s == 0.0 && (sp.end_s - dur).abs() < 1e-3).count();
-            let nonmono = spans.windows(2).filter(|w| w[1].start_s < w[0].start_s).count();
+            let filled = spans
+                .iter()
+                .skip(1)
+                .filter(|sp| sp.start_s == 0.0 && (sp.end_s - dur).abs() < 1e-3)
+                .count();
+            let nonmono = spans
+                .windows(2)
+                .filter(|w| w[1].start_s < w[0].start_s)
+                .count();
             let inverted = spans.iter().filter(|sp| sp.end_s < sp.start_s).count();
             println!(
                 "align {label} ({:.2} s): words={} spans={} audio={dur:.2} s last_end={:.2} \
@@ -210,7 +297,11 @@ fn main() {
             spans
         };
         for (label, s) in &takes16 {
-            let ci = if label.starts_with("chunk1") { 0 } else { label[5..6].parse::<usize>().unwrap() - 1 };
+            let ci = if label.starts_with("chunk1") {
+                0
+            } else {
+                label[5..6].parse::<usize>().unwrap() - 1
+            };
             let spans = align(label, s, &chunks[ci].words);
             if label == "chunk1" {
                 for (w, sp) in chunks[0].words.iter().zip(&spans) {
@@ -220,8 +311,17 @@ fn main() {
         }
         // Raw text: the library's own split (ForcedAligner::split_words for non-CJK languages)
         // is ASCII whitespace only, punctuation kept. Emulated here, as the C API takes a list.
-        let raw: Vec<String> = chunks[0].text.split([' ', '\t', '\n', '\r']).filter(|w| !w.is_empty()).map(String::from).collect();
-        println!("raw-text split of chunk 1: {} words vs golden {}", raw.len(), chunks[0].words.len());
+        let raw: Vec<String> = chunks[0]
+            .text
+            .split([' ', '\t', '\n', '\r'])
+            .filter(|w| !w.is_empty())
+            .map(String::from)
+            .collect();
+        println!(
+            "raw-text split of chunk 1: {} words vs golden {}",
+            raw.len(),
+            chunks[0].words.len()
+        );
         let spans = align("chunk1-rawsplit", &takes16[0].1, &raw);
         for (w, sp) in raw.iter().zip(&spans) {
             println!("    {:>8.3} {:>8.3}  {w}", sp.start_s, sp.end_s);
@@ -263,9 +363,17 @@ fn read_wav_mono(path: &Path) -> (Vec<f32>, u32) {
     }
     assert_eq!(bits, 16, "only 16-bit PCM");
     let data = data.unwrap();
-    let s: Vec<f32> = data.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0).collect();
+    let s: Vec<f32> = data
+        .chunks_exact(2)
+        .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0)
+        .collect();
     let ch = ch as usize;
-    (s.chunks_exact(ch).map(|f| f.iter().sum::<f32>() / ch as f32).collect(), sr)
+    (
+        s.chunks_exact(ch)
+            .map(|f| f.iter().sum::<f32>() / ch as f32)
+            .collect(),
+        sr,
+    )
 }
 
 fn write_wav16(path: &Path, s: &[f32], sr: u32) {
@@ -304,9 +412,16 @@ fn resample_24k_to_16k(x: &[f32]) -> Vec<f32> {
                     continue;
                 }
                 let u = t - k as f64;
-                let sinc = if u == 0.0 { 1.0 } else { (2.0 * std::f64::consts::PI * fc * u).sin() / (std::f64::consts::PI * u) / (2.0 * fc) };
+                let sinc = if u == 0.0 {
+                    1.0
+                } else {
+                    (2.0 * std::f64::consts::PI * fc * u).sin()
+                        / (std::f64::consts::PI * u)
+                        / (2.0 * fc)
+                };
                 let wpos = (u / half as f64 + 1.0) / 2.0; // 0..1 across the window
-                let w = 0.42 - 0.5 * (2.0 * std::f64::consts::PI * wpos).cos() + 0.08 * (4.0 * std::f64::consts::PI * wpos).cos();
+                let w = 0.42 - 0.5 * (2.0 * std::f64::consts::PI * wpos).cos()
+                    + 0.08 * (4.0 * std::f64::consts::PI * wpos).cos();
                 acc += x[k as usize] as f64 * 2.0 * fc * sinc * w;
             }
             acc as f32
@@ -318,7 +433,12 @@ fn resample_24k_to_16k(x: &[f32]) -> Vec<f32> {
 fn word_errors(reference: &str, hyp: &str) -> (usize, usize) {
     let norm = |s: &str| -> Vec<String> {
         s.split_whitespace()
-            .map(|w| w.chars().filter(|c| c.is_alphanumeric()).collect::<String>().to_lowercase())
+            .map(|w| {
+                w.chars()
+                    .filter(|c| c.is_alphanumeric())
+                    .collect::<String>()
+                    .to_lowercase()
+            })
             .filter(|w| !w.is_empty())
             .collect()
     };
@@ -327,7 +447,9 @@ fn word_errors(reference: &str, hyp: &str) -> (usize, usize) {
     for i in 1..=r.len() {
         let mut cur = vec![i; h.len() + 1];
         for j in 1..=h.len() {
-            cur[j] = (prev[j] + 1).min(cur[j - 1] + 1).min(prev[j - 1] + usize::from(r[i - 1] != h[j - 1]));
+            cur[j] = (prev[j] + 1)
+                .min(cur[j - 1] + 1)
+                .min(prev[j - 1] + usize::from(r[i - 1] != h[j - 1]));
         }
         prev = cur;
     }

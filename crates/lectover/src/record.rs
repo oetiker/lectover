@@ -14,7 +14,8 @@ use crate::design::{check_target, clip_paths, keep_old, write_wav16, REF_TEXT};
 use crate::voices::add_voice;
 
 pub const SAMPLE_RATE: u32 = 24_000;
-pub const TEST_TEXT: &str = "Eins, zwei, drei — dies ist ein kurzer Mikrofontest in normaler Sprechlautstärke.";
+pub const TEST_TEXT: &str =
+    "Eins, zwei, drei — dies ist ein kurzer Mikrofontest in normaler Sprechlautstärke.";
 /// Target peak is ~ -6 dBFS: 10^(-6/20) = ~0.501187.
 pub const TARGET_PEAK: f32 = 0.501187;
 
@@ -201,15 +202,23 @@ pub fn record_voice(
         Some(g) => format!("{:.0}%", g * 100.0),
         None => "fixed".to_string(),
     };
-    writeln!(log, "Microphone: {} (input gain: {initial_gain_str})", session.device_name())?;
+    writeln!(
+        log,
+        "Microphone: {} (input gain: {initial_gain_str})",
+        session.device_name()
+    )?;
 
-    if let Some(w) = headset_mic_warning(session.native_sample_rate(), Some(session.device_name())) {
+    if let Some(w) = headset_mic_warning(session.native_sample_rate(), Some(session.device_name()))
+    {
         writeln!(log, "{w}")?;
     }
 
     // Step 1: Microphone level check
     writeln!(log, "Step 1/2 — Microphone calibration")?;
-    write!(log, "  Measuring background noise (stay quiet for a moment)... ")?;
+    write!(
+        log,
+        "  Measuring background noise (stay quiet for a moment)... "
+    )?;
     log.flush()?;
 
     // Drop the start-up transient and the click of the key that launched us.
@@ -235,7 +244,10 @@ pub fn record_voice(
         )?;
     }
 
-    writeln!(log, "  Please read this test sentence aloud at normal speaking volume:\n")?;
+    writeln!(
+        log,
+        "  Please read this test sentence aloud at normal speaking volume:\n"
+    )?;
     writeln!(log, "    \"{TEST_TEXT}\"\n")?;
     log.flush()?;
 
@@ -269,7 +281,11 @@ pub fn record_voice(
         let chunk = session.next_chunk()?;
         let p = chunk.iter().fold(0.0f32, |m, &s| m.max(s.abs()));
         speech_peak = speech_peak.max(p);
-        quiet = if p < pause_level(noise_peak, speech_peak) { quiet + 1 } else { 0 };
+        quiet = if p < pause_level(noise_peak, speech_peak) {
+            quiet + 1
+        } else {
+            0
+        };
         let (bar, db) = vu_bar(p);
         let elapsed_s = (i + 1) as f32 * 0.1;
         status(
@@ -297,7 +313,10 @@ pub fn record_voice(
                 }
             }
             Err(e) => {
-                writeln!(log, "  Note: cannot set the input gain ({e:#}); using software gain instead.")?;
+                writeln!(
+                    log,
+                    "  Note: cannot set the input gain ({e:#}); using software gain instead."
+                )?;
                 sw_gain = next_gain(None, 1.0, speech_peak).1;
             }
         }
@@ -305,11 +324,16 @@ pub fn record_voice(
     let onset_thresh = onset_threshold(noise_peak);
 
     let final_gain_str = match applied_hw {
-        Some(hw) if (sw_gain - 1.0).abs() > 0.05 => format!("{:.0}% + {:.1}x software", hw * 100.0, sw_gain),
+        Some(hw) if (sw_gain - 1.0).abs() > 0.05 => {
+            format!("{:.0}% + {:.1}x software", hw * 100.0, sw_gain)
+        }
         Some(hw) => format!("{:.0}%", hw * 100.0),
         None => format!("{:.1}x software", sw_gain),
     };
-    writeln!(log, "  Level check complete: input gain set to {final_gain_str} (target peak -6 dBFS).\n")?;
+    writeln!(
+        log,
+        "  Level check complete: input gain set to {final_gain_str} (target peak -6 dBFS).\n"
+    )?;
 
     // Step 2: Voice recording
     let (wav, txt) = clip_paths(voices_dir, &req.id);
@@ -346,7 +370,11 @@ pub fn record_voice(
             let p = chunk.iter().fold(0.0f32, |m, &s| m.max(s.abs()));
             let armed = quiet >= ARM_QUIET_CHUNKS;
             let (bar, db) = vu_bar(p);
-            let what = if armed { "Waiting for voice..." } else { "Waiting for quiet..." };
+            let what = if armed {
+                "Waiting for voice..."
+            } else {
+                "Waiting for quiet..."
+            };
             status(
                 log,
                 session.term_width(),
@@ -393,7 +421,11 @@ pub fn record_voice(
             let p = chunk.iter().fold(0.0f32, |m, &s| m.max(s.abs()));
             recorded.extend(chunk);
             take_peak = take_peak.max(p);
-            quiet = if p < pause_level(noise_peak, take_peak) { quiet + 1 } else { 0 };
+            quiet = if p < pause_level(noise_peak, take_peak) {
+                quiet + 1
+            } else {
+                0
+            };
 
             let (bar, db) = vu_bar(p);
             let secs = (i + 1) / 10;
@@ -474,10 +506,17 @@ pub fn record_voice(
     keep_old(&[&wav, &raw_wav, &txt], log)?;
     write_wav16(&wav, &final_trimmed, SAMPLE_RATE)?;
     write_wav16(&raw_wav, &final_raw, SAMPLE_RATE)?;
-    fs::write(&txt, format!("{}\n", req.text)).with_context(|| format!("writing {}", txt.display()))?;
+    fs::write(&txt, format!("{}\n", req.text))
+        .with_context(|| format!("writing {}", txt.display()))?;
     add_voice(voices_dir, &req.id, &req.label)?;
     let dur = final_trimmed.len() as f64 / SAMPLE_RATE as f64;
-    writeln!(log, "recorded voice {} ({:.1}s) -> {}", req.id, dur, wav.display())?;
+    writeln!(
+        log,
+        "recorded voice {} ({:.1}s) -> {}",
+        req.id,
+        dur,
+        wav.display()
+    )?;
     Ok(wav)
 }
 
@@ -498,12 +537,24 @@ pub fn run(args: &RecordArgs, settings: &crate::settings::Settings) -> Result<()
     };
     check_target(voices_dir, &req.id, req.force)?;
     // Load the cleaner first: a missing model must fail before the microphone opens.
-    let gguf =
-        crate::models::ensure_reuse_gguf(&settings.models, &crate::ffi::convert_reuse, &mut std::io::stdout())?;
-    let mut denoiser = crate::ffi::ReuseDenoiser::load(&gguf, crate::ffi::resolve_device(args.device.or(settings.device))?)?;
+    let gguf = crate::models::ensure_reuse_gguf(
+        &settings.models,
+        &crate::ffi::convert_reuse,
+        &mut std::io::stdout(),
+    )?;
+    let mut denoiser = crate::ffi::ReuseDenoiser::load(
+        &gguf,
+        crate::ffi::resolve_device(args.device.or(settings.device))?,
+    )?;
     denoiser.set_progress(crate::audio::denoise::stderr_progress_hook());
     let mut session = create_session()?;
-    record_voice(&mut *session, &mut denoiser, voices_dir, &req, &mut std::io::stdout())?;
+    record_voice(
+        &mut *session,
+        &mut denoiser,
+        voices_dir,
+        &req,
+        &mut std::io::stdout(),
+    )?;
     Ok(())
 }
 
@@ -599,7 +650,14 @@ mod macos {
 
         fn AudioQueueNewInput(
             inFormat: *const AudioStreamBasicDescription,
-            inCallbackProc: extern "C" fn(*mut c_void, AudioQueueRef, AudioQueueBufferRef, *const c_void, u32, *const c_void),
+            inCallbackProc: extern "C" fn(
+                *mut c_void,
+                AudioQueueRef,
+                AudioQueueBufferRef,
+                *const c_void,
+                u32,
+                *const c_void,
+            ),
             inUserData: *mut c_void,
             inCallbackRunLoop: *mut c_void,
             inCallbackRunLoopMode: *mut c_void,
@@ -607,8 +665,17 @@ mod macos {
             outAQ: *mut AudioQueueRef,
         ) -> i32;
 
-        fn AudioQueueAllocateBuffer(inAQ: AudioQueueRef, inBufferByteSize: u32, outBuffer: *mut AudioQueueBufferRef) -> i32;
-        fn AudioQueueEnqueueBuffer(inAQ: AudioQueueRef, inBuffer: AudioQueueBufferRef, inNumPacketDescs: u32, inPacketDescs: *const c_void) -> i32;
+        fn AudioQueueAllocateBuffer(
+            inAQ: AudioQueueRef,
+            inBufferByteSize: u32,
+            outBuffer: *mut AudioQueueBufferRef,
+        ) -> i32;
+        fn AudioQueueEnqueueBuffer(
+            inAQ: AudioQueueRef,
+            inBuffer: AudioQueueBufferRef,
+            inNumPacketDescs: u32,
+            inPacketDescs: *const c_void,
+        ) -> i32;
         fn AudioQueueStart(inAQ: AudioQueueRef, inStartTime: *const c_void) -> i32;
         fn AudioQueueStop(inAQ: AudioQueueRef, inImmediate: bool) -> i32;
         fn AudioQueueDispose(inAQ: AudioQueueRef, inImmediate: bool) -> i32;
@@ -653,7 +720,11 @@ mod macos {
     extern "C" fn sigint_handler(_sig: libc::c_int) {
         if HAS_ORIG_TERMIOS.load(Ordering::SeqCst) {
             unsafe {
-                libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, std::ptr::addr_of!(GLOBAL_ORIG_TERMIOS));
+                libc::tcsetattr(
+                    libc::STDIN_FILENO,
+                    libc::TCSANOW,
+                    std::ptr::addr_of!(GLOBAL_ORIG_TERMIOS),
+                );
             }
         }
         // Not strictly async-signal-safe, but we _exit right after and the
@@ -968,7 +1039,9 @@ mod macos {
         }
 
         fn next_chunk(&mut self) -> Result<Vec<f32>> {
-            let mut chunk = self.rx.recv_timeout(Duration::from_millis(500))
+            let mut chunk = self
+                .rx
+                .recv_timeout(Duration::from_millis(500))
                 .with_context(|| "audio input timed out")?;
             // accumulate up to 100ms if smaller
             let target_n = (SAMPLE_RATE / 10) as usize;

@@ -12,7 +12,11 @@ use crate::models::{ensure_reuse_gguf, fetch_all, fetch_sources, http_download};
 use crate::settings::{Overrides, Settings};
 
 #[derive(Debug, Parser)]
-#[command(name = "lectover", version, about = "Render Ghost posts as narrated audio for the read-aloud player")]
+#[command(
+    name = "lectover",
+    version,
+    about = "Render Ghost posts as narrated audio for the read-aloud player"
+)]
 pub struct Cli {
     /// Config file [default: ~/.config/lectover/config.toml; env LECTOVER_CONFIG]
     #[arg(long, global = true, value_name = "FILE")]
@@ -278,17 +282,28 @@ pub fn parse_device(s: &str) -> Result<Device> {
 
 /// The path overrides given on the command line, for [`Settings::resolve`].
 pub fn overrides(cli: &Cli) -> Overrides {
-    let mut o = Overrides { config: cli.config.clone(), ..Default::default() };
+    let mut o = Overrides {
+        config: cli.config.clone(),
+        ..Default::default()
+    };
     match &cli.command {
         Commands::Render(a) => {
             o.models = a.models.clone();
             o.site = a.out.clone();
         }
         Commands::Models(ModelsCommand::Fetch { models, .. }) => o.models = models.clone(),
-        Commands::Voice(VoiceCommand::Design(a)) => (o.models, o.voices) = (a.models.clone(), a.voices.clone()),
-        Commands::Voice(VoiceCommand::Record(a)) => (o.models, o.voices) = (a.models.clone(), a.voices.clone()),
-        Commands::Voice(VoiceCommand::Clean(a)) => (o.models, o.voices) = (a.models.clone(), a.voices.clone()),
-        Commands::Dev(DevCommand::Build { out, .. } | DevCommand::Serve { out, .. }) => o.site = out.clone(),
+        Commands::Voice(VoiceCommand::Design(a)) => {
+            (o.models, o.voices) = (a.models.clone(), a.voices.clone())
+        }
+        Commands::Voice(VoiceCommand::Record(a)) => {
+            (o.models, o.voices) = (a.models.clone(), a.voices.clone())
+        }
+        Commands::Voice(VoiceCommand::Clean(a)) => {
+            (o.models, o.voices) = (a.models.clone(), a.voices.clone())
+        }
+        Commands::Dev(DevCommand::Build { out, .. } | DevCommand::Serve { out, .. }) => {
+            o.site = out.clone()
+        }
         Commands::Say(a) => (o.models, o.voices) = (a.models.clone(), a.voices_dir.clone()),
         Commands::Doctor { .. } => {}
     }
@@ -319,15 +334,23 @@ fn run_command(cli: Cli, settings: &Settings) -> Result<()> {
         Commands::Dev(DevCommand::Build { post, site, .. }) => {
             let s = settings.site_for_post(&post, site.as_deref())?;
             let cfg = crate::ghost::GhostConfig::for_site(&s, &|k| std::env::var(k).ok())?;
-            let page = crate::dev::build(&cfg, &s.domain, &post, &settings.site_root, &crate::ghost::http_get)?;
+            let page = crate::dev::build(
+                &cfg,
+                &s.domain,
+                &post,
+                &settings.site_root,
+                &crate::ghost::http_get,
+            )?;
             println!("wrote {}", page.display());
             Ok(())
         }
         Commands::Say(args) => crate::say::run(&args, settings),
         Commands::Doctor { .. } => unreachable!("handled in run"),
-        Commands::Dev(DevCommand::Serve { port, .. }) => {
-            crate::dev::serve(&settings.site_root, std::path::Path::new(crate::dev::PLAYER), port)
-        }
+        Commands::Dev(DevCommand::Serve { port, .. }) => crate::dev::serve(
+            &settings.site_root,
+            std::path::Path::new(crate::dev::PLAYER),
+            port,
+        ),
     }
 }
 
@@ -335,7 +358,11 @@ fn run_command(cli: Cli, settings: &Settings) -> Result<()> {
 fn run_doctor(settings: &Settings, site: Option<&str>, offline: bool) -> ExitCode {
     use crate::doctor::{checks, exit_code, render_report, Probe};
     let env = |k: &str| std::env::var(k).ok();
-    let probe = Probe { env: &env, http_get: &crate::ghost::http_get, free_bytes: &free_bytes };
+    let probe = Probe {
+        env: &env,
+        http_get: &crate::ghost::http_get,
+        free_bytes: &free_bytes,
+    };
     let results = checks(settings, site, offline, &probe);
     print!("{}", render_report(&results));
     ExitCode::from(exit_code(&results))
@@ -346,5 +373,6 @@ fn free_bytes(path: &std::path::Path) -> Option<u64> {
     use std::os::unix::ffi::OsStrExt;
     let c = std::ffi::CString::new(path.as_os_str().as_bytes()).ok()?;
     let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
-    (unsafe { libc::statvfs(c.as_ptr(), &mut st) } == 0).then(|| st.f_bavail as u64 * st.f_frsize as u64)
+    (unsafe { libc::statvfs(c.as_ptr(), &mut st) } == 0)
+        .then(|| st.f_bavail as u64 * st.f_frsize as u64)
 }

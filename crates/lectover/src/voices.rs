@@ -20,7 +20,11 @@ pub fn is_valid_id(id: &str) -> bool {
 
 /// Python `repr()` of a str.
 fn py_repr(s: &str) -> String {
-    let quote = if s.contains('\'') && !s.contains('"') { '"' } else { '\'' };
+    let quote = if s.contains('\'') && !s.contains('"') {
+        '"'
+    } else {
+        '\''
+    };
     let mut out = String::from(quote);
     for c in s.chars() {
         match c {

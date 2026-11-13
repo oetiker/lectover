@@ -54,11 +54,21 @@ pub fn with_carrier(text: &str) -> String {
 /// [`PAUSE_MAX_BELOW_PEAK_DB`] under the peak, following the window's noise floor.
 fn pauses(wav: &[f32], sr: u32, from: usize, to: usize) -> Vec<(usize, usize)> {
     let frame = ((sr as f64 * FRAME_SECS) as usize).max(1);
-    let energy = |k: usize| wav[k..k + frame].iter().map(|v| (*v as f64).powi(2)).sum::<f64>();
+    let energy = |k: usize| {
+        wav[k..k + frame]
+            .iter()
+            .map(|v| (*v as f64).powi(2))
+            .sum::<f64>()
+    };
     let db = |e: f64| 10.0 * (e + 1e-20).log10();
-    let peak = db((0..wav.len() / frame).map(|i| energy(i * frame)).fold(0.0, f64::max));
+    let peak = db((0..wav.len() / frame)
+        .map(|i| energy(i * frame))
+        .fold(0.0, f64::max));
     let to = to.min(wav.len());
-    let mut window: Vec<f64> = (from..to.saturating_sub(frame - 1)).step_by(frame).map(|k| db(energy(k))).collect();
+    let mut window: Vec<f64> = (from..to.saturating_sub(frame - 1))
+        .step_by(frame)
+        .map(|k| db(energy(k)))
+        .collect();
     if window.is_empty() {
         return Vec::new();
     }
@@ -160,7 +170,10 @@ impl Ending for CarrierEnding<'_> {
             }
             // Unaligned: the carrier still follows the last long pause of the take.
             None => {
-                let last = pauses(wav, sr, 0, wav.len()).into_iter().rev().find(|r| long_enough(sr, r));
+                let last = pauses(wav, sr, 0, wav.len())
+                    .into_iter()
+                    .rev()
+                    .find(|r| long_enough(sr, r));
                 (last.map_or(wav.len(), |r| cut_in(sr, r)), false)
             }
         };

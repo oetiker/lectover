@@ -23,7 +23,11 @@ pub fn convert_reuse(safetensors: &Path, gguf: &Path) -> Result<()> {
     // SAFETY: both paths are valid NUL-terminated strings for the duration of the call.
     let rc = unsafe { sys::reuse_convert(src.as_ptr(), dst.as_ptr()) };
     if rc != 0 {
-        bail!("reuse_convert failed ({}): {}", safetensors.display(), last_error());
+        bail!(
+            "reuse_convert failed ({}): {}",
+            safetensors.display(),
+            last_error()
+        );
     }
     Ok(())
 }
@@ -77,23 +81,31 @@ impl ReuseDenoiser {
         let path = c_path(model)?;
         let dev = CString::new(ggml_device_name(device)?)?;
         // reuse.cpp refuses n_threads < 1.
-        let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).min(i32::MAX as usize) as i32;
+        let threads = std::thread::available_parallelism()
+            .map_or(4, |n| n.get())
+            .min(i32::MAX as usize) as i32;
         // SAFETY: both strings are valid NUL-terminated strings for the duration of the call.
         let ctx = unsafe { sys::reuse_load(path.as_ptr(), dev.as_ptr(), threads) };
         if ctx.is_null() {
             bail!("reuse_load failed ({}): {}", model.display(), last_error());
         }
-        Ok(ReuseDenoiser { ctx, progress: None })
+        Ok(ReuseDenoiser {
+            ctx,
+            progress: None,
+        })
     }
 }
 
 impl Denoise for ReuseDenoiser {
     fn denoise(&mut self, pcm: &[f32], sr: u32) -> Result<Vec<f32>> {
         check_clean_len(pcm.len(), sr)?;
-        let rate = i32::try_from(sr).map_err(|_| anyhow::anyhow!("sample rate {sr} out of range"))?;
+        let rate =
+            i32::try_from(sr).map_err(|_| anyhow::anyhow!("sample rate {sr} out of range"))?;
         let mut out = vec![0f32; pcm.len()];
         // SAFETY: ctx is live; `pcm` and `out` both hold pcm.len() floats and do not alias.
-        let rc = unsafe { sys::reuse_enhance(self.ctx, pcm.as_ptr(), pcm.len(), rate, out.as_mut_ptr()) };
+        let rc = unsafe {
+            sys::reuse_enhance(self.ctx, pcm.as_ptr(), pcm.len(), rate, out.as_mut_ptr())
+        };
         if rc != 0 {
             bail!("reuse_enhance failed (code {rc}): {}", last_error());
         }
@@ -118,7 +130,10 @@ mod tests {
 
     #[test]
     fn finish_output_clamps_finite_samples() {
-        assert_eq!(finish_output(vec![0.5, 2.0, -3.0]).unwrap(), vec![0.5, 1.0, -1.0]);
+        assert_eq!(
+            finish_output(vec![0.5, 2.0, -3.0]).unwrap(),
+            vec![0.5, 1.0, -1.0]
+        );
     }
 
     #[test]

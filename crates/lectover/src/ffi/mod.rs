@@ -15,7 +15,10 @@ use std::path::Path;
 use anyhow::{anyhow, Result};
 
 pub use asr::{QwenAligner, QwenAsr};
-pub use backend::{asr_library_device, backend_banner, check_ggml_layout, init_ggml_logging, resolve_device, warn_unified_memory, Device};
+pub use backend::{
+    asr_library_device, backend_banner, check_ggml_layout, init_ggml_logging, resolve_device,
+    warn_unified_memory, Device,
+};
 pub(crate) use backend::{unified_memory_warning, UNIFIED_MEMORY_ENV};
 pub use reuse::{convert_reuse, ReuseDenoiser};
 pub use tts::{QwenTts, QwenVoiceDesign};
@@ -30,7 +33,11 @@ pub struct TakeRequest {
 
 impl TakeRequest {
     pub fn new(text: impl Into<String>, max_tokens: usize, seed: u64) -> Self {
-        TakeRequest { text: text.into(), max_tokens, seed }
+        TakeRequest {
+            text: text.into(),
+            max_tokens,
+            seed,
+        }
     }
 }
 

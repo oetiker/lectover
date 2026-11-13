@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::config::{Config, Loaded, SecretRef, SiteConfig, SiteVoice};
 use crate::cli::parse_device;
+use crate::config::{Config, Loaded, SecretRef, SiteConfig, SiteVoice};
 use crate::dirs::BaseDirs;
 use crate::ffi::Device;
 use crate::ghost::domain_of_url;
@@ -67,11 +67,18 @@ impl Settings {
 
     /// Like [`Settings::resolve`], but a config file that cannot be used does not fail:
     /// the settings come back without a config and `config_error` holds the reason.
-    pub fn resolve_for_doctor(o: &Overrides, env: &dyn Fn(&str) -> Option<OsString>) -> Result<Settings> {
+    pub fn resolve_for_doctor(
+        o: &Overrides,
+        env: &dyn Fn(&str) -> Option<OsString>,
+    ) -> Result<Settings> {
         Self::resolve_inner(o, env, true)
     }
 
-    fn resolve_inner(o: &Overrides, env: &dyn Fn(&str) -> Option<OsString>, lenient: bool) -> Result<Settings> {
+    fn resolve_inner(
+        o: &Overrides,
+        env: &dyn Fn(&str) -> Option<OsString>,
+        lenient: bool,
+    ) -> Result<Settings> {
         let dirs = BaseDirs::from_env(env)?;
         // `from_env` succeeded, so HOME or all four XDG variables are usable; HOME is only
         // needed for `~` in the config file.
@@ -260,9 +267,9 @@ fn config_device(config: Option<&Loaded>) -> Result<Option<Device>> {
     if raw.trim().eq_ignore_ascii_case("auto") {
         return Ok(None);
     }
-    parse_device(raw.trim())
-        .map(Some)
-        .map_err(|_| anyhow!("invalid defaults.device {raw:?} (auto, cpu, metal, cuda, hip, vulkan)"))
+    parse_device(raw.trim()).map(Some).map_err(|_| {
+        anyhow!("invalid defaults.device {raw:?} (auto, cpu, metal, cuda, hip, vulkan)")
+    })
 }
 
 fn normalize_domain(s: &str) -> String {

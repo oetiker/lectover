@@ -9,11 +9,12 @@ use std::sync::{Arc, Mutex, Weak};
 
 use lectover::audio::{read_wav, resample, trim_and_level, TRIM_KEEP_SECS};
 use lectover::ffi::{
-    backend_banner, check_ggml_layout, resolve_device, Align, Device, QwenAligner, QwenAsr, QwenTts, Synth, TakeRequest,
-    Transcribe,
+    backend_banner, check_ggml_layout, resolve_device, Align, Device, QwenAligner, QwenAsr,
+    QwenTts, Synth, TakeRequest, Transcribe,
 };
 use lectover::models::{
-    ensure_reuse_gguf, fetch_all, fetch_sources, CleanFiles, Download, REUSE_GGUF, REUSE_SAFETENSORS, REUSE_SOURCE,
+    ensure_reuse_gguf, fetch_all, fetch_sources, CleanFiles, Download, REUSE_GGUF,
+    REUSE_SAFETENSORS, REUSE_SOURCE,
 };
 use lectover::text::spoken_words::spoken_words;
 
@@ -76,7 +77,11 @@ fn tts_is_deterministic_per_seed() {
     let a = tts.generate(&texts, 0.9).unwrap();
     let b = tts.generate(&texts, 0.9).unwrap();
     assert_eq!(a.len(), 1);
-    assert!(a[0].len() > 24000 / 2, "take too short: {} samples", a[0].len());
+    assert!(
+        a[0].len() > 24000 / 2,
+        "take too short: {} samples",
+        a[0].len()
+    );
     assert_eq!(
         a, b,
         "same text, same seed, same handle must give identical samples"
@@ -134,7 +139,9 @@ fn aligner_onset_and_order() {
         let mut tts = tts.lock().unwrap();
         let (ref_wav, ref_text) = voice("qwen-designed");
         tts.set_voice(&ref_wav, &ref_text).unwrap();
-        let mut takes = tts.generate(&[TakeRequest::new(text, 200, 42)], 0.9).unwrap();
+        let mut takes = tts
+            .generate(&[TakeRequest::new(text, 200, 42)], 0.9)
+            .unwrap();
         (takes.remove(0), tts.sample_rate())
     };
     let wav = trim_and_level(&wav, sr);
@@ -202,7 +209,11 @@ fn fetch_includes_reuse_weights() {
     let get = |url: &str, _offset: u64| -> anyhow::Result<Download> {
         urls.borrow_mut().push(url.to_string());
         let n = REUSE_SOURCE.size;
-        Ok(Download { status: 200, content_length: Some(n), body: Box::new(std::io::repeat(0).take(n)) })
+        Ok(Download {
+            status: 200,
+            content_length: Some(n),
+            body: Box::new(std::io::repeat(0).take(n)),
+        })
     };
     fetch_all(dir.path(), &[REUSE_SOURCE], &get, &mut Vec::new()).unwrap();
     assert_eq!(
@@ -266,7 +277,10 @@ fn aligner_bench() {
             (name, resample(&pcm, sr, 16000), spoken_words(&text))
         })
         .collect();
-    let audio_secs: f64 = inputs.iter().map(|(_, p, _)| p.len() as f64 / 16000.0).sum();
+    let audio_secs: f64 = inputs
+        .iter()
+        .map(|(_, p, _)| p.len() as f64 / 16000.0)
+        .sum();
     let mut aligner = QwenAligner::load(&model(ALIGNER), device()).unwrap();
     let mut dump = String::new();
     for round in 0..3 {
@@ -280,7 +294,10 @@ fn aligner_bench() {
             }
         }
         let secs = t.elapsed().as_secs_f64();
-        eprintln!("round {round}: {secs:.2} s for {audio_secs:.1} s audio ({:.1}x real time)", audio_secs / secs);
+        eprintln!(
+            "round {round}: {secs:.2} s for {audio_secs:.1} s audio ({:.1}x real time)",
+            audio_secs / secs
+        );
     }
     if let Some(path) = std::env::var_os("LECTOVER_ALIGN_DUMP") {
         std::fs::write(path, dump).unwrap();

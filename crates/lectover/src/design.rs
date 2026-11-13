@@ -30,8 +30,14 @@ pub const MAX_TOKENS: usize = 400;
 /// Speaks a text in a voice described in words.
 pub trait VoiceDesigner {
     fn sample_rate(&self) -> u32;
-    fn design(&mut self, text: &str, instruct: &str, max_tokens: usize, seed: u64, temperature: f32)
-        -> Result<Vec<f32>>;
+    fn design(
+        &mut self,
+        text: &str,
+        instruct: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> Result<Vec<f32>>;
 }
 
 impl VoiceDesigner for QwenVoiceDesign {
@@ -39,7 +45,14 @@ impl VoiceDesigner for QwenVoiceDesign {
         QwenVoiceDesign::sample_rate(self)
     }
 
-    fn design(&mut self, text: &str, instruct: &str, max_tokens: usize, seed: u64, temperature: f32) -> Result<Vec<f32>> {
+    fn design(
+        &mut self,
+        text: &str,
+        instruct: &str,
+        max_tokens: usize,
+        seed: u64,
+        temperature: f32,
+    ) -> Result<Vec<f32>> {
         QwenVoiceDesign::design(self, text, instruct, max_tokens, seed, temperature)
     }
 }
@@ -47,7 +60,11 @@ impl VoiceDesigner for QwenVoiceDesign {
 /// Load the VoiceDesign talker. The caller drops the box before the process exits (a ggml
 /// Metal device still holding buffers at exit aborts).
 pub fn load_designer(files: &DesignFiles, device: Device) -> Result<Box<dyn VoiceDesigner>> {
-    Ok(Box::new(QwenVoiceDesign::load(&files.talker, &files.codec, device)?))
+    Ok(Box::new(QwenVoiceDesign::load(
+        &files.talker,
+        &files.codec,
+        device,
+    )?))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,14 +80,20 @@ pub struct DesignRequest {
 }
 
 pub(crate) fn clip_paths(voices_dir: &Path, id: &str) -> (PathBuf, PathBuf) {
-    (voices_dir.join(format!("{id}.wav")), voices_dir.join(format!("{id}.txt")))
+    (
+        voices_dir.join(format!("{id}.wav")),
+        voices_dir.join(format!("{id}.txt")),
+    )
 }
 
 /// Refuse an invalid id, and an existing one (registered, or with a clip or transcript on
 /// disk) unless `force`. Needs no model: `run` calls it before loading one.
 pub fn check_target(voices_dir: &Path, id: &str, force: bool) -> Result<()> {
     if !is_valid_id(id) || id.ends_with('\n') {
-        bail!("invalid voice id {id:?} (allowed: {})", crate::voices::VOICE_ID_RE);
+        bail!(
+            "invalid voice id {id:?} (allowed: {})",
+            crate::voices::VOICE_ID_RE
+        );
     }
     if force {
         return Ok(());
@@ -102,7 +125,13 @@ pub fn design_voice(
 ) -> Result<PathBuf> {
     check_target(voices_dir, &req.id, req.force)?;
     let sr = designer.sample_rate();
-    let raw = designer.design(REF_TEXT, &req.instruct, MAX_TOKENS, req.seed, req.temperature)?;
+    let raw = designer.design(
+        REF_TEXT,
+        &req.instruct,
+        MAX_TOKENS,
+        req.seed,
+        req.temperature,
+    )?;
     let audio = trim_and_level(&raw, sr);
     if audio.is_empty() {
         bail!("the VoiceDesign model returned no audio");
@@ -112,9 +141,16 @@ pub fn design_voice(
     let (wav, txt) = clip_paths(voices_dir, &req.id);
     keep_old(&[&wav, &txt], log)?;
     write_wav16(&wav, &audio, sr)?;
-    fs::write(&txt, format!("{REF_TEXT}\n")).with_context(|| format!("writing {}", txt.display()))?;
+    fs::write(&txt, format!("{REF_TEXT}\n"))
+        .with_context(|| format!("writing {}", txt.display()))?;
     add_voice(voices_dir, &req.id, &req.label)?;
-    writeln!(log, "designed voice {} ({:.1}s) -> {}", req.id, audio.len() as f64 / sr as f64, wav.display())?;
+    writeln!(
+        log,
+        "designed voice {} ({:.1}s) -> {}",
+        req.id,
+        audio.len() as f64 / sr as f64,
+        wav.display()
+    )?;
     Ok(wav)
 }
 
@@ -139,7 +175,10 @@ pub(crate) fn keep_old(files: &[&Path], log: &mut dyn Write) -> Result<()> {
 
 /// `YYYYmmdd-HHMMSS` in UTC (Python used local time; UTC needs no time zone data).
 fn timestamp(t: SystemTime) -> String {
-    let secs = t.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let secs = t
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let (days, rem) = (secs / 86_400, secs % 86_400);
     // Howard Hinnant's civil_from_days, for days since 1970-01-01 (non-negative here).
     let z = days as i64 + 719_468;
@@ -161,14 +200,21 @@ fn timestamp(t: SystemTime) -> String {
 
 /// 16-bit PCM mono, as soundfile wrote the existing voices.
 pub(crate) fn write_wav16(path: &Path, audio: &[f32], sr: u32) -> Result<()> {
-    let spec = hound::WavSpec { channels: 1, sample_rate: sr, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
-    let mut w = hound::WavWriter::create(path, spec).with_context(|| format!("creating {}", path.display()))?;
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: sr,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut w = hound::WavWriter::create(path, spec)
+        .with_context(|| format!("creating {}", path.display()))?;
     for &s in audio {
         // libsndfile's float -> PCM_16 (f2s): scale by 0x7FFF, round to nearest; clamp first.
         let v = (f64::from(s.clamp(-1.0, 1.0)) * 32767.0).round() as i16;
         w.write_sample(v)?;
     }
-    w.finalize().with_context(|| format!("writing {}", path.display()))?;
+    w.finalize()
+        .with_context(|| format!("writing {}", path.display()))?;
     Ok(())
 }
 
@@ -202,9 +248,15 @@ mod tests {
     fn timestamp_is_utc_civil_time() {
         assert_eq!(timestamp(UNIX_EPOCH), "19700101-000000");
         // 2026-11-01T13:05:09Z
-        assert_eq!(timestamp(UNIX_EPOCH + Duration::from_secs(1_793_538_309)), "20261101-130509");
+        assert_eq!(
+            timestamp(UNIX_EPOCH + Duration::from_secs(1_793_538_309)),
+            "20261101-130509"
+        );
         // 2024-02-29T23:59:59Z
-        assert_eq!(timestamp(UNIX_EPOCH + Duration::from_secs(1_709_251_199)), "20240229-235959");
+        assert_eq!(
+            timestamp(UNIX_EPOCH + Duration::from_secs(1_709_251_199)),
+            "20240229-235959"
+        );
     }
 
     #[test]

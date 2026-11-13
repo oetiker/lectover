@@ -24,7 +24,11 @@ use crate::voices::load_registry;
 
 /// The command that plays a WAV file here: `afplay` on macOS, else `aplay`.
 fn player() -> &'static str {
-    if cfg!(target_os = "macos") { "afplay" } else { "aplay" }
+    if cfg!(target_os = "macos") {
+        "afplay"
+    } else {
+        "aplay"
+    }
 }
 
 /// Silence played before each take. An output that has to wake up first (Bluetooth
@@ -41,7 +45,10 @@ fn for_playback(take: &[f32], sr: u32) -> Vec<f32> {
 
 /// Play `take` (the content of `path`) from a temporary copy that leads with silence.
 fn play(take: &[f32], sr: u32, path: &Path) -> Result<()> {
-    let tmp = tempfile::Builder::new().prefix("lectover-say-").suffix(".wav").tempfile()?;
+    let tmp = tempfile::Builder::new()
+        .prefix("lectover-say-")
+        .suffix(".wav")
+        .tempfile()?;
     write_wav16(tmp.path(), &for_playback(take, sr), sr)?;
     let status = Command::new(player())
         .arg(tmp.path())
@@ -55,7 +62,11 @@ fn play(take: &[f32], sr: u32, path: &Path) -> Result<()> {
 
 /// The lexicon `say` applies: `--lexicon`, else that of `--site`, else that of the only
 /// configured site; none with several sites (or none) and neither flag.
-pub fn lexicon_path(flag: Option<&Path>, site: Option<&str>, settings: &Settings) -> Result<Option<PathBuf>> {
+pub fn lexicon_path(
+    flag: Option<&Path>,
+    site: Option<&str>,
+    settings: &Settings,
+) -> Result<Option<PathBuf>> {
     if let Some(p) = flag {
         return Ok(Some(p.to_path_buf()));
     }
@@ -96,9 +107,18 @@ pub fn run(args: &SayArgs, settings: &Settings) -> Result<()> {
     let texts: Vec<String> = args
         .lines
         .iter()
-        .map(|l| spoken_groups(l, &lexicon).into_iter().map(|g| g.spoken).collect::<Vec<_>>().join(" "))
+        .map(|l| {
+            spoken_groups(l, &lexicon)
+                .into_iter()
+                .map(|g| g.spoken)
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
         .collect();
-    let budgets: Vec<usize> = texts.iter().map(|t| max_tokens_for(&with_carrier(t))).collect();
+    let budgets: Vec<usize> = texts
+        .iter()
+        .map(|t| max_tokens_for(&with_carrier(t)))
+        .collect();
     fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
 
     let device = resolve_device(args.device.or(settings.device))?;
@@ -116,9 +136,17 @@ pub fn run(args: &SayArgs, settings: &Settings) -> Result<()> {
             let mut cached = TakeCache::new(&mut tts, &settings.takes);
             let mut ending = CarrierEnding::new(&mut aligner);
             let takes = synthesize_chunks(
-                &mut cached, &mut asr, &mut ending, &texts, &budgets, args.seed, 0.9, &lexicon,
+                &mut cached,
+                &mut asr,
+                &mut ending,
+                &texts,
+                &budgets,
+                args.seed,
+                0.9,
+                &lexicon,
             )?;
-            for (n, ((take, line), spoken)) in takes.iter().zip(&args.lines).zip(&texts).enumerate() {
+            for (n, ((take, line), spoken)) in takes.iter().zip(&args.lines).zip(&texts).enumerate()
+            {
                 let path = out_dir.join(format!("{voice}-{}.wav", n + 1));
                 let audio = level_segments(&trim_and_level(take, sr), sr);
                 write_wav16(&path, &audio, sr)?;

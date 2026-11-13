@@ -7,12 +7,12 @@ use std::path::Path;
 
 use anyhow::Result;
 use clap::Parser;
-use lectover::cli::{Cli, Commands, VoiceCommand};
 use lectover::audio::denoise::Denoise;
+use lectover::cli::{Cli, Commands, VoiceCommand};
 use lectover::design::REF_TEXT;
 use lectover::record::{
-    check_take_len, default_seconds, fit_status, headset_mic_warning, next_gain, onset_threshold, record_voice, AudioSession,
-    RecordRequest, UserKey, SAMPLE_RATE, TEST_TEXT,
+    check_take_len, default_seconds, fit_status, headset_mic_warning, next_gain, onset_threshold,
+    record_voice, AudioSession, RecordRequest, UserKey, SAMPLE_RATE, TEST_TEXT,
 };
 use lectover::voices::load_registry;
 
@@ -53,7 +53,9 @@ impl FakeSession {
         let n = (self.sr / 10) as usize;
         for _ in 0..chunks {
             let chunk: Vec<f32> = (0..n)
-                .map(|i| (i as f32 * 2.0 * std::f32::consts::PI * 220.0 / self.sr as f32).sin() * amp)
+                .map(|i| {
+                    (i as f32 * 2.0 * std::f32::consts::PI * 220.0 / self.sr as f32).sin() * amp
+                })
                 .collect();
             self.chunks.push_back(chunk);
         }
@@ -83,7 +85,10 @@ impl AudioSession for FakeSession {
             return Ok(chunk);
         }
         self.idle += 1;
-        anyhow::ensure!(self.idle < 300, "fake audio script exhausted (waiting forever?)");
+        anyhow::ensure!(
+            self.idle < 300,
+            "fake audio script exhausted (waiting forever?)"
+        );
         Ok(vec![0.001; n])
     }
     fn flush_input(&mut self) {}
@@ -147,19 +152,27 @@ fn scripted_session(menu: &[UserKey]) -> FakeSession {
 
 fn read_f32(path: &Path) -> Vec<f32> {
     let mut r = hound::WavReader::open(path).unwrap();
-    r.samples::<i16>().map(|s| s.unwrap() as f32 / 32768.0).collect()
+    r.samples::<i16>()
+        .map(|s| s.unwrap() as f32 / 32768.0)
+        .collect()
 }
 
 /// Expected (cleaned, raw) outputs for the raw take `input` under the `Halve` denoiser.
 fn expected_outputs(input: &[f32]) -> (Vec<f32>, Vec<f32>) {
     let halved: Vec<f32> = input.iter().map(|s| s * 0.5).collect();
     let (clean, trim) = lectover::audio::trim_and_level_with(&halved, SAMPLE_RATE);
-    (clean, lectover::audio::apply_trim(input, SAMPLE_RATE, &trim))
+    (
+        clean,
+        lectover::audio::apply_trim(input, SAMPLE_RATE, &trim),
+    )
 }
 
 fn assert_close(got: &[f32], want: &[f32], what: &str) {
     assert_eq!(got.len(), want.len(), "{what}: length");
-    let max = got.iter().zip(want).fold(0.0f32, |m, (a, b)| m.max((a - b).abs()));
+    let max = got
+        .iter()
+        .zip(want)
+        .fold(0.0f32, |m, (a, b)| m.max((a - b).abs()));
     assert!(max < 2e-4, "{what}: max deviation {max}");
 }
 
@@ -168,7 +181,14 @@ fn preview_plays_cleaned_take() {
     let voices = tempfile::tempdir().unwrap();
     let mut session = scripted_session(&[]);
     let mut den = Halve::default();
-    record_voice(&mut session, &mut den, voices.path(), &short_req("pv"), &mut Vec::new()).unwrap();
+    record_voice(
+        &mut session,
+        &mut den,
+        voices.path(),
+        &short_req("pv"),
+        &mut Vec::new(),
+    )
+    .unwrap();
     assert_eq!(den.calls, 1);
     assert_eq!(session.played.len(), 1);
     let (clean, raw) = expected_outputs(&den.last_input);
@@ -185,12 +205,25 @@ fn saves_cleaned_and_raw() {
     let mut session = scripted_session(&[]);
     let mut log = Vec::new();
     let mut den = Halve::default();
-    let wav = record_voice(&mut session, &mut den, voices.path(), &short_req("both"), &mut log).unwrap();
+    let wav = record_voice(
+        &mut session,
+        &mut den,
+        voices.path(),
+        &short_req("both"),
+        &mut log,
+    )
+    .unwrap();
     let (clean, raw) = expected_outputs(&den.last_input);
     assert_close(&read_f32(&wav), &clean, "<id>.wav vs cleaned");
-    assert_close(&read_f32(&voices.path().join("both.raw.wav")), &raw, "<id>.raw.wav vs raw");
+    assert_close(
+        &read_f32(&voices.path().join("both.raw.wav")),
+        &raw,
+        "<id>.raw.wav vs raw",
+    );
     assert!(clean.iter().zip(&raw).any(|(a, b)| (a - b).abs() > 1e-3));
-    assert!(String::from_utf8(log).unwrap().contains("  Removing background noise..."));
+    assert!(String::from_utf8(log)
+        .unwrap()
+        .contains("  Removing background noise..."));
     let reg = load_registry(voices.path()).unwrap();
     assert_eq!(reg.keys().collect::<Vec<_>>(), vec!["both"]);
     assert!(voices.path().join("both.txt").exists());
@@ -201,7 +234,14 @@ fn rerecord_cleans_each_take() {
     let voices = tempfile::tempdir().unwrap();
     let mut session = scripted_session(&[UserKey::Rerecord, UserKey::Enter]);
     let mut den = Halve::default();
-    record_voice(&mut session, &mut den, voices.path(), &short_req("two"), &mut Vec::new()).unwrap();
+    record_voice(
+        &mut session,
+        &mut den,
+        voices.path(),
+        &short_req("two"),
+        &mut Vec::new(),
+    )
+    .unwrap();
     assert_eq!(den.calls, 2);
 }
 
@@ -211,11 +251,22 @@ fn force_keeps_old_raw_too() {
     for ext in ["wav", "raw.wav", "txt"] {
         fs::write(voices.path().join(format!("old.{ext}")), b"x").unwrap();
     }
-    fs::write(voices.path().join("voices.json"), r#"{"old": {"label": "Old"}}"#).unwrap();
+    fs::write(
+        voices.path().join("voices.json"),
+        r#"{"old": {"label": "Old"}}"#,
+    )
+    .unwrap();
     let mut session = scripted_session(&[]);
     let mut req = short_req("old");
     req.force = true;
-    record_voice(&mut session, &mut Halve::default(), voices.path(), &req, &mut Vec::new()).unwrap();
+    record_voice(
+        &mut session,
+        &mut Halve::default(),
+        voices.path(),
+        &req,
+        &mut Vec::new(),
+    )
+    .unwrap();
     let names: Vec<String> = fs::read_dir(voices.path())
         .unwrap()
         .map(|e| e.unwrap().file_name().into_string().unwrap())
@@ -223,7 +274,9 @@ fn force_keeps_old_raw_too() {
     // `old.wav` -> `old.<stamp>.wav`, `old.raw.wav` -> `old.raw.<stamp>.wav`.
     let stamped = |stem: &str, ext: &str| {
         names.iter().any(|n| {
-            n.starts_with(&format!("{stem}.")) && n.ends_with(&format!(".{ext}")) && n.len() == stem.len() + ext.len() + 2 + 15
+            n.starts_with(&format!("{stem}."))
+                && n.ends_with(&format!(".{ext}"))
+                && n.len() == stem.len() + ext.len() + 2 + 15
         })
     };
     assert!(stamped("old", "wav"), "{names:?}");
@@ -236,14 +289,29 @@ fn force_keeps_old_raw_too() {
 fn denoise_error_aborts_without_writing() {
     let voices = tempfile::tempdir().unwrap();
     let mut session = scripted_session(&[]);
-    let err = record_voice(&mut session, &mut Failing, voices.path(), &short_req("bad"), &mut Vec::new()).unwrap_err();
+    let err = record_voice(
+        &mut session,
+        &mut Failing,
+        voices.path(),
+        &short_req("bad"),
+        &mut Vec::new(),
+    )
+    .unwrap_err();
     assert!(err.to_string().contains("denoiser exploded"), "{err}");
     assert!(fs::read_dir(voices.path()).unwrap().next().is_none());
 }
 
 #[test]
 fn cli_voice_record_defaults_and_flags() {
-    let cli = Cli::try_parse_from(["lectover", "voice", "record", "meine", "--label", "Meine Stimme"]).unwrap();
+    let cli = Cli::try_parse_from([
+        "lectover",
+        "voice",
+        "record",
+        "meine",
+        "--label",
+        "Meine Stimme",
+    ])
+    .unwrap();
     let Commands::Voice(VoiceCommand::Record(a)) = cli.command else {
         panic!("expected VoiceCommand::Record");
     };
@@ -262,7 +330,10 @@ fn gain_calibration_steps_hardware_and_software_gain() {
     let (hw, sw) = next_gain(Some(0.80), 1.0, 0.95);
     let hw = hw.unwrap();
     assert!(hw < 0.50 && hw > 0.35, "expected lowered hw gain, got {hw}");
-    assert!((sw - 1.0).abs() < 1e-4, "sw gain stays 1.0 when hw absorbs it: {sw}");
+    assert!(
+        (sw - 1.0).abs() < 1e-4,
+        "sw gain stays 1.0 when hw absorbs it: {sw}"
+    );
 
     // Fixed-gain USB mic (hw = None) -> adjusts software gain
     let (hw, sw) = next_gain(None, 1.0, 0.25);
@@ -314,12 +385,28 @@ fn record_flow_supports_mid_take_and_post_take_rerecord() {
         force: false,
     };
     let mut log = Vec::new();
-    let wav = record_voice(&mut session, &mut PassThrough, voices.path(), &req, &mut log).unwrap();
+    let wav = record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &req,
+        &mut log,
+    )
+    .unwrap();
 
     let log_str = String::from_utf8(log).unwrap();
-    assert!(log_str.contains(TEST_TEXT), "must show calibration text: {log_str}");
-    assert!(log_str.contains("Ein kurzer Satz."), "must show reading text: {log_str}");
-    assert!(session.gain.unwrap() < 0.80, "hardware gain should have been reduced from 0.80");
+    assert!(
+        log_str.contains(TEST_TEXT),
+        "must show calibration text: {log_str}"
+    );
+    assert!(
+        log_str.contains("Ein kurzer Satz."),
+        "must show reading text: {log_str}"
+    );
+    assert!(
+        session.gain.unwrap() < 0.80,
+        "hardware gain should have been reduced from 0.80"
+    );
     // Preview played on attempt 2 (1x) + attempt 3 initial (1x) + attempt 3 'p' replay (1x) = 3 plays
     assert_eq!(session.played.len(), 3);
 
@@ -328,12 +415,18 @@ fn record_flow_supports_mid_take_and_post_take_rerecord() {
     assert_eq!(reader.spec().sample_rate, SAMPLE_RATE);
     assert_eq!(reader.spec().channels, 1);
     assert_eq!(reader.spec().bits_per_sample, 16);
-    assert!(reader.duration() > SAMPLE_RATE / 3, "expected speech samples in WAV");
+    assert!(
+        reader.duration() > SAMPLE_RATE / 3,
+        "expected speech samples in WAV"
+    );
     assert_eq!(
         fs::read_to_string(voices.path().join("test-stimme.txt")).unwrap(),
         "Ein kurzer Satz.\n"
     );
-    assert_eq!(load_registry(voices.path()).unwrap()["test-stimme"], "Test Stimme");
+    assert_eq!(
+        load_registry(voices.path()).unwrap()["test-stimme"],
+        "Test Stimme"
+    );
 }
 
 #[test]
@@ -354,7 +447,14 @@ fn voice_record_ctrl_c_cancels_in_step1_and_step2() {
         session.poll_keys.push_back(None);
         session.poll_keys.push_back(Some(UserKey::Quit));
         let mut log = Vec::new();
-        let err = record_voice(&mut session, &mut PassThrough, voices.path(), &req, &mut log).unwrap_err();
+        let err = record_voice(
+            &mut session,
+            &mut PassThrough,
+            voices.path(),
+            &req,
+            &mut log,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("cancelled by user"), "{err}");
     }
 
@@ -369,7 +469,14 @@ fn voice_record_ctrl_c_cancels_in_step1_and_step2() {
         session.poll_keys.push_back(None);
         session.poll_keys.push_back(Some(UserKey::Quit));
         let mut log = Vec::new();
-        let err = record_voice(&mut session, &mut PassThrough, voices.path(), &req, &mut log).unwrap_err();
+        let err = record_voice(
+            &mut session,
+            &mut PassThrough,
+            voices.path(),
+            &req,
+            &mut log,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("cancelled by user"), "{err}");
     }
 
@@ -392,7 +499,14 @@ fn voice_record_ctrl_c_cancels_in_step1_and_step2() {
         session.poll_keys.push_back(None); // onset
         session.poll_keys.push_back(Some(UserKey::Quit)); // recording chunk
         let mut log = Vec::new();
-        let err = record_voice(&mut session, &mut PassThrough, voices.path(), &req, &mut log).unwrap_err();
+        let err = record_voice(
+            &mut session,
+            &mut PassThrough,
+            voices.path(),
+            &req,
+            &mut log,
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("cancelled by user"), "{err}");
     }
 }
@@ -400,7 +514,11 @@ fn voice_record_ctrl_c_cancels_in_step1_and_step2() {
 #[test]
 fn voice_record_cli_refuses_existing_id_before_opening_mic() {
     let voices = tempfile::tempdir().unwrap();
-    fs::write(voices.path().join("voices.json"), r#"{"alt": {"label": "Alt"}}"#).unwrap();
+    fs::write(
+        voices.path().join("voices.json"),
+        r#"{"alt": {"label": "Alt"}}"#,
+    )
+    .unwrap();
     fs::write(voices.path().join("alt.wav"), b"x").unwrap();
     fs::write(voices.path().join("alt.txt"), b"x").unwrap();
 
@@ -429,8 +547,15 @@ fn status_lines_fit_the_terminal_width() {
     // The REC line used to be 81 columns and wrapped in an 80-column terminal,
     // which turned every \r update into a new line.
     let rec = "  🔴 REC 00:12 [██████████] -12 dBFS  [r] re-record | Ctrl-C cancel";
-    let width = |s: &str| s.chars().map(|c| if c as u32 >= 0x1F300 { 2 } else { 1 }).sum::<usize>();
-    assert!(width(rec) < 80, "REC line must fit untruncated in 80 columns");
+    let width = |s: &str| {
+        s.chars()
+            .map(|c| if c as u32 >= 0x1F300 { 2 } else { 1 })
+            .sum::<usize>()
+    };
+    assert!(
+        width(rec) < 80,
+        "REC line must fit untruncated in 80 columns"
+    );
     assert_eq!(fit_status(rec, 80), rec);
     // Narrow terminal: truncated to width - 1, emoji counted as two columns.
     let cut = fit_status(rec, 20);
@@ -449,7 +574,14 @@ fn refused_hardware_gain_falls_back_to_software_gain() {
     session.push_silence(20);
     session.push_tone(11, 0.40);
     let mut log = Vec::new();
-    record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("sw"), &mut log).unwrap();
+    record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("sw"),
+        &mut log,
+    )
+    .unwrap();
     let log_str = String::from_utf8(log).unwrap();
     assert_eq!(session.gain, Some(0.80), "hardware gain untouched");
     assert!(log_str.contains("using software gain"), "{log_str}");
@@ -475,7 +607,14 @@ fn onset_threshold_follows_raised_hardware_gain() {
     }
     session.push_tone(11, 0.50); // onset chunk + 1 s take
     let mut log = Vec::new();
-    record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("quiet"), &mut log).unwrap();
+    record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("quiet"),
+        &mut log,
+    )
+    .unwrap();
     assert_eq!(session.gain, Some(1.0));
     assert!(onset_threshold(0.1) > 0.1);
     assert!(
@@ -496,7 +635,14 @@ fn calibration_waits_for_the_whole_test_sentence() {
     session.push_silence(20); // pause: 1.5 s ends calibration, 0.5 s arms the take
     session.push_tone(11, 0.40); // onset chunk + 1 s take
     let mut log = Vec::new();
-    record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("long"), &mut log).unwrap();
+    record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("long"),
+        &mut log,
+    )
+    .unwrap();
     assert!(
         session.chunks.is_empty(),
         "take started on the test sentence; {} chunks left unread",
@@ -515,7 +661,14 @@ fn take_waits_for_quiet_before_arming_the_onset() {
     session.push_silence(12);
     session.push_tone(11, 0.40); // the real take
     let mut log = Vec::new();
-    record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("talky"), &mut log).unwrap();
+    record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("talky"),
+        &mut log,
+    )
+    .unwrap();
     assert!(
         session.chunks.is_empty(),
         "take started while the speaker was still talking; {} chunks left unread",
@@ -537,7 +690,14 @@ fn soft_syllables_do_not_end_the_calibration() {
     session.push_silence(20); // the real pause
     session.push_tone(11, 0.40); // take
     let mut log = Vec::new();
-    record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("soft"), &mut log).unwrap();
+    record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("soft"),
+        &mut log,
+    )
+    .unwrap();
     assert!(
         session.chunks.is_empty(),
         "calibration ended on soft speech; {} chunks left unread",
@@ -560,10 +720,21 @@ fn take_runs_until_the_speaker_pauses() {
     let mut req = short_req("slow");
     req.seconds = 10; // longest take
     let mut log = Vec::new();
-    let wav = record_voice(&mut session, &mut PassThrough, voices.path(), &req, &mut log).unwrap();
+    let wav = record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &req,
+        &mut log,
+    )
+    .unwrap();
     assert_eq!(session.chunks.len(), 5, "take must end at the pause");
     let reader = hound::WavReader::open(&wav).unwrap();
-    assert!(reader.duration() > SAMPLE_RATE * 2, "take was cut: {} samples", reader.duration());
+    assert!(
+        reader.duration() > SAMPLE_RATE * 2,
+        "take was cut: {} samples",
+        reader.duration()
+    );
 }
 
 #[test]
@@ -575,12 +746,25 @@ fn status_updates_stay_on_one_line_until_the_phase_ends() {
     session.push_silence(20);
     session.push_tone(11, 0.40);
     let mut log = Vec::new();
-    record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("lines"), &mut log).unwrap();
+    record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("lines"),
+        &mut log,
+    )
+    .unwrap();
     let log_str = String::from_utf8(log).unwrap();
     // The calibration meter overwrites the "waiting" line instead of
     // starting a new one after "Voice detected!".
-    assert!(!log_str.contains("Calibrating level...\x1b[K\n"), "{log_str:?}");
-    assert!(!log_str.contains("Recording started...\x1b[K\n"), "{log_str:?}");
+    assert!(
+        !log_str.contains("Calibrating level...\x1b[K\n"),
+        "{log_str:?}"
+    );
+    assert!(
+        !log_str.contains("Recording started...\x1b[K\n"),
+        "{log_str:?}"
+    );
 }
 
 #[test]
@@ -590,7 +774,10 @@ fn take_length_limit_includes_preroll() {
     let max = (MAX_CLEAN_SECS - PREROLL_SECS).floor() as u32;
     check_take_len(max).unwrap();
     let err = check_take_len(max + 1).unwrap_err().to_string();
-    assert!(err.contains(&format!("{}", max + 1)) && err.contains("90"), "{err}");
+    assert!(
+        err.contains(&format!("{}", max + 1)) && err.contains("90"),
+        "{err}"
+    );
     assert!(err.contains("--seconds"), "{err}");
 }
 
@@ -601,7 +788,9 @@ fn headset_warning_cases() {
     let w = headset_mic_warning(48_000, Some("AirPods Pro")).unwrap();
     assert!(w.contains("\"AirPods Pro\"") && w.contains("48000 Hz"));
     assert!(headset_mic_warning(24_000, None).is_none());
-    assert!(headset_mic_warning(8_000, None).unwrap().starts_with("  Warning: the microphone runs at 8000 Hz"));
+    assert!(headset_mic_warning(8_000, None)
+        .unwrap()
+        .starts_with("  Warning: the microphone runs at 8000 Hz"));
 }
 
 #[test]
@@ -613,9 +802,17 @@ fn record_voice_warns_about_narrowband_mic() {
     session.push_silence(20);
     session.push_tone(11, 0.40);
     let mut log = Vec::new();
-    let _ = record_voice(&mut session, &mut PassThrough, voices.path(), &short_req("nb"), &mut log);
+    let _ = record_voice(
+        &mut session,
+        &mut PassThrough,
+        voices.path(),
+        &short_req("nb"),
+        &mut log,
+    );
     let log = String::from_utf8(log).unwrap();
-    let w = log.find("Warning: the microphone").expect("warning missing");
+    let w = log
+        .find("Warning: the microphone")
+        .expect("warning missing");
     assert!(w < log.find("Measuring background noise").unwrap());
     assert_eq!(log.matches("Warning: the microphone").count(), 1);
 }

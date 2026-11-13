@@ -240,7 +240,10 @@ fn money(c: &Caps, _: &str) -> Option<String> {
 fn money_scaled(c: &Caps, _: &str) -> Option<String> {
     let int_part = c.name("int").map_or("", |m| m.as_str());
     let dec = c.name("dec").map(|m| m.as_str());
-    let billions = matches!(group(c, 0).rsplit(' ').next(), Some("Mrd." | "Mrd" | "Milliarden" | "Milliarde"));
+    let billions = matches!(
+        group(c, 0).rsplit(' ').next(),
+        Some("Mrd." | "Mrd" | "Milliarden" | "Milliarde")
+    );
     let singular = dec.is_none() && int(int_part)? == 1;
     let number = match dec {
         Some(d) => {
@@ -473,13 +476,61 @@ const SENTENCE_FINAL_ABBREVIATIONS: &[&str] = &["Mio.", "Mrd.", "usw.", "etc."];
 /// Any other capitalised word after "Mio." starts a sentence ("157 Mio. Stadt und Kanton
 /// tragen ...": 12 of 13 cases in the golden posts).
 const CONTINUATION_NOUNS: &[&str] = &[
-    "Franken", "Rappen", "CHF", "Fr", "Euro", "EUR", "Dollar", "USD", "Einwohner", "Einwohnerinnen",
-    "Menschen", "Personen", "Leute", "Besucher", "Besucherinnen", "Fahrgäste", "Passagiere", "Tonnen",
-    "Liter", "Kilometer", "Meter", "Quadratmeter", "Kubikmeter", "Kilowattstunden", "Stunden", "Tage",
-    "Jahre", "Stimmen", "Mitglieder", "Überschuss", "Ertragsüberschuss", "Defizit", "Gewinn", "Verlust",
-    "Umsatz", "Schulden", "Kosten", "Mehrkosten", "Einnahmen", "Ausgaben", "Ertrag", "Aufwand",
-    "Mehrertrag", "Mehraufwand", "Budget", "Kredit", "Steuern", "Steuereinnahmen", "Vermögen",
-    "Eigenkapital", "Beitrag", "Beiträge", "Subventionen", "Investitionen", "Reserven",
+    "Franken",
+    "Rappen",
+    "CHF",
+    "Fr",
+    "Euro",
+    "EUR",
+    "Dollar",
+    "USD",
+    "Einwohner",
+    "Einwohnerinnen",
+    "Menschen",
+    "Personen",
+    "Leute",
+    "Besucher",
+    "Besucherinnen",
+    "Fahrgäste",
+    "Passagiere",
+    "Tonnen",
+    "Liter",
+    "Kilometer",
+    "Meter",
+    "Quadratmeter",
+    "Kubikmeter",
+    "Kilowattstunden",
+    "Stunden",
+    "Tage",
+    "Jahre",
+    "Stimmen",
+    "Mitglieder",
+    "Überschuss",
+    "Ertragsüberschuss",
+    "Defizit",
+    "Gewinn",
+    "Verlust",
+    "Umsatz",
+    "Schulden",
+    "Kosten",
+    "Mehrkosten",
+    "Einnahmen",
+    "Ausgaben",
+    "Ertrag",
+    "Aufwand",
+    "Mehrertrag",
+    "Mehraufwand",
+    "Budget",
+    "Kredit",
+    "Steuern",
+    "Steuereinnahmen",
+    "Vermögen",
+    "Eigenkapital",
+    "Beitrag",
+    "Beiträge",
+    "Subventionen",
+    "Investitionen",
+    "Reserven",
 ];
 
 /// True when the abbreviation matched at `text[..end]` also ends its sentence: the text
@@ -487,14 +538,20 @@ const CONTINUATION_NOUNS: &[&str] = &[
 /// not "157 Mio. Franken").
 fn ends_sentence_at(text: &str, end: usize) -> bool {
     let matched = &text[..end];
-    if !SENTENCE_FINAL_ABBREVIATIONS.iter().any(|a| matched.ends_with(a)) {
+    if !SENTENCE_FINAL_ABBREVIATIONS
+        .iter()
+        .any(|a| matched.ends_with(a))
+    {
         return false;
     }
     let rest = &text[end..];
     let Some(next) = rest.strip_prefix(' ').or(rest.is_empty().then_some("")) else {
         return false; // "Mio.;" or similar: the punctuation that follows decides
     };
-    let word: String = next.chars().take_while(|c| c.is_alphanumeric() || *c == '-').collect();
+    let word: String = next
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '-')
+        .collect();
     match word.chars().next() {
         None => next.is_empty(),
         Some(c) => c.is_uppercase() && !CONTINUATION_NOUNS.contains(&word.as_str()),
