@@ -233,6 +233,11 @@ fn bindings(manifest: &Path, llama: &Path, qwentts: &Path, asr: &Path, reuse: &P
         .allowlist_function("(ggml|gguf|qt|qwen3|reuse)_.*")
         .allowlist_type("(ggml|gguf|qt|qwen3|reuse)_.*")
         .allowlist_var("(GGML|GGUF|QT|REUSE)_.*")
+        // ggml functions that take a `FILE *` pull in the C library's FILE. glibc's struct
+        // _IO_FILE has bitfields, so bindgen emits its __BindgenBitfieldUnit helpers, which
+        // clippy -D warnings rejects on Linux (missing `# Safety`, `offset` casts, manual
+        // div_ceil). Nothing here looks inside a FILE; opaque, it is a sized byte blob.
+        .opaque_type("_IO_FILE|FILE|__sFILE")
         .prepend_enum_name(false)
         .derive_default(true)
         .layout_tests(false)
