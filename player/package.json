@@ -9,6 +9,6 @@
     "build": "node -e \"console.log('lectover.js ships as written; nothing to build')\""
   },
   "devDependencies": {
-    "jsdom": "^30.1.3"
+    "jsdom": "^31.0.0"
   }
 }
