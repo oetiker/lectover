@@ -1,0 +1,49 @@
+# The README demo: check an installation, then render a post of the
+# example site. `make demo` renders it into docs/demo/lectover.webp;
+# `out` is relative to this file. The WebP is committed and regenerated
+# by hand.
+launch     = "bash --rcfile bashrc --noprofile -i"
+cols       = 116
+rows       = 26
+font       = "smalti"
+font_px    = 16
+card_font_px     = 48
+card_subtitle_px = 32
+out        = "../docs/demo/lectover.webp"
+env        = { COLORTERM = "truecolor" }
+startup_ms = 1500
+quit_keys  = ["C-d"]
+
+[chrome]
+style   = "macos"
+title   = "lectover"
+padding = 12
+
+[[scene]]
+card    = { text = "lectover", fg = "#fef9c3" }
+hold_cs = 150
+
+[[scene]]
+text    = "lectover doctor"
+hold_cs = 40
+
+[[scene]]
+keys     = ["Enter"]
+await    = "gpu"
+await_ms = 30000
+hold_cs  = 400
+
+[[scene]]
+keys    = ["C-l"]
+hold_cs = 30
+
+[[scene]]
+text    = "lectover render stadtfuhrung-mit-dem-oltner-stadtgartner"
+hold_cs = 40
+
+[[scene]]
+keys     = ["Enter"]
+# The prompt back after the last file (a regex over the whole screen).
+await    = 'manifest\.json\n\$'
+await_ms = 120000
+hold_cs  = 600

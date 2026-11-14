@@ -9,6 +9,10 @@ word-level timings (Qwen3-TTS plus Qwen3 forced alignment), and ships a small
 vanilla-JS player (`player/lectover.js`) that plays the audio on the post page,
 highlights the spoken word, and lets readers click a word to jump there.
 
+![lectover doctor checks an installation, then lectover render speaks a post](docs/demo/lectover.webp)
+
+<img src="docs/player.png" width="520" alt="The player on a post: the spoken word is highlighted, the part already read is grey">
+
 German as spoken in Switzerland (`de-CH`) is built in: the text normalisation
 (numbers, dates, units), the intro text and the player labels are German. The
 pronunciation lexicon is a per-site file (see the example site).
