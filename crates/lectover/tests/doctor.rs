@@ -322,3 +322,22 @@ fn invalid_default_device_is_a_failure() {
     assert_eq!(f[0].what, "gpu");
     assert!(f[0].detail.contains("defaults.device"), "{}", f[0].detail);
 }
+
+#[test]
+fn counts_of_one_are_singular() {
+    let i = Install::new(&site_cfg(
+        "a.example",
+        "voices = [{ id = \"a\" }]\nlexicon = \"a\"",
+    ));
+    let lex = i.home.path().join(".config/lectover/lexicon");
+    std::fs::create_dir_all(&lex).unwrap();
+    std::fs::write(lex.join("a.txt"), "Olten = Olte\n").unwrap();
+    let cs = i.run(None, PLENTY);
+    let detail = |what: &str| cs.iter().find(|c| c.what == what).unwrap().detail.clone();
+    assert!(
+        detail("voice registry").starts_with("1 voice in "),
+        "{}",
+        render_report(&cs)
+    );
+    assert_eq!(detail("site a.example: lexicon"), "1 entry");
+}
