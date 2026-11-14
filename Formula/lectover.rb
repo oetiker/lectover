@@ -20,12 +20,14 @@ class Lectover < Formula
   end
   # BOTTLE-END
 
-  on_macos do
-    on_arm do
-      url "https://github.com/oetiker/lectover/releases/download/v#{version}/lectover-#{version}-aarch64-apple-darwin.tar.gz"
-      sha256 "7ab6f66a2a49c4bfb63fa608c310027fd563267db772cd5bd92776fc6b5287a0" # mac-arm
-    end
-  end
+  url "https://github.com/oetiker/lectover/releases/download/v#{version}/lectover-#{version}-aarch64-apple-darwin.tar.gz"
+  sha256 "7ab6f66a2a49c4bfb63fa608c310027fd563267db772cd5bd92776fc6b5287a0" # mac-arm
+
+  # A url inside on_macos/on_arm leaves Linux and Intel Macs with no url at
+  # all, and brew then fails with "formula requires at least a URL" and a
+  # request to report a Homebrew bug. These two make it refuse cleanly.
+  depends_on arch: :arm64
+  depends_on :macos
 
   def install
     bin.install "lectover"
