@@ -60,6 +60,17 @@ echo "https://gitea.oetiker.ch/api/packages/oposs/alpine/<branch>/main" | sudo t
 sudo apk update && sudo apk add lectover
 ```
 
+Homebrew, macOS on Apple silicon:
+
+```sh
+brew tap oetiker/lectover https://github.com/oetiker/lectover
+brew trust --formula oetiker/lectover/lectover
+brew install lectover
+```
+
+`brew trust` exists from Homebrew 6 on; skip it on older versions. The player
+script is installed as `$(brew --prefix)/share/lectover/lectover.js`.
+
 Archives of the [latest release](https://github.com/oetiker/lectover/releases/latest):
 
 - `lectover-<version>-aarch64-apple-darwin.tar.gz`: macOS on Apple silicon, Metal.
@@ -70,6 +81,8 @@ tar -xzf lectover-<version>-<target>.tar.gz
 sudo install -m 0755 lectover/lectover /usr/local/bin/
 sudo install -m 0644 lectover/man/lectover.1 /usr/local/share/man/man1/
 ```
+
+The archive also holds the player script, `lectover/lectover.js`.
 
 For HIP or CUDA, or another platform, build from source.
 

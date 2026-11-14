@@ -5,7 +5,8 @@ name: Release build
 # backend and the Vulkan build environment, which no repo-infra release piece
 # provides, so release-build-local.yml builds them. The Linux packages are
 # built per distribution release by ri-release-distro-packages, from the
-# Containerfile, the Makefile and nfpm.yaml at the top. Read-only: nothing
+# Containerfile, the Makefile and nfpm.yaml at the top. ri-release-homebrew
+# bottles Formula/lectover.rb from the macOS archive. Read-only: nothing
 # here writes the repository.
 on:
   workflow_call:
@@ -38,3 +39,13 @@ jobs:
       ref: ${{ inputs.ref }}
       submodules: recursive
       distributions: debian-13 ubuntu-24.04 ubuntu-26.04 almalinux-9 almalinux-10 fedora alpine-3.23 alpine-3.24
+
+  # The formula names only aarch64-apple-darwin; the piece takes the archive
+  # from the release-asset-aarch64-apple-darwin artifact of `archives`.
+  homebrew:
+    needs: archives
+    uses: oposs/repo-infra/.github/workflows/ri-release-homebrew.yml@v2
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ inputs.ref }}
+      bin: lectover
