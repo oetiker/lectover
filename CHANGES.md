@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 ### Fixed
+- `brew install lectover` on Linux or an Intel Mac says the formula needs macOS on Apple silicon, instead of failing with "formula requires at least a URL".
 
 ## 0.1.0 - 2026-11-14
 ### New
