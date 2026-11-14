@@ -14,6 +14,9 @@
       "verify": "^name = \"lectover\"\nversion = \"$VERSION\""
     }
   ],
+  "release_files": [
+    "Formula/lectover.rb"
+  ],
   "release_assets": [
     "lectover-*-aarch64-apple-darwin.tar.gz",
     "lectover-*-x86_64-unknown-linux-gnu.tar.gz",
@@ -23,7 +26,8 @@
     "lectover-*.x86_64.rpm",
     "lectover-*.aarch64.rpm",
     "lectover-*-alpine*-x86_64.apk",
-    "lectover-*-alpine*-aarch64.apk"
+    "lectover-*-alpine*-aarch64.apk",
+    "lectover-*.bottle.tar.gz"
   ],
   "exceptions": {
     "native-targets": "The release carries the GPU builds: aarch64-apple-darwin with Metal, and x86_64- and aarch64-unknown-linux-gnu with Vulkan, built by release-build-local.yml. No musl: the Vulkan backend loads the system's Vulkan driver through libvulkan.so.1, which a static musl binary cannot do. No Windows: the program uses Unix interfaces (statvfs, termios, Unix permission bits). No illumos and no x86_64 macOS: ruled out by the owner. HIP and CUDA are built from source.",
