@@ -87,7 +87,11 @@ pub fn checks(settings: &Settings, site: Option<&str>, offline: bool, probe: &Pr
     match &registry {
         Ok(r) => out.push(Check::ok(
             "voice registry",
-            format!("{} voices in {}", r.len(), settings.voices.display()),
+            format!(
+                "{} in {}",
+                count(r.len(), "voice", "voices"),
+                settings.voices.display()
+            ),
         )),
         Err(e) => out.push(
             Check::fail("voice registry", format!("{e:#}"))
@@ -156,6 +160,11 @@ pub fn render_report(checks: &[Check]) -> String {
 /// 1 if any check failed, else 0.
 pub fn exit_code(checks: &[Check]) -> u8 {
     u8::from(checks.iter().any(|c| c.status == Status::Fail))
+}
+
+/// `n` with the singular or plural noun: "1 voice", "2 voices".
+fn count(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
 }
 
 fn site_domains(settings: &Settings, site: Option<&str>) -> Vec<String> {
@@ -337,7 +346,7 @@ fn check_site(
     match load_lexicon(&s.lexicon) {
         Ok(l) if s.lexicon.exists() => out.push(Check::ok(
             format!("site {d}: lexicon"),
-            format!("{} entries", l.len()),
+            count(l.len(), "entry", "entries"),
         )),
         Ok(_) => out.push(Check::ok(format!("site {d}: lexicon"), "none")),
         Err(e) => out.push(Check::fail(
