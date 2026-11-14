@@ -16,3 +16,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The manual page `lectover(1)`, built from `docs/manual.md` and shipped in every archive.
 - Linux packages with the Vulkan backend for Debian 13, Ubuntu 24.04 and 26.04, Fedora 45, AlmaLinux 9 and 10 and Alpine 3.23 and 3.24, amd64 and arm64, in the apt, dnf and apk repositories on gitea.oetiker.ch. They install the player script as `/usr/share/lectover/lectover.js`.
 - A Homebrew formula for macOS on Apple silicon, with a bottle; this repository is the tap. The release archives carry the player script `lectover.js`.
+
+### Fixed
+- `lectover doctor` writes "1 voice" and "1 entry" instead of "1 voices" and "1 entries".

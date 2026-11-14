@@ -1,0 +1,12 @@
+# The shell of the README demo, started by demo/lectover.toml.
+# LECTOVER_DEMO_HOME and LECTOVER_DEMO_BIN come from `make demo`.
+unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME XDG_CACHE_HOME
+unset LECTOVER_CONFIG LECTOVER_MODELS LECTOVER_TAKES LECTOVER_VOICES
+export HOME=$LECTOVER_DEMO_HOME
+export LECTOVER_SITE=$HOME/site
+export PATH=$LECTOVER_DEMO_BIN:$PATH
+# ggml and the model loaders log to stderr; the demo shows the report on stdout.
+lectover() { command lectover "$@" 2>>"$HOME/stderr.log"; }
+PS1='$ '
+cd "$HOME"
+clear

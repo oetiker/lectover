@@ -38,4 +38,15 @@ install: build man
 	install -m 0644 README.md CHANGES.md $(DESTDIR)$(PREFIX)/share/doc/lectover/
 	install -m 0644 player/lectover.js $(DESTDIR)$(PREFIX)/share/lectover/lectover.js
 
-.PHONY: all build check install
+# The README demo (docs/demo/lectover.webp), recorded with ansidrama
+# (https://github.com/oetiker/ansidrama) in a throwaway home. It renders a
+# post of olten.jetzt, so GHOST_CONTENT_KEY must be set, and it needs the
+# models (`lectover models fetch`). Run by hand; CI does not render it.
+DEMO_HOME ?= /tmp/lectover-demo
+
+demo: build
+	demo/setup.sh $(DEMO_HOME) $(abspath $(BINARY))
+	cd demo && LECTOVER_DEMO_HOME=$(DEMO_HOME) \
+	  LECTOVER_DEMO_BIN=$(abspath $(dir $(BINARY))) ansidrama record lectover.toml
+
+.PHONY: all build check install demo
