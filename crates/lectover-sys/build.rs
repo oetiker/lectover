@@ -123,6 +123,22 @@ fn main() {
         .define("GGML_HIP", on(hip))
         .define("GGML_VULKAN", on(vulkan))
         .profile("Release");
+    // Without GGML_NATIVE, ggml picks its x86 instruction sets from the environment: AVX2 and
+    // friends by default, plain SSE when SOURCE_DATE_EPOCH is set or when cross-compiling. Pin
+    // the set so every build matches `ffi::check_cpu_baseline` in the lectover crate.
+    let native = env::var("GGML_NATIVE").is_ok_and(|v| v.eq_ignore_ascii_case("ON"));
+    if !native && env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("x86_64") {
+        for f in [
+            "GGML_SSE42",
+            "GGML_AVX",
+            "GGML_AVX2",
+            "GGML_BMI2",
+            "GGML_FMA",
+            "GGML_F16C",
+        ] {
+            cfg.define(f, "ON");
+        }
+    }
     for v in PASSTHROUGH_ENV {
         if let Ok(val) = env::var(v) {
             cfg.define(v, val);

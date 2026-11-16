@@ -175,6 +175,7 @@ Prints one line per check, `ok`, `warn` or `FAIL`, with a hint after a failure.
 # EXIT STATUS
 
 **lectover** exits 0 on success and 1 on an error.
+A build for x86-64 stops with exit 1 at start when the CPU lacks AVX2, FMA or F16C.
 **doctor** exits 1 when any check failed, else 0.
 A usage error exits 2.
 

@@ -16,8 +16,8 @@ use anyhow::{anyhow, Result};
 
 pub use asr::{QwenAligner, QwenAsr};
 pub use backend::{
-    asr_library_device, backend_banner, check_ggml_layout, init_ggml_logging, resolve_device,
-    warn_unified_memory, Device,
+    asr_library_device, backend_banner, check_cpu_baseline, check_ggml_layout, init_ggml_logging,
+    resolve_device, warn_unified_memory, Device,
 };
 pub(crate) use backend::{unified_memory_warning, UNIFIED_MEMORY_ENV};
 pub use reuse::{convert_reuse, ReuseDenoiser};
