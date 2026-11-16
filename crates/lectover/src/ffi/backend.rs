@@ -317,6 +317,63 @@ pub fn warn_unified_memory() {
     }
 }
 
+/// The x86-64 instruction sets ggml's CPU code is compiled for (lectover-sys `build.rs` pins
+/// them); none of it checks the CPU at runtime, so a CPU without one stops with SIGILL.
+const X86_BASELINE: [&str; 6] = ["sse4.2", "avx", "avx2", "bmi2", "fma", "f16c"];
+
+fn missing_cpu_features_with(has: impl Fn(&str) -> bool) -> Vec<&'static str> {
+    X86_BASELINE.into_iter().filter(|f| !has(f)).collect()
+}
+
+fn cpu_baseline_error(missing: &[&str]) -> Option<String> {
+    (!missing.is_empty()).then(|| {
+        format!(
+            "this build of lectover needs an x86-64 CPU with AVX2, FMA and F16C \
+             (missing: {})",
+            missing.join(", ")
+        )
+    })
+}
+
+/// Fails when this CPU lacks an instruction set the binary was built for. Call it before any
+/// ggml code runs.
+pub fn check_cpu_baseline() -> Result<()> {
+    #[cfg(target_arch = "x86_64")]
+    let missing = missing_cpu_features_with(|f| match f {
+        "sse4.2" => std::arch::is_x86_feature_detected!("sse4.2"),
+        "avx" => std::arch::is_x86_feature_detected!("avx"),
+        "avx2" => std::arch::is_x86_feature_detected!("avx2"),
+        "bmi2" => std::arch::is_x86_feature_detected!("bmi2"),
+        "fma" => std::arch::is_x86_feature_detected!("fma"),
+        "f16c" => std::arch::is_x86_feature_detected!("f16c"),
+        _ => false,
+    });
+    #[cfg(not(target_arch = "x86_64"))]
+    let missing = missing_cpu_features_with(|_| true);
+    match cpu_baseline_error(&missing) {
+        Some(e) => bail!(e),
+        None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod cpu_tests {
+    use super::*;
+
+    #[test]
+    fn cpu_baseline_lists_only_missing_features() {
+        let all = |_: &str| true;
+        assert_eq!(missing_cpu_features_with(all), Vec::<&str>::new());
+        assert_eq!(cpu_baseline_error(&[]), None);
+
+        let no_avx2 = |f: &str| f != "avx2" && f != "fma";
+        assert_eq!(missing_cpu_features_with(no_avx2), vec!["avx2", "fma"]);
+        let msg = cpu_baseline_error(&["avx2", "fma"]).unwrap();
+        assert!(msg.contains("AVX2, FMA and F16C"), "{msg}");
+        assert!(msg.contains("missing: avx2, fma"), "{msg}");
+    }
+}
+
 #[cfg(test)]
 mod log_tests {
     use super::*;

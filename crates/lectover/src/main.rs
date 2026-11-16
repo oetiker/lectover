@@ -9,6 +9,10 @@ use lectover::settings::Settings;
 fn main() -> ExitCode {
     // `run` owns every model handle and drops it before returning (ggml Metal aborts on handles
     // still alive at exit), so exiting here is safe.
+    if let Err(e) = lectover::ffi::check_cpu_baseline() {
+        eprintln!("error: {e:#}");
+        return ExitCode::FAILURE;
+    }
     lectover::ffi::init_ggml_logging();
     lectover::ffi::warn_unified_memory();
     let cli = Cli::parse();

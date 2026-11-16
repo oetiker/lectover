@@ -26,7 +26,8 @@ The manual is [docs/manual.md](docs/manual.md), installed as `man lectover`.
 ## Install
 
 Linux packages with the Vulkan backend, for amd64 and arm64. Each needs a
-Vulkan driver (Mesa or the GPU vendor's). The player script is installed as
+Vulkan driver (Mesa or the GPU vendor's). On amd64 the CPU needs AVX2, FMA and
+F16C (Intel from Haswell, AMD from Excavator). The player script is installed as
 `/usr/share/lectover/lectover.js`.
 
 Debian 13, Ubuntu 24.04 and 26.04:
@@ -74,7 +75,7 @@ script is installed as `$(brew --prefix)/share/lectover/lectover.js`.
 Archives of the [latest release](https://github.com/oetiker/lectover/releases/latest):
 
 - `lectover-<version>-aarch64-apple-darwin.tar.gz`: macOS on Apple silicon, Metal.
-- `lectover-<version>-x86_64-unknown-linux-gnu.tar.gz`, `lectover-<version>-aarch64-unknown-linux-gnu.tar.gz`: Linux with Vulkan; needs glibc 2.39 or newer, `libvulkan.so.1` and a Vulkan driver.
+- `lectover-<version>-x86_64-unknown-linux-gnu.tar.gz`, `lectover-<version>-aarch64-unknown-linux-gnu.tar.gz`: Linux with Vulkan; needs glibc 2.39 or newer, `libvulkan.so.1` and a Vulkan driver; x86_64 also needs AVX2, FMA and F16C.
 
 ```bash
 tar -xzf lectover-<version>-<target>.tar.gz
