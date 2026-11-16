@@ -112,6 +112,7 @@ fn main() {
         .define("QWEN3_ASR_TEST", "OFF")
         .define("QWEN3_ASR_SHARED", "OFF")
         .define("QWEN3_ASR_TIMING", "OFF")
+        .define("QWEN3_ASR_NATIVE", "OFF")
         .define("REUSE_BUILD_TESTS", "OFF")
         .define("REUSE_BUILD_TOOLS", "OFF")
         // ggml's own thread pool; avoids linking libgomp/libomp into the product.
