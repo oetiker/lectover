@@ -49,7 +49,7 @@ sudo dnf install lectover
 AlmaLinux takes some libraries from EPEL and CRB; turn them on first:
 
 ```sh
-sudo dnf install -y epel-release
+sudo dnf install -y epel-release dnf-plugins-core
 sudo crb enable
 ```
 

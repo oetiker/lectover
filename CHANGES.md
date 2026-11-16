@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - On x86-64, `lectover` checks at start for AVX2, FMA and F16C, which ggml's CPU code is built for, and exits with an error naming the missing ones instead of stopping with "Illegal instruction". The build pins these instruction sets, so a build with `SOURCE_DATE_EPOCH` set no longer drops ggml to plain SSE.
 
 ### Fixed
+- The AlmaLinux install steps in the README install `dnf-plugins-core`, which `crb enable` needs and minimal AlmaLinux systems lack.
 - `brew install lectover` on Linux or an Intel Mac says the formula needs macOS on Apple silicon, instead of failing with "formula requires at least a URL".
 
 ## 0.1.0 - 2026-11-14
