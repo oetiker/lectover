@@ -7,3 +7,11 @@
 #![allow(non_upper_case_globals, non_camel_case_types, non_snake_case)]
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+/// GPU backends compiled into this build of the native ggml. Features unify across the
+/// dependency graph (Metal is enabled on macOS by the `lectover` crate), so ask here, not
+/// in a dependent crate's own `cfg(feature)`.
+pub const BACKEND_METAL: bool = cfg!(feature = "metal");
+pub const BACKEND_CUDA: bool = cfg!(feature = "cuda");
+pub const BACKEND_HIP: bool = cfg!(feature = "hip");
+pub const BACKEND_VULKAN: bool = cfg!(feature = "vulkan");

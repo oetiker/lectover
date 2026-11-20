@@ -39,10 +39,15 @@ unicode-normalization = "0.1.26"
 ureq = "3.5.0"
 url = "2.5.8"
 
+# Metal is the only GPU backend on macOS: build it in by default there, so a plain
+# `cargo build --release` does not silently fall back to the CPU.
+[target.'cfg(target_os = "macos")'.dependencies]
+lectover-sys = { version = "0.1.0", path = "../lectover-sys", features = ["metal"] }
+
 [dev-dependencies]
 
 [features]
-# GPU backends of the native ggml; forwarded to lectover-sys.
+# GPU backends of the native ggml; forwarded to lectover-sys (Metal is always on on macOS).
 metal = ["lectover-sys/metal"]
 cuda = ["lectover-sys/cuda"]
 hip = ["lectover-sys/hip"]

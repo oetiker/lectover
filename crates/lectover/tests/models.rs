@@ -164,9 +164,11 @@ fn aligner_onset_and_order() {
     assert!(items.last().unwrap().2 <= dur + 0.05);
 }
 
-#[cfg(not(feature = "metal"))]
 #[test]
 fn metal_request_without_feature_fails() {
+    if lectover_sys::BACKEND_METAL {
+        return;
+    }
     let err = resolve_device(Some(Device::Metal)).unwrap_err().to_string();
     assert!(err.contains("--features metal"), "{err}");
 }
@@ -175,7 +177,7 @@ fn metal_request_without_feature_fails() {
 fn banner_names_device_and_metal_flag() {
     let banner = backend_banner(Device::Cpu);
     assert!(banner.contains("CPU"), "{banner}");
-    let flag = if cfg!(feature = "metal") {
+    let flag = if lectover_sys::BACKEND_METAL {
         "metal=on"
     } else {
         "metal=off"
@@ -188,9 +190,11 @@ fn cpu_device_always_resolves() {
     assert_eq!(resolve_device(Some(Device::Cpu)).unwrap(), Device::Cpu);
 }
 
-#[cfg(feature = "metal")]
 #[test]
 fn default_device_is_metal_with_feature() {
+    if !lectover_sys::BACKEND_METAL {
+        return;
+    }
     assert_eq!(resolve_device(None).unwrap(), Device::Metal);
     assert!(backend_banner(Device::Metal).contains("MTL0"));
 }

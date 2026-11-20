@@ -98,7 +98,7 @@ the [Containerfile](Containerfile) lists the packages per distribution). The nat
 ```bash
 git clone --recursive https://github.com/oetiker/lectover.git
 cd lectover
-cargo build --release --features metal      # or cuda, hip, vulkan; none = CPU
+cargo build --release                       # macOS: Metal is built in; Linux: --features cuda|hip|vulkan, none = CPU
 cargo test -p lectover                      # fast tests, no models, no network
 make man                                    # man/lectover.1, needs pandoc
 ```
@@ -226,10 +226,10 @@ interruption.
 The model tests load these files:
 
 ```bash
-LECTOVER_MODELS=~/.cache/lectover/models cargo test --release -p lectover --features metal -- --ignored
+LECTOVER_MODELS=~/.cache/lectover/models cargo test --release -p lectover -- --ignored
 ```
 
-`--features metal` is the macOS backend; use `cuda`, `hip` or `vulkan` on Linux.
+On macOS the Metal backend is always built in; on Linux add `--features cuda`, `hip` or `vulkan`.
 
 ### RE-USE weights
 

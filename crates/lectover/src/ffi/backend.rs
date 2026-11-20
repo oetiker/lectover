@@ -57,10 +57,10 @@ impl Device {
     pub(crate) fn compiled(self) -> bool {
         match self {
             Device::Cpu => true,
-            Device::Metal => cfg!(feature = "metal"),
-            Device::Cuda => cfg!(feature = "cuda"),
-            Device::Hip => cfg!(feature = "hip"),
-            Device::Vulkan => cfg!(feature = "vulkan"),
+            Device::Metal => lectover_sys::BACKEND_METAL,
+            Device::Cuda => lectover_sys::BACKEND_CUDA,
+            Device::Hip => lectover_sys::BACKEND_HIP,
+            Device::Vulkan => lectover_sys::BACKEND_VULKAN,
         }
     }
 }
