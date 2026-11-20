@@ -1,7 +1,7 @@
 //! Local Ghost-like dev page for trying the read-aloud player (port of `dev_page.py`).
 //!
 //! `lectover dev build <post>` writes `<site>/<domain>/<slug>/index.html` in the deploy tree,
-//! next to the post's audio; `lectover dev serve` serves the deploy tree with single-range
+//! next to the post's audio (`<post>` may be a local Markdown or HTML file); `lectover dev serve` serves the deploy tree with single-range
 //! support (RFC 7233) and answers `/js` with `player/lectover.js`, like the production embed.
 
 use std::fs::{self, File};
@@ -91,12 +91,17 @@ pub fn build(
     let slug = slug_from_arg(arg)?;
     let post = fetch_post(cfg, &slug, get)?;
     require_public(&post)?;
+    write_page(&post, domain, site)
+}
+
+/// Write the dev page of `post` under `site/<domain>/<slug>/`; returns the page's path.
+pub fn write_page(post: &Post, domain: &str, site: &Path) -> Result<PathBuf> {
     let page = page_path(site, domain, &post.slug);
     let dir = page
         .parent()
         .ok_or_else(|| anyhow!("no parent of {}", page.display()))?;
     fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-    fs::write(&page, render_dev_page(&post, domain))
+    fs::write(&page, render_dev_page(post, domain))
         .with_context(|| format!("writing {}", page.display()))?;
     Ok(page)
 }

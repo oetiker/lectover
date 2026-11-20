@@ -261,7 +261,7 @@ lectover render frohburg-spiel-satz-patt --voice erzaehler --voice warm   # `war
 
 `--voice` takes one id and can be repeated; without it the site's `voices`
 are used, else the first voice in the registry. Other options: `--site DOMAIN`
-(for a slug), `--out DIR` (deploy tree, default
+(for a slug or local file), `--out DIR` (deploy tree, default
 `~/.local/share/lectover/site`), `--seed N` (42), `--temperature T` (0.9),
 `--no-pace`, `--device cpu|metal|cuda|hip|vulkan`, `--lexicon FILE` (default:
 the site's lexicon), `--sounds DIR` (default: the site's sounds).
@@ -277,6 +277,34 @@ site's config key: `manifest.json` plus `<voice>.<hash>.ogg`,
 the `.json` timings are shared with the Ogg (same hash). Only public posts are
 rendered. Re-render after editing a post; the player verifies the text against
 the timings and stays silent (with a console warning) if they no longer match.
+
+### Rendering a local file
+
+A draft that is not on Ghost yet can be rendered from a Markdown or HTML file.
+A `POST` argument naming a file (`.md`, `.markdown`, `.html`, `.htm`, or any
+other existing file, read as Markdown) is loaded from disk: no Ghost key, no
+network, no visibility check.
+
+```bash
+lectover render entwurf.md --author "Anna Muster" --date 2026-11-25
+```
+
+- **Body.** Markdown is converted to HTML (CommonMark plus tables,
+  strikethrough and footnotes); raw HTML and comments pass through, so
+  `<!-- AUDIO ONLY … -->` works as in Ghost and other comments stay silent. An
+  HTML file is used as is; of a full document only the `<body>` is taken.
+- **Title.** `--title TEXT`, else the first `<h1>` (`# Titel` in Markdown),
+  which then leaves the body: like in Ghost, the title is spoken by the intro
+  only. Without either, the file name is the title.
+- **Intro.** `--author NAME` (repeatable) and `--date YYYY-MM-DD` (default:
+  today) fill *Verfasst von …* and *Publiziert am …*.
+- **Output.** `--slug SLUG` names the folder, by default the file name in
+  lowercase ASCII with hyphens (`Mein Entwurf.md` → `mein-entwurf`). The site
+  is `--site DOMAIN` or the only configured one; output goes to
+  `<deploy tree>/<domain>/<slug>/` as for a Ghost post.
+
+These four options are refused for a Ghost post URL or slug. To listen, build
+the dev page from the same file with the same options (see Dev page).
 
 ### What the audio adds to the page
 
@@ -387,6 +415,17 @@ the post's audio; the page loads the player from `/js?domain=<domain>` like
 the real embed, and the server answers `/js` with `player/lectover.js`. The
 server supports HTTP Range requests, which Chrome needs for seeking. Render
 the post first so the audio exists.
+
+For a local file (see Rendering a local file), pass the file and the same
+`--title`, `--author`, `--date` and `--slug` to both commands:
+
+```bash
+lectover render entwurf.md --author "Anna Muster"
+lectover dev build entwurf.md --author "Anna Muster"
+lectover dev serve
+```
+
+and open `http://localhost:8000/<domain>/entwurf/`.
 
 ## Player tests
 

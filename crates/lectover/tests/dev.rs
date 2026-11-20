@@ -633,7 +633,10 @@ fn design_force_keeps_old_voice_with_timestamp() {
 #[test]
 fn cli_dev_and_voice_defaults() {
     let cli = Cli::try_parse_from(["lectover", "dev", "build", "a-b"]).unwrap();
-    let Commands::Dev(DevCommand::Build { post, out, site }) = cli.command else {
+    let Commands::Dev(DevCommand::Build {
+        post, out, site, ..
+    }) = cli.command
+    else {
         panic!()
     };
     assert_eq!((post.as_str(), out, site), ("a-b", None, None));
