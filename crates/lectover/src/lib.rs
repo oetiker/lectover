@@ -11,6 +11,7 @@ pub mod dirs;
 pub mod doctor;
 pub mod ffi;
 pub mod ghost;
+pub mod local;
 pub mod models;
 pub mod plan;
 pub mod record;

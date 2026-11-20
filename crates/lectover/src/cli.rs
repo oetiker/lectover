@@ -27,7 +27,8 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    /// Render a public Ghost post in one or more voices into the site output.
+    /// Render a public Ghost post, or a local Markdown/HTML file, in one or more voices into
+    /// the site output.
     Render(RenderArgs),
     /// Manage the GGUF model files.
     #[command(subcommand)]
@@ -175,14 +176,18 @@ pub struct DesignArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum DevCommand {
-    /// Write <out>/<domain>/<slug>/index.html for a public post of a configured site.
+    /// Write <out>/<domain>/<slug>/index.html for a public post of a configured site, or for a
+    /// local Markdown/HTML file.
     Build {
-        /// Post URL or slug.
+        /// Post URL, slug, or local file (.md, .markdown, .html, .htm).
         post: String,
+        #[command(flatten)]
+        local: LocalArgs,
         /// Deploy tree [default: ~/.local/share/lectover/site; env LECTOVER_SITE]
         #[arg(long, value_name = "DIR")]
         out: Option<PathBuf>,
-        /// Site of a slug [default: the only configured site]; a post URL names its site.
+        /// Site of a slug or local file [default: the only configured site]; a post URL names
+        /// its site.
         #[arg(long, value_name = "DOMAIN")]
         site: Option<String>,
     },
@@ -210,15 +215,60 @@ pub enum ModelsCommand {
     },
 }
 
+/// Options of a local post file (no Ghost key, no network); rejected for a Ghost post.
+#[derive(Debug, Clone, Default, Args)]
+pub struct LocalArgs {
+    /// Title of a local file [default: its first <h1> / `# heading`, which then leaves the
+    /// body; else the file name].
+    #[arg(long, value_name = "TEXT")]
+    pub title: Option<String>,
+    /// Author of a local file, spoken in the intro; repeat the flag for more authors.
+    #[arg(long = "author", value_name = "NAME", action = ArgAction::Append, num_args = 1)]
+    pub authors: Vec<String>,
+    /// Publication date of a local file, spoken in the intro [default: today].
+    #[arg(long, value_name = "YYYY-MM-DD")]
+    pub date: Option<String>,
+    /// Slug of a local file, the output folder <domain>/<slug>/ [default: the file name,
+    /// lowercase ASCII with hyphens].
+    #[arg(long, value_name = "SLUG")]
+    pub slug: Option<String>,
+}
+
+impl LocalArgs {
+    pub fn meta(&self) -> crate::local::LocalMeta {
+        crate::local::LocalMeta {
+            title: self.title.clone(),
+            authors: self.authors.clone(),
+            date: self.date.clone(),
+            slug: self.slug.clone(),
+        }
+    }
+}
+
+/// The post a command names: a local file (with its options) or a Ghost post URL or slug.
+pub fn local_post(post: &str, local: &LocalArgs) -> Result<Option<crate::ghost::Post>> {
+    let meta = local.meta();
+    match crate::local::local_path(post) {
+        Some(path) => crate::local::load_post(&path, &meta).map(Some),
+        None if meta.is_set() => {
+            bail!("--title, --author, --date and --slug apply to a local file only, not to {post}")
+        }
+        None => Ok(None),
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct RenderArgs {
-    /// Post URL or slug.
+    /// Post URL, slug, or local file (.md, .markdown, .html, .htm) to render without Ghost.
     pub post: String,
+    #[command(flatten)]
+    pub local: LocalArgs,
     /// Voice id from the voice registry; repeat the flag for more voices
     /// [default: the site's voices, else the registry's first].
     #[arg(long = "voice", value_name = "ID", action = ArgAction::Append, num_args = 1)]
     pub voices: Vec<String>,
-    /// Site of a slug [default: the only configured site]; a post URL names its site.
+    /// Site of a slug or local file [default: the only configured site]; a post URL names
+    /// its site.
     #[arg(long, value_name = "DOMAIN")]
     pub site: Option<String>,
     /// Deploy tree; the post goes to <DIR>/<domain>/<slug>/
@@ -331,16 +381,23 @@ fn run_command(cli: Cli, settings: &Settings) -> Result<()> {
         Commands::Voice(VoiceCommand::Design(args)) => crate::design::run(&args, settings),
         Commands::Voice(VoiceCommand::Record(args)) => crate::record::run(&args, settings),
         Commands::Voice(VoiceCommand::Clean(args)) => crate::clean::run(&args, settings),
-        Commands::Dev(DevCommand::Build { post, site, .. }) => {
+        Commands::Dev(DevCommand::Build {
+            post, local, site, ..
+        }) => {
             let s = settings.site_for_post(&post, site.as_deref())?;
-            let cfg = crate::ghost::GhostConfig::for_site(&s, &|k| std::env::var(k).ok())?;
-            let page = crate::dev::build(
-                &cfg,
-                &s.domain,
-                &post,
-                &settings.site_root,
-                &crate::ghost::http_get,
-            )?;
+            let page = match local_post(&post, &local)? {
+                Some(p) => crate::dev::write_page(&p, &s.domain, &settings.site_root)?,
+                None => {
+                    let cfg = crate::ghost::GhostConfig::for_site(&s, &|k| std::env::var(k).ok())?;
+                    crate::dev::build(
+                        &cfg,
+                        &s.domain,
+                        &post,
+                        &settings.site_root,
+                        &crate::ghost::http_get,
+                    )?
+                }
+            };
             println!("wrote {}", page.display());
             Ok(())
         }

@@ -1,7 +1,8 @@
 //! `lectover render`: port of `render_post.main`.
 //!
 //! [`prepare`] does every check that needs no model (fetch, visibility, text plan, voices);
-//! [`render`] loads the models only after it succeeded.
+//! [`render`] loads the models only after it succeeded. A local Markdown or HTML file skips
+//! Ghost: [`prepare_post`] takes the post as is.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -81,7 +82,18 @@ pub fn prepare(
 ) -> Result<Prepared> {
     let post = fetch_post(cfg, slug, get)?;
     require_public(&post)?; // before any synthesis
+    prepare_post(post, voices, voices_dir, lexicon, max_chars)
+}
 
+/// [`prepare`] for a post already in hand (a local file): plan the chunks, check the voices.
+pub fn prepare_post(
+    post: Post,
+    voices: &[SiteVoice],
+    voices_dir: &Path,
+    lexicon: &Lexicon,
+    max_chars: usize,
+) -> Result<Prepared> {
+    let slug = post.slug.clone();
     let (page, marks) = extract_marks(&post.html);
     if page.is_empty() {
         anyhow::bail!("post {slug} has no readable text");
@@ -168,22 +180,29 @@ struct Models {
 pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
     let files = ModelFiles::check(&settings.models)?; // before any network or model work
     let site = settings.site_for_post(&args.post, args.site.as_deref())?;
-    let cfg = GhostConfig::for_site(&site, &|k| std::env::var(k).ok())?;
-    let slug = slug_from_arg(&args.post)?;
+    let local = crate::cli::local_post(&args.post, &args.local)?;
     let lexicon_path = args.lexicon.as_ref().unwrap_or(&site.lexicon);
     let lexicon = load_lexicon(lexicon_path)
         .with_context(|| format!("reading {}", lexicon_path.display()))?;
     let voices_dir = settings.voices.as_path();
     let voices = select_voices(&args.voices, &site.voices);
-    let prep = prepare(
-        &cfg,
-        &slug,
-        &http_get,
-        &voices,
-        voices_dir,
-        &lexicon,
-        args.max_chars,
-    )?;
+    let prep = match local {
+        Some(post) => prepare_post(post, &voices, voices_dir, &lexicon, args.max_chars)?,
+        None => {
+            let cfg = GhostConfig::for_site(&site, &|k| std::env::var(k).ok())?;
+            let slug = slug_from_arg(&args.post)?;
+            prepare(
+                &cfg,
+                &slug,
+                &http_get,
+                &voices,
+                voices_dir,
+                &lexicon,
+                args.max_chars,
+            )?
+        }
+    };
+    let slug = prep.post.slug.clone();
     let sounds_dir = args.sounds.as_ref().unwrap_or(&site.sounds_dir);
     let sounds = SiteSounds::load(sounds_dir)
         .with_context(|| format!("reading {}", sounds_dir.display()))?;
