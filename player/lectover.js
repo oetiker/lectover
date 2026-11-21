@@ -593,6 +593,8 @@
     ".lo-ib{border:0;background:transparent;cursor:pointer;color:#333;display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;font:inherit;width:36px;height:36px;border-radius:50%;flex:none}",
     ".lo-ib:hover{background:#f2f3f5}",
     ".lo-ib svg{width:20px;height:20px}",
+    // Icons never take the pointer: the button is the click target, whatever the icon does.
+    ".lo-ib svg,.lo-spk svg,.lo-listen svg{pointer-events:none}",
     ".lo-bar .lo-play{width:44px;height:44px;background:#15171a;color:#fff}",
     ".lo-bar .lo-play:hover{background:#333}",
     ".lo-time{font-variant-numeric:tabular-nums;color:#6b7280;font-size:13px;min-width:92px;text-align:center}",
@@ -914,6 +916,7 @@
     }
 
     var lastListenLabel = null;
+    var lastPlaying = null;
     function render() {
       var st = c.state();
       var rp = c.resumePoint();
@@ -925,10 +928,16 @@
       again.hidden = !rp;
       sep.hidden = !rp;
       bar.hidden = !st.open;
-      var label = st.playing ? "Pause" : "Wiedergabe";
-      bPlay.innerHTML = st.playing ? SVG_PAUSE : SVG_PLAY;
-      bPlay.setAttribute("aria-label", label);
-      bPlay.title = label;
+      // Swap the icon only when the state flips: render() runs on every word, and replacing
+      // the svg between mousedown and mouseup detaches the press target, so the browser
+      // drops the click.
+      if (st.playing !== lastPlaying) {
+        lastPlaying = st.playing;
+        var label = st.playing ? "Pause" : "Wiedergabe";
+        bPlay.innerHTML = st.playing ? SVG_PAUSE : SVG_PLAY;
+        bPlay.setAttribute("aria-label", label);
+        bPlay.title = label;
+      }
       var d = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : c.duration();
       var cur = audio.currentTime || 0;
       var frac = d > 0 ? Math.max(0, Math.min(1, cur / d)) : 0;
