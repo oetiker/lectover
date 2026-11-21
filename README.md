@@ -277,7 +277,16 @@ synthesises and checks the chunks whose text changed; an 18-minute post with
 one changed word re-renders in about half a minute per voice. `--no-cache`
 runs every model call afresh. Each round reports how many takes it
 synthesises and how many it reads from the cache, and each voice ends with
-the time per step and the model calls made and answered from the cache.
+the time per step and the model calls made and answered from the cache
+(`cache off` under `--no-cache`).
+
+The cache only grows. Every render that uses an entry refreshes its file
+time, so `lectover cache prune` removes what no render has used for 90 days
+(`--days N` to change that, `--dry-run` to only count):
+
+```bash
+lectover cache prune --dry-run
+```
 
 Output goes to `<deploy tree>/<domain>/<slug>/`, where `<domain>` is the
 site's config key: `manifest.json` plus `<voice>.<hash>.ogg`,
@@ -312,8 +321,10 @@ lectover render entwurf.md --author "Anna Muster" --date 2026-11-25
   is `--site DOMAIN` or the only configured one; output goes to
   `<deploy tree>/<domain>/<slug>/` as for a Ghost post.
 
-These four options are refused for a Ghost post URL or slug. To listen, build
-the dev page from the same file with the same options (see Dev page).
+These four options are refused for a Ghost post URL or slug. A local file has
+no Ghost page, so `render` also writes its dev page (see Dev page) from the
+text it read: editing the file while it renders cannot leave page and audio
+out of step.
 
 ### What the audio adds to the page
 
@@ -425,16 +436,20 @@ the real embed, and the server answers `/js` with `player/lectover.js`. The
 server supports HTTP Range requests, which Chrome needs for seeking. Render
 the post first so the audio exists.
 
-For a local file (see Rendering a local file), pass the file and the same
-`--title`, `--author`, `--date` and `--slug` to both commands:
+For a local file (see Rendering a local file), `render` writes the dev page
+itself, so serving is enough:
 
 ```bash
 lectover render entwurf.md --author "Anna Muster"
-lectover dev build entwurf.md --author "Anna Muster"
 lectover dev serve
 ```
 
-and open `http://localhost:8000/<domain>/entwurf/`.
+and open `http://localhost:8000/<domain>/entwurf/`. `dev build entwurf.md`
+(with the same `--title`, `--author`, `--date` and `--slug`) rebuilds the page
+without rendering.
+
+The player stays off when the page text differs from the text a voice was
+rendered from. `dev build` warns about such voices; render the post again.
 
 ## Player tests
 

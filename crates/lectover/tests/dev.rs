@@ -773,3 +773,34 @@ fn design_smoke_with_qwentts_voice_design() {
     }
     assert_eq!(load_registry(voices.path()).unwrap()["probe"], "Probe");
 }
+
+// --- stale audio -------------------------------------------------------------------------
+
+#[test]
+fn stale_voices_flags_audio_rendered_from_other_text() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut p = post("T", "<p>Erster Absatz.</p><p>Zweiter Absatz.</p>", None);
+    p.slug = "s".into();
+    let dir = tmp.path().join("d").join("s");
+    fs::create_dir_all(&dir).unwrap();
+    let hashes: Vec<String> = lectover::text::extract_blocks(&p.html)
+        .into_iter()
+        .map(|b| b.hash)
+        .collect();
+    let timings = |name: &str, hs: &[String]| {
+        let blocks: Vec<_> = hs.iter().map(|h| json!({ "hash": h })).collect();
+        fs::write(dir.join(name), json!({ "blocks": blocks }).to_string()).unwrap();
+    };
+    timings("a.json", &hashes);
+    timings("b.json", &hashes[..1]);
+    let manifest = json!({ "voices": [
+        { "id": "a", "timings": "a.json" },
+        { "id": "b", "timings": "b.json" },
+    ]});
+    fs::write(dir.join("manifest.json"), manifest.to_string()).unwrap();
+    let stale = lectover::dev::stale_voices(&p, "d", tmp.path()).unwrap();
+    assert_eq!(stale, ["b"]);
+    let warning = lectover::dev::stale_warning(&stale).unwrap();
+    assert!(warning.contains("voice(s) b "), "{warning}");
+    assert_eq!(lectover::dev::stale_warning(&[]), None);
+}
