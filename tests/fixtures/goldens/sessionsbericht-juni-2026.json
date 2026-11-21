@@ -7341,7 +7341,7 @@
    {
     "first": 38,
     "last": 39,
-    "spoken": "Schüler:innen-Zahlen"
+    "spoken": "Schüler|innen-Zahlen"
    },
    {
     "first": 39,
@@ -13860,7 +13860,7 @@
    {
     "first": 66,
     "last": 67,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 67,
@@ -17560,7 +17560,7 @@
    "block": 15,
    "g0": 0,
    "g1": 44,
-   "text": "Bildung ist eine Kernaufgabe der Stadt und nicht optional. Auch nach der Debatte sind wir klar der Meinung, dass ein zentraler Campus sowohl qualitativ als auch ökonomisch die beste Lösung ist, um den zusätzlichen Schulraumbedarf aufgrund der steigenden Schüler:innen-Zahlen und der anstehenden Renovationen bereitzustellen.",
+   "text": "Bildung ist eine Kernaufgabe der Stadt und nicht optional. Auch nach der Debatte sind wir klar der Meinung, dass ein zentraler Campus sowohl qualitativ als auch ökonomisch die beste Lösung ist, um den zusätzlichen Schulraumbedarf aufgrund der steigenden Schüler|innen-Zahlen und der anstehenden Renovationen bereitzustellen.",
    "kind": "paragraph",
    "max_tokens": 950,
    "spoken_words": [
@@ -19145,7 +19145,7 @@
    "block": 42,
    "g0": 0,
    "g1": 71,
-   "text": "Die FDP hält dagegen, «es gibt ja schon barrierefreies Olten» – und der Stadtrat könne das ohnehin selber machen, dafür brauche es keinen Parlamentsentscheid. In die Länge ziehen die Debatte vor allem der ausführliche Exkurs von FDP-Sprecher Heinz Eng zu den Themen Semantik und KI, sowie sein zweites Votum zur Stufengerechtigkeit des vorgeschlagenen FHNW Projektes. Er findet, dazu brauche es kein Studium, das könnte auch von Schüler:innen der Sekundarstufe erledigt werden.",
+   "text": "Die FDP hält dagegen, «es gibt ja schon barrierefreies Olten» – und der Stadtrat könne das ohnehin selber machen, dafür brauche es keinen Parlamentsentscheid. In die Länge ziehen die Debatte vor allem der ausführliche Exkurs von FDP-Sprecher Heinz Eng zu den Themen Semantik und KI, sowie sein zweites Votum zur Stufengerechtigkeit des vorgeschlagenen FHNW Projektes. Er findet, dazu brauche es kein Studium, das könnte auch von Schüler|innen der Sekundarstufe erledigt werden.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [

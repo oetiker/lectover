@@ -526,3 +526,37 @@ fn sentence_final_abbreviations_keep_the_full_stop() {
         assert_eq!(spoken(text), want, "{text:?}");
     }
 }
+
+#[test]
+fn gender_separators_become_a_glottal_bar() {
+    assert_eq!(
+        spoken("Schüler:innen und Oltner*innen"),
+        "Schüler|innen und Oltner|innen"
+    );
+    assert_eq!(
+        spoken("eine Stadträt:in, jede Autor_in"),
+        "eine Stadträt|in, jede Autor|in"
+    );
+    assert_eq!(spoken("Bürger/innen."), "Bürger|innen.");
+}
+
+#[test]
+fn gender_rule_leaves_other_colons_alone() {
+    // a clock time, a score, a label and a plain "in" after a slash-free colon stay as they are
+    assert_eq!(spoken("Antwort: innen"), "Antwort: innen");
+    assert_eq!(spoken("Zug:inland"), "Zug:inland");
+    assert_eq!(spoken("Haltung: in Stein"), "Haltung: in Stein");
+}
+
+#[test]
+fn lexicon_entry_wins_over_gender_rule() {
+    let lexicon = vec![(
+        "Schüler:innen".to_string(),
+        "Schülerinnen und Schüler".to_string(),
+    )];
+    let got: Vec<String> = spoken_groups("Schüler:innen", &lexicon)
+        .into_iter()
+        .map(|g| g.spoken)
+        .collect();
+    assert_eq!(got, ["Schülerinnen und Schüler"]);
+}

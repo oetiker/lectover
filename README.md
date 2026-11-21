@@ -14,7 +14,8 @@ highlights the spoken word, and lets readers click a word to jump there.
 <img src="docs/player.png" width="520" alt="The player on a post: the spoken word is highlighted, the part already read is grey">
 
 German as spoken in Switzerland (`de-CH`) is built in: the text normalisation
-(numbers, dates, units), the intro text and the player labels are German. The
+(numbers, dates, units, and gender forms such as `Schüler:innen`, spoken with a short
+glottal stop instead of a pause), the intro text and the player labels are German. The
 pronunciation lexicon is a per-site file (see the example site).
 
 The renderer is one Rust binary, `lectover`, running the models through ggml

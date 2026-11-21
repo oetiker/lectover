@@ -4614,7 +4614,7 @@
    {
     "first": 0,
     "last": 1,
-    "spoken": "Freund:innen"
+    "spoken": "Freund|innen"
    },
    {
     "first": 1,
@@ -4899,7 +4899,7 @@
    {
     "first": 58,
     "last": 59,
-    "spoken": "Oltner*innen"
+    "spoken": "Oltner|innen"
    },
    {
     "first": 59,
@@ -5139,7 +5139,7 @@
    {
     "first": 106,
     "last": 107,
-    "spoken": "Freund:in"
+    "spoken": "Freund|in"
    },
    {
     "first": 107,
@@ -6200,7 +6200,7 @@
    "block": 18,
    "g0": 0,
    "g1": 77,
-   "text": "Freund:innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen. Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament. Wir sind nach wie vor auf deine Unterstützung angewiesen. Es wäre grossartig, auch weiterhin auf deine Unterstützung zählen zu dürfen. Warum? Damit wir uns für die Bedürfnisse der Oltner*innen einsetzen können, damit wir Informationen bis an die Bürger tragen können, damit wir wichtige Projekte vorantreiben und unterstützen können.",
+   "text": "Freund|innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen. Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament. Wir sind nach wie vor auf deine Unterstützung angewiesen. Es wäre grossartig, auch weiterhin auf deine Unterstützung zählen zu dürfen. Warum? Damit wir uns für die Bedürfnisse der Oltner|innen einsetzen können, damit wir Informationen bis an die Bürger tragen können, damit wir wichtige Projekte vorantreiben und unterstützen können.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
@@ -6287,7 +6287,7 @@
    "block": 18,
    "g0": 77,
    "g1": 139,
-   "text": "Wir erhalten kein Geld von Verbänden, Stiftungen oder Firmen – nur von Menschen wie euch. Alle Beiträge dokumentieren wir auf derTransparenzseite – öffentlich – so sollte Politikfinanzierung funktionieren. Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir dann einmal pro Jahr einen Einzahlungsschein. Oder wenn du spontan etwas spenden willst: Olten jetzt, viertausendsechshundert Olten IBAN CH70 achthundertneununddreißig vierunddreißig siebentausendzweihundertsiebenundsiebzig eintausend acht",
+   "text": "Wir erhalten kein Geld von Verbänden, Stiftungen oder Firmen – nur von Menschen wie euch. Alle Beiträge dokumentieren wir auf derTransparenzseite – öffentlich – so sollte Politikfinanzierung funktionieren. Freund|in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir dann einmal pro Jahr einen Einzahlungsschein. Oder wenn du spontan etwas spenden willst: Olten jetzt, viertausendsechshundert Olten IBAN CH70 achthundertneununddreißig vierunddreißig siebentausendzweihundertsiebenundsiebzig eintausend acht",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [

@@ -8308,7 +8308,7 @@
    {
     "first": 18,
     "last": 19,
-    "spoken": "Zuschauer:innen"
+    "spoken": "Zuschauer|innen"
    },
    {
     "first": 19,
@@ -8457,7 +8457,7 @@
    {
     "first": 0,
     "last": 1,
-    "spoken": "Freund:innen"
+    "spoken": "Freund|innen"
    },
    {
     "first": 1,
@@ -8972,7 +8972,7 @@
    {
     "first": 104,
     "last": 105,
-    "spoken": "Freund:in"
+    "spoken": "Freund|in"
    },
    {
     "first": 105,
@@ -10786,7 +10786,7 @@
    "block": 39,
    "g0": 0,
    "g1": 25,
-   "text": "Die Session beginnt jeweils um neunzehn Uhr im Stadthaus. Eine Liveübertragung gibt es wie üblich auf YouTube. Über Zuschauer:innen vor Ort freuen wir uns natürlich besonders!",
+   "text": "Die Session beginnt jeweils um neunzehn Uhr im Stadthaus. Eine Liveübertragung gibt es wie üblich auf YouTube. Über Zuschauer|innen vor Ort freuen wir uns natürlich besonders!",
    "kind": "paragraph",
    "max_tokens": 510,
    "spoken_words": [
@@ -10856,7 +10856,7 @@
    "block": 41,
    "g0": 0,
    "g1": 71,
-   "text": "Freund:innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen. Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament. Wir sind nach wie vor auf deine Unterstützung angewiesen. Wir suchen Menschen, die unsere Arbeit finanziell mittragen – am liebsten regelmässig, verlässlich. Warum? Wegen der Planungssicherheit. Wenn unsere Mittel gesichert sind, können wir uns auf die politische Arbeit konzentrieren statt aufs Geldsammeln.",
+   "text": "Freund|innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen. Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament. Wir sind nach wie vor auf deine Unterstützung angewiesen. Wir suchen Menschen, die unsere Arbeit finanziell mittragen – am liebsten regelmässig, verlässlich. Warum? Wegen der Planungssicherheit. Wenn unsere Mittel gesichert sind, können wir uns auf die politische Arbeit konzentrieren statt aufs Geldsammeln.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
@@ -10936,7 +10936,7 @@
    "block": 41,
    "g0": 71,
    "g1": 116,
-   "text": "Wir erhalten kein Geld von Verbänden, finanzkräftigen Stiftungen oder Firmen – nur von Menschen wie euch. Alle Beiträge dokumentieren wir auf der Transparenzseite – öffentlich, weil wir finden: So sollte Politikfinanzierung funktionieren. Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein.",
+   "text": "Wir erhalten kein Geld von Verbänden, finanzkräftigen Stiftungen oder Firmen – nur von Menschen wie euch. Alle Beiträge dokumentieren wir auf der Transparenzseite – öffentlich, weil wir finden: So sollte Politikfinanzierung funktionieren. Freund|in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein.",
    "kind": "paragraph",
    "max_tokens": 950,
    "spoken_words": [

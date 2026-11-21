@@ -9260,7 +9260,7 @@
    {
     "first": 63,
     "last": 64,
-    "spoken": "Urheber:innen"
+    "spoken": "Urheber|innen"
    },
    {
     "first": 64,
@@ -12467,7 +12467,7 @@
    {
     "first": 66,
     "last": 67,
-    "spoken": "Einwohner:innen"
+    "spoken": "Einwohner|innen"
    },
    {
     "first": 67,
@@ -12547,7 +12547,7 @@
    {
     "first": 86,
     "last": 87,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 87,
@@ -12679,7 +12679,7 @@
    {
     "first": 23,
     "last": 24,
-    "spoken": "Einwohner:innen"
+    "spoken": "Einwohner|innen"
    },
    {
     "first": 24,
@@ -12719,7 +12719,7 @@
    {
     "first": 32,
     "last": 33,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 33,
@@ -12769,7 +12769,7 @@
    {
     "first": 42,
     "last": 43,
-    "spoken": "Besitzer:innen"
+    "spoken": "Besitzer|innen"
    },
    {
     "first": 43,
@@ -15796,7 +15796,7 @@
    "block": 23,
    "g0": 0,
    "g1": 69,
-   "text": "In der Originalversion des Vorstosses war genau definiert worden, welche Themen zu den wichtigen Geschäften gehörten und deshalb vernehmlasst werden sollen: «insbesondere Parlamentsvorlagen, die die Ausübung der politischen Rechte betreffen, Abgaben beinhalten, der Stadt neue Aufgaben übertragen oder bestehende Aufgaben entziehen, die Organisation der Stadt betreffen oder eine grosse finanzielle Tragweite haben». In der Debatte gab dieser Absatz zu reden – und die Urheber:innen strichen ihn in einer Sitzungspause.",
+   "text": "In der Originalversion des Vorstosses war genau definiert worden, welche Themen zu den wichtigen Geschäften gehörten und deshalb vernehmlasst werden sollen: «insbesondere Parlamentsvorlagen, die die Ausübung der politischen Rechte betreffen, Abgaben beinhalten, der Stadt neue Aufgaben übertragen oder bestehende Aufgaben entziehen, die Organisation der Stadt betreffen oder eine grosse finanzielle Tragweite haben». In der Debatte gab dieser Absatz zu reden – und die Urheber|innen strichen ihn in einer Sitzungspause.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -16641,7 +16641,7 @@
    "block": 39,
    "g0": 41,
    "g1": 83,
-   "text": "vierundzwanzig der Gebührenordnung geändert werden – und zwar so, dass anstelle von fixen Beträgen Maximalgrenzen für die Jahresgebühr gelten: höchstens vierzig Franken für Einwohner:innen (heute fix fünfundzwanzig Franken), höchstens achtzig Franken für Auswärtige (heute fix fünfzig Franken) und höchstens zehn Franken für auswärtige Schüler:innen (heute fix sechs Franken).",
+   "text": "vierundzwanzig der Gebührenordnung geändert werden – und zwar so, dass anstelle von fixen Beträgen Maximalgrenzen für die Jahresgebühr gelten: höchstens vierzig Franken für Einwohner|innen (heute fix fünfundzwanzig Franken), höchstens achtzig Franken für Auswärtige (heute fix fünfzig Franken) und höchstens zehn Franken für auswärtige Schüler|innen (heute fix sechs Franken).",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -16698,7 +16698,7 @@
    "block": 40,
    "g0": 0,
    "g1": 47,
-   "text": "Die konkreten Ansätze legt dann der Stadtrat in der Gebührenverordnung fest. Er würde die Jahresgebühr per ersten Januar zweitausendsiebenundzwanzig auf dreißig Franken für Einwohner:innen und sechzig Franken für Auswärtige erhöhen. Gebührenfrei bleiben Schüler:innen mit Wohnsitz in Olten während der obligatorischen Schulzeit sowie Besitzer:innen einer KulturLegi; auswärtige KulturLegi-Nutzende zahlen fünfundzwanzig Franken.",
+   "text": "Die konkreten Ansätze legt dann der Stadtrat in der Gebührenverordnung fest. Er würde die Jahresgebühr per ersten Januar zweitausendsiebenundzwanzig auf dreißig Franken für Einwohner|innen und sechzig Franken für Auswärtige erhöhen. Gebührenfrei bleiben Schüler|innen mit Wohnsitz in Olten während der obligatorischen Schulzeit sowie Besitzer|innen einer KulturLegi; auswärtige KulturLegi-Nutzende zahlen fünfundzwanzig Franken.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [

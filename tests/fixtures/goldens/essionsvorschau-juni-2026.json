@@ -2067,7 +2067,7 @@
    {
     "first": 1,
     "last": 2,
-    "spoken": "Schüler:innen-Zahl"
+    "spoken": "Schüler|innen-Zahl"
    },
    {
     "first": 2,
@@ -2437,7 +2437,7 @@
    {
     "first": 75,
     "last": 76,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 76,
@@ -4904,7 +4904,7 @@
    {
     "first": 55,
     "last": 56,
-    "spoken": "Schüler:innen-Wachstum"
+    "spoken": "Schüler|innen-Wachstum"
    },
    {
     "first": 56,
@@ -8496,7 +8496,7 @@
    "block": 4,
    "g0": 0,
    "g1": 53,
-   "text": "Die Schüler:innen-Zahl in Olten wächst und wächst: zweitausendvierzehn besuchten rund dreizehnhundert Kinder und Jugendliche die städtischen Schulen, heute sind es etwa siebzehnhundertfünfzig, bis zweitausendneununddreißig/vierzig werden rund achtzehnhundertsiebzig erwartet. Gleichzeitig sind mehrere Schulhäuser über neunzig Jahre alt und müssen dringend saniert werden – das Frohheim macht den Anfang, danach folgen Bifang, Bannfeld und Säli.",
+   "text": "Die Schüler|innen-Zahl in Olten wächst und wächst: zweitausendvierzehn besuchten rund dreizehnhundert Kinder und Jugendliche die städtischen Schulen, heute sind es etwa siebzehnhundertfünfzig, bis zweitausendneununddreißig/vierzig werden rund achtzehnhundertsiebzig erwartet. Gleichzeitig sind mehrere Schulhäuser über neunzig Jahre alt und müssen dringend saniert werden – das Frohheim macht den Anfang, danach folgen Bifang, Bannfeld und Säli.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
@@ -8558,7 +8558,7 @@
    "block": 4,
    "g0": 53,
    "g1": 118,
-   "text": "Der Campus Zementi ist der gemeinsame Ausweichstandort bei all diesen Sanierungen und bietet zugleich den zusätzlichen Schulraum, der wegen der steigenden Anzahl Schüler:innen notwendig ist. Statt für jedes Sanierungsprojekt ein eigenes Provisorium hinzustellen, baut Olten nur eines, aber dafür ein gutes. Keine Containerlösung, sondern ein richtiges Schulhaus. Auf Ende der Sanierungsperiode soll mit einem neuen Schulhaus im Areal Olten SüdWest permanenter zusätzlicher Schulraum geschaffen werden.",
+   "text": "Der Campus Zementi ist der gemeinsame Ausweichstandort bei all diesen Sanierungen und bietet zugleich den zusätzlichen Schulraum, der wegen der steigenden Anzahl Schüler|innen notwendig ist. Statt für jedes Sanierungsprojekt ein eigenes Provisorium hinzustellen, baut Olten nur eines, aber dafür ein gutes. Keine Containerlösung, sondern ein richtiges Schulhaus. Auf Ende der Sanierungsperiode soll mit einem neuen Schulhaus im Areal Olten SüdWest permanenter zusätzlicher Schulraum geschaffen werden.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -9175,7 +9175,7 @@
    "block": 20,
    "g0": 0,
    "g1": 68,
-   "text": "Stimmt – und genau das ist der Punkt. In Worb (zwei Komma acht Millionen) und Egerkingen (~eins Komma fünf Millionen) standen gebrauchte Container, die je eine Sanierung für ein bis zwei Jahre überbrückten. Mehr nicht. Der Campus Zementi ist etwas anderes: ein vollwertiges Holz-Schulhaus, das fünfzehn Jahre steht, vier Sanierungen nacheinander überbrückt – Frohheim, Bifang, Bannfeld, Säli –, das Schüler:innen-Wachstum auffängt und nach dem Einsatz demontiert und wiederverwendet oder weiterverkauft werden kann.",
+   "text": "Stimmt – und genau das ist der Punkt. In Worb (zwei Komma acht Millionen) und Egerkingen (~eins Komma fünf Millionen) standen gebrauchte Container, die je eine Sanierung für ein bis zwei Jahre überbrückten. Mehr nicht. Der Campus Zementi ist etwas anderes: ein vollwertiges Holz-Schulhaus, das fünfzehn Jahre steht, vier Sanierungen nacheinander überbrückt – Frohheim, Bifang, Bannfeld, Säli –, das Schüler|innen-Wachstum auffängt und nach dem Einsatz demontiert und wiederverwendet oder weiterverkauft werden kann.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
