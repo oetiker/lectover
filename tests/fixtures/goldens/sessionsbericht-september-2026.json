@@ -10543,7 +10543,7 @@
    {
     "first": 93,
     "last": 94,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 94,
@@ -10964,7 +10964,7 @@
    {
     "first": 25,
     "last": 26,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 26,
@@ -17865,7 +17865,7 @@
    {
     "first": 14,
     "last": 15,
-    "spoken": "Präsident:innen"
+    "spoken": "Präsident|innen"
    },
    {
     "first": 15,
@@ -18961,7 +18961,7 @@
    {
     "first": 3,
     "last": 4,
-    "spoken": "Leser:innen"
+    "spoken": "Leser|innen"
    },
    {
     "first": 4,
@@ -20941,7 +20941,7 @@
    "block": 38,
    "g0": 52,
    "g1": 100,
-   "text": "Neu soll das Parlament nur noch eine Obergrenze von vierzig Franken beziehungsweise achtzig Franken für Auswärtige festlegen, die konkreten Ansätze bestimmt dann der Stadtrat. Der Stadtrat will zukünftig dreißig Franken und sechzig Franken verlangen. Der Zugang für Schüler:innen und KulturLegi-Besitzende aus Olten bleibt gebührenfrei. Der erwartete Mehrertrag beträgt rund vierzehntausend Franken pro Jahr.",
+   "text": "Neu soll das Parlament nur noch eine Obergrenze von vierzig Franken beziehungsweise achtzig Franken für Auswärtige festlegen, die konkreten Ansätze bestimmt dann der Stadtrat. Der Stadtrat will zukünftig dreißig Franken und sechzig Franken verlangen. Der Zugang für Schüler|innen und KulturLegi-Besitzende aus Olten bleibt gebührenfrei. Der erwartete Mehrertrag beträgt rund vierzehntausend Franken pro Jahr.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -21069,7 +21069,7 @@
    "block": 41,
    "g0": 0,
    "g1": 46,
-   "text": "Olten jetzt hält die moderate Erhöhung nach dreißig Jahren für begründet. Entscheidend für die Zustimmung zum Vorhaben sei, dass mit den Tarifen der Gratiszugang für Schüler:innen und KulturLegi-Besitzende erhalten bleibe: «Genau dort, wo das Geld im Portemonnaie knapp ist, darf der Zugang zur Bildung nicht abgeschnitten werden.»",
+   "text": "Olten jetzt hält die moderate Erhöhung nach dreißig Jahren für begründet. Entscheidend für die Zustimmung zum Vorhaben sei, dass mit den Tarifen der Gratiszugang für Schüler|innen und KulturLegi-Besitzende erhalten bleibe: «Genau dort, wo das Geld im Portemonnaie knapp ist, darf der Zugang zur Bildung nicht abgeschnitten werden.»",
    "kind": "paragraph",
    "max_tokens": 950,
    "spoken_words": [
@@ -22915,7 +22915,7 @@
    "block": 84,
    "g0": 0,
    "g1": 74,
-   "text": "Cécile Send von der SP/Junge SP leitet ihre erste Sitzung als Parlamentspräsidentin. Drei ehemalige Präsident:innen des Gemeindeparlaments verlassen den Rat per dreißigsten September zweitausendsechsundzwanzig: Philippe Ruf von der SVP, Mitglied seit zweitausendsechzehn, tritt aus beruflichen Gründen zurück. Yael Schindler Wildhaber von den Grünen/Junge Grüne ist in den Kantonsrat nachgerückt; für sie kommt Patrick Weibel. Laura Schöni von Olten jetzt, seit zweitausendsiebzehn im Parlament, tritt ebenfalls aus beruflichen Gründen zurück; für sie rückt Karin Stadler nach.",
+   "text": "Cécile Send von der SP/Junge SP leitet ihre erste Sitzung als Parlamentspräsidentin. Drei ehemalige Präsident|innen des Gemeindeparlaments verlassen den Rat per dreißigsten September zweitausendsechsundzwanzig: Philippe Ruf von der SVP, Mitglied seit zweitausendsechzehn, tritt aus beruflichen Gründen zurück. Yael Schindler Wildhaber von den Grünen/Junge Grüne ist in den Kantonsrat nachgerückt; für sie kommt Patrick Weibel. Laura Schöni von Olten jetzt, seit zweitausendsiebzehn im Parlament, tritt ebenfalls aus beruflichen Gründen zurück; für sie rückt Karin Stadler nach.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -23183,7 +23183,7 @@
    "block": 87,
    "g0": 0,
    "g1": 41,
-   "text": "Wir danken allen Leser:innen für ihr Interesse an der Oltner Lokalpolitik. Wer unsere Arbeit finanziell unterstützen möchte, findet hier alle Informationen zur Spende. Die nächste Parlamentssitzung findet am fünfundzwanzigsten November zweitausendsechsundzwanzig statt – mit der Fusion der S-B-O auf der Traktandenliste.",
+   "text": "Wir danken allen Leser|innen für ihr Interesse an der Oltner Lokalpolitik. Wer unsere Arbeit finanziell unterstützen möchte, findet hier alle Informationen zur Spende. Die nächste Parlamentssitzung findet am fünfundzwanzigsten November zweitausendsechsundzwanzig statt – mit der Fusion der S-B-O auf der Traktandenliste.",
    "kind": "paragraph",
    "max_tokens": 960,
    "spoken_words": [

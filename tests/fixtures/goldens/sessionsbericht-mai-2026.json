@@ -7566,7 +7566,7 @@
    {
     "first": 8,
     "last": 9,
-    "spoken": "Nicht-Oltner:innen"
+    "spoken": "Nicht-Oltner|innen"
    },
    {
     "first": 9,
@@ -8571,7 +8571,7 @@
    {
     "first": 82,
     "last": 83,
-    "spoken": "Mandatsträger:innen,"
+    "spoken": "Mandatsträger|innen,"
    },
    {
     "first": 83,
@@ -10182,7 +10182,7 @@
    {
     "first": 23,
     "last": 24,
-    "spoken": "Klient:innen,"
+    "spoken": "Klient|innen,"
    },
    {
     "first": 24,
@@ -10287,7 +10287,7 @@
    {
     "first": 44,
     "last": 45,
-    "spoken": "Beiständ:innen"
+    "spoken": "Beiständ|innen"
    },
    {
     "first": 45,
@@ -12066,7 +12066,7 @@
    {
     "first": 52,
     "last": 53,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 53,
@@ -13383,7 +13383,7 @@
    {
     "first": 33,
     "last": 34,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 34,
@@ -14445,7 +14445,7 @@
    {
     "first": 19,
     "last": 20,
-    "spoken": "Schüler:innen"
+    "spoken": "Schüler|innen"
    },
    {
     "first": 20,
@@ -20366,7 +20366,7 @@
    {
     "first": 0,
     "last": 1,
-    "spoken": "Freund:innen"
+    "spoken": "Freund|innen"
    },
    {
     "first": 1,
@@ -20881,7 +20881,7 @@
    {
     "first": 104,
     "last": 105,
-    "spoken": "Freund:in"
+    "spoken": "Freund|in"
    },
    {
     "first": 105,
@@ -21855,7 +21855,7 @@
    "block": 20,
    "g0": 0,
    "g1": 69,
-   "text": "Was uns schmerzt, ist das generelle Zugangsverbot für Nicht-Oltner:innen beim muslimischen Grabfeld und beim Sternenkinder-Grabfeld. Dass auf den Grabfeldern VII und VIII, anders als auf allen anderen Grabfeldern, keine Einzelfall-Bewilligung für Auswärtige möglich ist und damit ausgerechnet das Grabfeld einer religiösen Minderheit mit einem generellen Zugangsverbot belegt wird, halten wir für eine gravierende Ungleichbehandlung. Unserer Meinung nach widerspricht dies auch dem Diskriminierungsverbot im Artikel acht Absatz zwei der Bundesverfassung.",
+   "text": "Was uns schmerzt, ist das generelle Zugangsverbot für Nicht-Oltner|innen beim muslimischen Grabfeld und beim Sternenkinder-Grabfeld. Dass auf den Grabfeldern VII und VIII, anders als auf allen anderen Grabfeldern, keine Einzelfall-Bewilligung für Auswärtige möglich ist und damit ausgerechnet das Grabfeld einer religiösen Minderheit mit einem generellen Zugangsverbot belegt wird, halten wir für eine gravierende Ungleichbehandlung. Unserer Meinung nach widerspricht dies auch dem Diskriminierungsverbot im Artikel acht Absatz zwei der Bundesverfassung.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -22102,7 +22102,7 @@
    "block": 25,
    "g0": 61,
    "g1": 99,
-   "text": "Mit den zwei Komma fünf zusätzlichen Stellen soll die Sozialregion auf fünfundsechzig Fälle pro Vollzeitstelle kommen – dies bei gleichzeitigem Verzicht auf externe Mandatsträger:innen, für die im Budget zweitausendsechsundzwanzig dreihunderttausend Franken eingestellt sind. Die Nettomehrkosten betragen damit rund vierunddreißigtausend Franken pro Jahr.",
+   "text": "Mit den zwei Komma fünf zusätzlichen Stellen soll die Sozialregion auf fünfundsechzig Fälle pro Vollzeitstelle kommen – dies bei gleichzeitigem Verzicht auf externe Mandatsträger|innen, für die im Budget zweitausendsechsundzwanzig dreihunderttausend Franken eingestellt sind. Die Nettomehrkosten betragen damit rund vierunddreißigtausend Franken pro Jahr.",
    "kind": "paragraph",
    "max_tokens": 990,
    "spoken_words": [
@@ -22502,7 +22502,7 @@
    "block": 33,
    "g0": 0,
    "g1": 74,
-   "text": "Olten jetzt stimmt der Erhöhung einstimmig zu. Laura Schöni bezeichnet den Schritt als überfällig: Die Reduktion der Fallbelastung erlaube eine gezieltere Begleitung der Klient:innen, mache die Stadt als Arbeitgeberin attraktiver und stärke die Stabilität für die betreuten Personen, weil ein längerfristiger Beziehungsaufbau zu den Beiständ:innen möglich werde. Der Wegfall externer Mandate kompensiere die Stellenerhöhung weitgehend. Mit einer Ablehnung würde das Parlament der Sozialregion «aktiv Steine in den Weg legen» und die Legislaturstrategie des Stadtrats torpedieren.",
+   "text": "Olten jetzt stimmt der Erhöhung einstimmig zu. Laura Schöni bezeichnet den Schritt als überfällig: Die Reduktion der Fallbelastung erlaube eine gezieltere Begleitung der Klient|innen, mache die Stadt als Arbeitgeberin attraktiver und stärke die Stabilität für die betreuten Personen, weil ein längerfristiger Beziehungsaufbau zu den Beiständ|innen möglich werde. Der Wegfall externer Mandate kompensiere die Stellenerhöhung weitgehend. Mit einer Ablehnung würde das Parlament der Sozialregion «aktiv Steine in den Weg legen» und die Legislaturstrategie des Stadtrats torpedieren.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -22989,7 +22989,7 @@
    "block": 45,
    "g0": 0,
    "g1": 57,
-   "text": "Marc Winistörfer (SVP) stellt einen Rückweisungsantrag: Ohne Unternehmensstrategie und Businessplan sei der Beitrag ein «Bailout» der Steuerzahlenden, der Verwaltungsrat müsse zuerst die Hausaufgaben erledigen. Im Hauptvotum ergänzt Matthias Borner die Kritik mit einem Vorwurf zur Lastenverteilung: Die Umlandgemeinden steuerten nur sieben Komma vier Prozent an die Beiträge bei, obwohl neunundsiebzig Prozent der Schulbesuche von Schüler:innen aus diesen Gemeinden stammten.",
+   "text": "Marc Winistörfer (SVP) stellt einen Rückweisungsantrag: Ohne Unternehmensstrategie und Businessplan sei der Beitrag ein «Bailout» der Steuerzahlenden, der Verwaltungsrat müsse zuerst die Hausaufgaben erledigen. Im Hauptvotum ergänzt Matthias Borner die Kritik mit einem Vorwurf zur Lastenverteilung: Die Umlandgemeinden steuerten nur sieben Komma vier Prozent an die Beiträge bei, obwohl neunundsiebzig Prozent der Schulbesuche von Schüler|innen aus diesen Gemeinden stammten.",
    "kind": "paragraph",
    "max_tokens": 1000,
    "spoken_words": [
@@ -23332,7 +23332,7 @@
    "block": 51,
    "g0": 0,
    "g1": 57,
-   "text": "Olten jetzt unterstützt mit Benjamin Mühleisen geschlossen den vollen Stadtratsantrag. Die Anlage im Klein-holz sei eine niederschwellige Freizeitmöglichkeit, die sieben Tage in der Woche offen stehe und im Winter regional praktisch einzigartig sei. Schüler:innen aus Olten und zehn Nachbargemeinden erhielten gratis Saisonabos, rund dreihundert Kinder seien in den Vereinen aktiv, die soziale Funktion reiche quer durch alle Bevölkerungsschichten.",
+   "text": "Olten jetzt unterstützt mit Benjamin Mühleisen geschlossen den vollen Stadtratsantrag. Die Anlage im Klein-holz sei eine niederschwellige Freizeitmöglichkeit, die sieben Tage in der Woche offen stehe und im Winter regional praktisch einzigartig sei. Schüler|innen aus Olten und zehn Nachbargemeinden erhielten gratis Saisonabos, rund dreihundert Kinder seien in den Vereinen aktiv, die soziale Funktion reiche quer durch alle Bevölkerungsschichten.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
@@ -23637,7 +23637,7 @@
    "block": 57,
    "g0": 0,
    "g1": 75,
-   "text": "Für uns ist das Eisstadion im Klein-holz mehr als eine Sportanlage: ein niederschwelliges Winterangebot mit gratis Saisonabos für alle Schüler:innen aus Olten und zehn Nachbargemeinden – eines der wenigen Angebote, das quer durch alle Bevölkerungsschichten funktioniert. Den GPK-Kompromiss von achthundertdreißigtausend Franken halten wir aus zwei Gründen für fatal. Erstens das Signal: Die Stadt verlangt vom Sportpark eine neue strategische Ausrichtung, einen Businessplan, eine Werterhaltungsstrategie – und kürzt im selben Moment die Mittel für den laufenden Betrieb.",
+   "text": "Für uns ist das Eisstadion im Klein-holz mehr als eine Sportanlage: ein niederschwelliges Winterangebot mit gratis Saisonabos für alle Schüler|innen aus Olten und zehn Nachbargemeinden – eines der wenigen Angebote, das quer durch alle Bevölkerungsschichten funktioniert. Den GPK-Kompromiss von achthundertdreißigtausend Franken halten wir aus zwei Gründen für fatal. Erstens das Signal: Die Stadt verlangt vom Sportpark eine neue strategische Ausrichtung, einen Businessplan, eine Werterhaltungsstrategie – und kürzt im selben Moment die Mittel für den laufenden Betrieb.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
@@ -25218,7 +25218,7 @@
    "block": 90,
    "g0": 0,
    "g1": 71,
-   "text": "Freund:innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen. Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament. Wir sind nach wie vor auf deine Unterstützung angewiesen. Wir suchen Menschen, die unsere Arbeit finanziell mittragen – am liebsten regelmässig, verlässlich. Warum? Wegen der Planungssicherheit. Wenn unsere Mittel gesichert sind, können wir uns auf die politische Arbeit konzentrieren statt aufs Geldsammeln.",
+   "text": "Freund|innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen. Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament. Wir sind nach wie vor auf deine Unterstützung angewiesen. Wir suchen Menschen, die unsere Arbeit finanziell mittragen – am liebsten regelmässig, verlässlich. Warum? Wegen der Planungssicherheit. Wenn unsere Mittel gesichert sind, können wir uns auf die politische Arbeit konzentrieren statt aufs Geldsammeln.",
    "kind": "sentence",
    "max_tokens": 1000,
    "spoken_words": [
@@ -25298,7 +25298,7 @@
    "block": 90,
    "g0": 71,
    "g1": 116,
-   "text": "Wir erhalten kein Geld von Verbänden, finanzkräftigen Stiftungen oder Firmen – nur von Menschen wie euch. Alle Beiträge dokumentieren wir auf der Transparenzseite – öffentlich, weil wir finden: So sollte Politikfinanzierung funktionieren. Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein.",
+   "text": "Wir erhalten kein Geld von Verbänden, finanzkräftigen Stiftungen oder Firmen – nur von Menschen wie euch. Alle Beiträge dokumentieren wir auf der Transparenzseite – öffentlich, weil wir finden: So sollte Politikfinanzierung funktionieren. Freund|in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein.",
    "kind": "paragraph",
    "max_tokens": 950,
    "spoken_words": [

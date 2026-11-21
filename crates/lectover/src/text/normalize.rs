@@ -450,6 +450,13 @@ static RULES: LazyLock<Vec<(Regex, Action)>> = LazyLock::new(|| {
         let pattern = format!(r"(?<![{W}.]){}(?![{W}])", fancy_regex::escape(abbr));
         rules.push(fixed(pattern, spoken));
     }
+    // Gender forms "Schüler:innen", "Autor*in", "Lehrer_innen", "Bürger/innen": the TTS reads
+    // ":" and friends as a clause pause. A "|" (tried by ear) gives the short glottal stop
+    // instead. Only the separator is replaced, so the word stays one token.
+    rules.push(fixed(
+        format!(r"(?<=\p{{L}})[:*_/](?=in(?:nen)?(?![{W}]))"),
+        "|",
+    ));
     rules.push(call("%".to_string(), percent));
     // Python `\b\d+\b`: \d is a subset of \w, so both boundaries are look-arounds.
     rules.push(call(format!(r"(?<![{W}])\d+(?![{W}])"), bare_number));

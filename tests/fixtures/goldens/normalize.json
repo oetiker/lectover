@@ -257,7 +257,7 @@
  },
  {
   "in": "Die Schüler:innen-Zahl in Olten wächst und wächst: 2014 besuchten rund 1300 Kinder und Jugendliche die städtischen Schulen, heute sind es etwa 1750, bis 2039/40 werden rund 1870 erwartet",
-  "out": "Die Schüler:innen-Zahl in Olten wächst und wächst: zweitausendvierzehn besuchten rund dreizehnhundert Kinder und Jugendliche die städtischen Schulen, heute sind es etwa siebzehnhundertfünfzig, bis zweitausendneununddreißig/vierzig werden rund achtzehnhundertsiebzig erwartet"
+  "out": "Die Schüler|innen-Zahl in Olten wächst und wächst: zweitausendvierzehn besuchten rund dreizehnhundert Kinder und Jugendliche die städtischen Schulen, heute sind es etwa siebzehnhundertfünfzig, bis zweitausendneununddreißig/vierzig werden rund achtzehnhundertsiebzig erwartet"
  },
  {
   "in": "Gleichzeitig sind mehrere Schulhäuser über 90 Jahre alt und müssen dringend saniert werden – das Frohheim macht den Anfang, danach folgen Bifang, Bannfeld und Säli",
@@ -265,7 +265,7 @@
  },
  {
   "in": "Der Campus Zementi ist der gemeinsame Ausweichstandort bei all diesen Sanierungen und bietet zugleich den zusätzlichen Schulraum, der wegen der steigenden Anzahl Schüler:innen notwendig ist",
-  "out": "Der Campus Zementi ist der gemeinsame Ausweichstandort bei all diesen Sanierungen und bietet zugleich den zusätzlichen Schulraum, der wegen der steigenden Anzahl Schüler:innen notwendig ist"
+  "out": "Der Campus Zementi ist der gemeinsame Ausweichstandort bei all diesen Sanierungen und bietet zugleich den zusätzlichen Schulraum, der wegen der steigenden Anzahl Schüler|innen notwendig ist"
  },
  {
   "in": "Statt für jedes Sanierungsprojekt ein eigenes Provisorium hinzustellen, baut Olten nur eines, aber dafür ein gutes",
@@ -453,7 +453,7 @@
  },
  {
   "in": "Der Campus Zementi ist etwas anderes: ein vollwertiges Holz-Schulhaus, das 15 Jahre steht, vier Sanierungen nacheinander überbrückt – Frohheim, Bifang, Bannfeld, Säli –, das Schüler:innen-Wachstum auffängt und nach dem Einsatz demontiert und wiederverwendet oder weiterverkauft werden kann",
-  "out": "Der Campus Zementi ist etwas anderes: ein vollwertiges Holz-Schulhaus, das fünfzehn Jahre steht, vier Sanierungen nacheinander überbrückt – Frohheim, Bifang, Bannfeld, Säli –, das Schüler:innen-Wachstum auffängt und nach dem Einsatz demontiert und wiederverwendet oder weiterverkauft werden kann"
+  "out": "Der Campus Zementi ist etwas anderes: ein vollwertiges Holz-Schulhaus, das fünfzehn Jahre steht, vier Sanierungen nacheinander überbrückt – Frohheim, Bifang, Bannfeld, Säli –, das Schüler|innen-Wachstum auffängt und nach dem Einsatz demontiert und wiederverwendet oder weiterverkauft werden kann"
  },
  {
   "in": "Wer billige Container mit einem richtigen Schulhaus vergleicht, vergleicht Ungleiches.",
@@ -1005,7 +1005,7 @@
  },
  {
   "in": "Auch nach der Debatte sind wir klar der Meinung, dass ein zentraler Campus sowohl qualitativ als auch ökonomisch die beste Lösung ist, um den zusätzlichen Schulraumbedarf aufgrund der steigenden Schüler:innen-Zahlen und der anstehenden Renovationen bereitzustellen.",
-  "out": "Auch nach der Debatte sind wir klar der Meinung, dass ein zentraler Campus sowohl qualitativ als auch ökonomisch die beste Lösung ist, um den zusätzlichen Schulraumbedarf aufgrund der steigenden Schüler:innen-Zahlen und der anstehenden Renovationen bereitzustellen."
+  "out": "Auch nach der Debatte sind wir klar der Meinung, dass ein zentraler Campus sowohl qualitativ als auch ökonomisch die beste Lösung ist, um den zusätzlichen Schulraumbedarf aufgrund der steigenden Schüler|innen-Zahlen und der anstehenden Renovationen bereitzustellen."
  },
  {
   "in": "Das Parlament hat das Geschäft zurückgewiesen und nicht abgelehnt",
@@ -1277,7 +1277,7 @@
  },
  {
   "in": "Er findet, dazu brauche es kein Studium, das könnte auch von Schüler:innen der Sekundarstufe erledigt werden.",
-  "out": "Er findet, dazu brauche es kein Studium, das könnte auch von Schüler:innen der Sekundarstufe erledigt werden."
+  "out": "Er findet, dazu brauche es kein Studium, das könnte auch von Schüler|innen der Sekundarstufe erledigt werden."
  },
  {
   "in": "Die Grünen/Junge Grüne kontern, dass die bestehende Plattform gerade das Fehlen eines systematischen Überblicks sichtbar macht.",
@@ -1553,7 +1553,7 @@
  },
  {
   "in": "Was uns schmerzt, ist das generelle Zugangsverbot für Nicht-Oltner:innen beim muslimischen Grabfeld und beim Sternenkinder-Grabfeld",
-  "out": "Was uns schmerzt, ist das generelle Zugangsverbot für Nicht-Oltner:innen beim muslimischen Grabfeld und beim Sternenkinder-Grabfeld"
+  "out": "Was uns schmerzt, ist das generelle Zugangsverbot für Nicht-Oltner|innen beim muslimischen Grabfeld und beim Sternenkinder-Grabfeld"
  },
  {
   "in": "Dass auf den Grabfeldern VII und VIII, anders als auf allen anderen Grabfeldern, keine Einzelfall-Bewilligung für Auswärtige möglich ist und damit ausgerechnet das Grabfeld einer religiösen Minderheit mit einem generellen Zugangsverbot belegt wird, halten wir für eine gravierende Ungleichbehandlung",
@@ -1601,7 +1601,7 @@
  },
  {
   "in": "Mit den 2,5 zusätzlichen Stellen soll die Sozialregion auf 65 Fälle pro Vollzeitstelle kommen – dies bei gleichzeitigem Verzicht auf externe Mandatsträger:innen, für die im Budget 2026 CHF 300 000 eingestellt sind",
-  "out": "Mit den zwei Komma fünf zusätzlichen Stellen soll die Sozialregion auf fünfundsechzig Fälle pro Vollzeitstelle kommen – dies bei gleichzeitigem Verzicht auf externe Mandatsträger:innen, für die im Budget zweitausendsechsundzwanzig dreihunderttausend Franken eingestellt sind"
+  "out": "Mit den zwei Komma fünf zusätzlichen Stellen soll die Sozialregion auf fünfundsechzig Fälle pro Vollzeitstelle kommen – dies bei gleichzeitigem Verzicht auf externe Mandatsträger|innen, für die im Budget zweitausendsechsundzwanzig dreihunderttausend Franken eingestellt sind"
  },
  {
   "in": "Die Nettomehrkosten betragen damit rund CHF 34 000 pro Jahr.",
@@ -1673,7 +1673,7 @@
  },
  {
   "in": "Laura Schöni bezeichnet den Schritt als überfällig: Die Reduktion der Fallbelastung erlaube eine gezieltere Begleitung der Klient:innen, mache die Stadt als Arbeitgeberin attraktiver und stärke die Stabilität für die betreuten Personen, weil ein längerfristiger Beziehungsaufbau zu den Beiständ:innen möglich werde",
-  "out": "Laura Schöni bezeichnet den Schritt als überfällig: Die Reduktion der Fallbelastung erlaube eine gezieltere Begleitung der Klient:innen, mache die Stadt als Arbeitgeberin attraktiver und stärke die Stabilität für die betreuten Personen, weil ein längerfristiger Beziehungsaufbau zu den Beiständ:innen möglich werde"
+  "out": "Laura Schöni bezeichnet den Schritt als überfällig: Die Reduktion der Fallbelastung erlaube eine gezieltere Begleitung der Klient|innen, mache die Stadt als Arbeitgeberin attraktiver und stärke die Stabilität für die betreuten Personen, weil ein längerfristiger Beziehungsaufbau zu den Beiständ|innen möglich werde"
  },
  {
   "in": "Der Wegfall externer Mandate kompensiere die Stellenerhöhung weitgehend",
@@ -1765,7 +1765,7 @@
  },
  {
   "in": "Im Hauptvotum ergänzt Matthias Borner die Kritik mit einem Vorwurf zur Lastenverteilung: Die Umlandgemeinden steuerten nur 7,4 Prozent an die Beiträge bei, obwohl 79 Prozent der Schulbesuche von Schüler:innen aus diesen Gemeinden stammten.",
-  "out": "Im Hauptvotum ergänzt Matthias Borner die Kritik mit einem Vorwurf zur Lastenverteilung: Die Umlandgemeinden steuerten nur sieben Komma vier Prozent an die Beiträge bei, obwohl neunundsiebzig Prozent der Schulbesuche von Schüler:innen aus diesen Gemeinden stammten."
+  "out": "Im Hauptvotum ergänzt Matthias Borner die Kritik mit einem Vorwurf zur Lastenverteilung: Die Umlandgemeinden steuerten nur sieben Komma vier Prozent an die Beiträge bei, obwohl neunundsiebzig Prozent der Schulbesuche von Schüler|innen aus diesen Gemeinden stammten."
  },
  {
   "in": "Den GPK-Antrag begründet Florian Eberhard von der SP/Junge SP: Die Stadt müsse in der angespannten Finanzlage ein Sparzeichen setzen, ohne die Vereine zu hart zu treffen",
@@ -1817,7 +1817,7 @@
  },
  {
   "in": "Schüler:innen aus Olten und zehn Nachbargemeinden erhielten gratis Saisonabos, rund 300 Kinder seien in den Vereinen aktiv, die soziale Funktion reiche quer durch alle Bevölkerungsschichten",
-  "out": "Schüler:innen aus Olten und zehn Nachbargemeinden erhielten gratis Saisonabos, rund dreihundert Kinder seien in den Vereinen aktiv, die soziale Funktion reiche quer durch alle Bevölkerungsschichten"
+  "out": "Schüler|innen aus Olten und zehn Nachbargemeinden erhielten gratis Saisonabos, rund dreihundert Kinder seien in den Vereinen aktiv, die soziale Funktion reiche quer durch alle Bevölkerungsschichten"
  },
  {
   "in": "Der Verwaltungsrat brauche jetzt Stabilität, um die geforderte Strategie zu erarbeiten: «Wenn wir heute die Unterstützung entziehen oder auch reduzieren, schaffen wir vor allem Unsicherheit und nicht Lösungen.»",
@@ -1861,7 +1861,7 @@
  },
  {
   "in": "Für uns ist das Eisstadion im Kleinholz mehr als eine Sportanlage: ein niederschwelliges Winterangebot mit gratis Saisonabos für alle Schüler:innen aus Olten und zehn Nachbargemeinden – eines der wenigen Angebote, das quer durch alle Bevölkerungsschichten funktioniert",
-  "out": "Für uns ist das Eisstadion im Klein-holz mehr als eine Sportanlage: ein niederschwelliges Winterangebot mit gratis Saisonabos für alle Schüler:innen aus Olten und zehn Nachbargemeinden – eines der wenigen Angebote, das quer durch alle Bevölkerungsschichten funktioniert"
+  "out": "Für uns ist das Eisstadion im Klein-holz mehr als eine Sportanlage: ein niederschwelliges Winterangebot mit gratis Saisonabos für alle Schüler|innen aus Olten und zehn Nachbargemeinden – eines der wenigen Angebote, das quer durch alle Bevölkerungsschichten funktioniert"
  },
  {
   "in": "Den GPK-Kompromiss von CHF 830 000 halten wir aus zwei Gründen für fatal",
@@ -2177,7 +2177,7 @@
  },
  {
   "in": "Freund:innen von Olten jetzt! Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen",
-  "out": "Freund:innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen"
+  "out": "Freund|innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen"
  },
  {
   "in": "Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament",
@@ -2209,7 +2209,7 @@
  },
  {
   "in": "Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein.",
-  "out": "Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein."
+  "out": "Freund|in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein."
  },
  {
   "in": "Neuer Bahnhofplatz Olten",
@@ -2593,7 +2593,7 @@
  },
  {
   "in": "Der Zugang für Schüler:innen und KulturLegi-Besitzende aus Olten bleibt gebührenfrei",
-  "out": "Der Zugang für Schüler:innen und KulturLegi-Besitzende aus Olten bleibt gebührenfrei"
+  "out": "Der Zugang für Schüler|innen und KulturLegi-Besitzende aus Olten bleibt gebührenfrei"
  },
  {
   "in": "Der erwartete Mehrertrag beträgt rund CHF 14 000 pro Jahr.",
@@ -2617,7 +2617,7 @@
  },
  {
   "in": "Entscheidend für die Zustimmung zum Vorhaben sei, dass mit den Tarifen der Gratiszugang für Schüler:innen und KulturLegi-Besitzende erhalten bleibe: «Genau dort, wo das Geld im Portemonnaie knapp ist, darf der Zugang zur Bildung nicht abgeschnitten werden.»",
-  "out": "Entscheidend für die Zustimmung zum Vorhaben sei, dass mit den Tarifen der Gratiszugang für Schüler:innen und KulturLegi-Besitzende erhalten bleibe: «Genau dort, wo das Geld im Portemonnaie knapp ist, darf der Zugang zur Bildung nicht abgeschnitten werden.»"
+  "out": "Entscheidend für die Zustimmung zum Vorhaben sei, dass mit den Tarifen der Gratiszugang für Schüler|innen und KulturLegi-Besitzende erhalten bleibe: «Genau dort, wo das Geld im Portemonnaie knapp ist, darf der Zugang zur Bildung nicht abgeschnitten werden.»"
  },
  {
   "in": "Die SP/Junge SP lehnt geschlossen ab: Der Ertrag sei «ein Tropfen auf den heissen Stein», insbesondere sind sie gegen Obergrenzen bei den Beträgen",
@@ -2993,7 +2993,7 @@
  },
  {
   "in": "Drei ehemalige Präsident:innen des Gemeindeparlaments verlassen den Rat per 30",
-  "out": "Drei ehemalige Präsident:innen des Gemeindeparlaments verlassen den Rat per dreißig"
+  "out": "Drei ehemalige Präsident|innen des Gemeindeparlaments verlassen den Rat per dreißig"
  },
  {
   "in": "September 2026: Philippe Ruf von der SVP, Mitglied seit 2016, tritt aus beruflichen Gründen zurück",
@@ -3041,7 +3041,7 @@
  },
  {
   "in": "Wir danken allen Leser:innen für ihr Interesse an der Oltner Lokalpolitik",
-  "out": "Wir danken allen Leser:innen für ihr Interesse an der Oltner Lokalpolitik"
+  "out": "Wir danken allen Leser|innen für ihr Interesse an der Oltner Lokalpolitik"
  },
  {
   "in": "Wer unsere Arbeit finanziell unterstützen möchte, findet hier alle Informationen zur Spende",
@@ -3465,7 +3465,7 @@
  },
  {
   "in": "Über Zuschauer:innen vor Ort freuen wir uns natürlich besonders!",
-  "out": "Über Zuschauer:innen vor Ort freuen wir uns natürlich besonders!"
+  "out": "Über Zuschauer|innen vor Ort freuen wir uns natürlich besonders!"
  },
  {
   "in": "Am Mittwoch findet um 18:00 Uhr vor der Parlamentssitzung eine Orientierung zur Schulraumstrategie statt, am Donnerstag um 18:15 Uhr eine Besichtigung des City-Träff.",
@@ -3473,7 +3473,7 @@
  },
  {
   "in": "Freund:innen von Olten jetzt! Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen",
-  "out": "Freund:innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen"
+  "out": "Freund|innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen"
  },
  {
   "in": "Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament",
@@ -3505,7 +3505,7 @@
  },
  {
   "in": "Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein.",
-  "out": "Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein."
+  "out": "Freund|in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir einen Einzahlungsschein."
  },
  {
   "in": "Oder ganz einfach:",
@@ -3865,7 +3865,7 @@
  },
  {
   "in": "In der Debatte gab dieser Absatz zu reden – und die Urheber:innen strichen ihn in einer Sitzungspause.",
-  "out": "In der Debatte gab dieser Absatz zu reden – und die Urheber:innen strichen ihn in einer Sitzungspause."
+  "out": "In der Debatte gab dieser Absatz zu reden – und die Urheber|innen strichen ihn in einer Sitzungspause."
  },
  {
   "in": "Erheblich erklärt wurde am Ende nur noch der erste Satz",
@@ -4033,7 +4033,7 @@
  },
  {
   "in": "24 der Gebührenordnung geändert werden – und zwar so, dass anstelle von fixen Beträgen Maximalgrenzen für die Jahresgebühr gelten: höchstens CHF 40 für Einwohner:innen (heute fix CHF 25), höchstens CHF 80 für Auswärtige (heute fix CHF 50) und höchstens CHF 10 für auswärtige Schüler:innen (heute fix CHF 6).",
-  "out": "vierundzwanzig der Gebührenordnung geändert werden – und zwar so, dass anstelle von fixen Beträgen Maximalgrenzen für die Jahresgebühr gelten: höchstens vierzig Franken für Einwohner:innen (heute fix fünfundzwanzig Franken), höchstens achtzig Franken für Auswärtige (heute fix fünfzig Franken) und höchstens zehn Franken für auswärtige Schüler:innen (heute fix sechs Franken)."
+  "out": "vierundzwanzig der Gebührenordnung geändert werden – und zwar so, dass anstelle von fixen Beträgen Maximalgrenzen für die Jahresgebühr gelten: höchstens vierzig Franken für Einwohner|innen (heute fix fünfundzwanzig Franken), höchstens achtzig Franken für Auswärtige (heute fix fünfzig Franken) und höchstens zehn Franken für auswärtige Schüler|innen (heute fix sechs Franken)."
  },
  {
   "in": "Die konkreten Ansätze legt dann der Stadtrat in der Gebührenverordnung fest",
@@ -4045,11 +4045,11 @@
  },
  {
   "in": "Januar 2027 auf CHF 30 für Einwohner:innen und CHF 60 für Auswärtige erhöhen",
-  "out": "Januar zweitausendsiebenundzwanzig auf dreißig Franken für Einwohner:innen und sechzig Franken für Auswärtige erhöhen"
+  "out": "Januar zweitausendsiebenundzwanzig auf dreißig Franken für Einwohner|innen und sechzig Franken für Auswärtige erhöhen"
  },
  {
   "in": "Gebührenfrei bleiben Schüler:innen mit Wohnsitz in Olten während der obligatorischen Schulzeit sowie Besitzer:innen einer KulturLegi; auswärtige KulturLegi-Nutzende zahlen CHF 25.",
-  "out": "Gebührenfrei bleiben Schüler:innen mit Wohnsitz in Olten während der obligatorischen Schulzeit sowie Besitzer:innen einer KulturLegi; auswärtige KulturLegi-Nutzende zahlen fünfundzwanzig Franken."
+  "out": "Gebührenfrei bleiben Schüler|innen mit Wohnsitz in Olten während der obligatorischen Schulzeit sowie Besitzer|innen einer KulturLegi; auswärtige KulturLegi-Nutzende zahlen fünfundzwanzig Franken."
  },
  {
   "in": "Die Jahresgebühr liegt seit dreissig Jahren unverändert bei CHF 25 beziehungsweise CHF 50 für Auswärtige",
@@ -4377,7 +4377,7 @@
  },
  {
   "in": "Freund:innen von Olten jetzt! Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen",
-  "out": "Freund:innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen"
+  "out": "Freund|innen von Olten jetzt Im Wahlkampf haben uns viele von euch unterstützt – mit Spenden, mit Flyerverteilen, mit euren Stimmen"
  },
  {
   "in": "Das hat funktioniert: Wir sitzen jetzt zu siebt im Parlament",
@@ -4393,7 +4393,7 @@
  },
  {
   "in": "Warum? Damit wir uns für die Bedürfnisse der Oltner*innen einsetzen können, damit wir Informationen bis an die Bürger tragen können, damit wir wichtige Projekte vorantreiben und unterstützen können",
-  "out": "Warum? Damit wir uns für die Bedürfnisse der Oltner*innen einsetzen können, damit wir Informationen bis an die Bürger tragen können, damit wir wichtige Projekte vorantreiben und unterstützen können"
+  "out": "Warum? Damit wir uns für die Bedürfnisse der Oltner|innen einsetzen können, damit wir Informationen bis an die Bürger tragen können, damit wir wichtige Projekte vorantreiben und unterstützen können"
  },
  {
   "in": "Wir erhalten kein Geld von Verbänden, Stiftungen oder Firmen – nur von Menschen wie euch",
@@ -4405,7 +4405,7 @@
  },
  {
   "in": "Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir dann einmal pro Jahr einen Einzahlungsschein",
-  "out": "Freund:in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir dann einmal pro Jahr einen Einzahlungsschein"
+  "out": "Freund|in werden: Schicke eine Mail an friends@olten.jetzt – wir senden dir dann einmal pro Jahr einen Einzahlungsschein"
  },
  {
   "in": "Oder wenn du spontan etwas spenden willst: Olten jetzt!, 4600 Olten IBAN CH70 0839 0034 7277 1000 8",
