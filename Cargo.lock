@@ -1040,9 +1040,9 @@ dependencies = [
 
 [[package]]
 name = "rusty_mp3"
-version = "1.0.5"
+version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eda7c6c82285d2bc3f1e6aded40ca6f7572fe9eec77f18fb10efc1d03aed3877"
+checksum = "6bc564f58a4eed8f95a43dbbb69b739a7c517230b8f852d45bfcc9c8566a67a8"
 
 [[package]]
 name = "scopeguard"
