@@ -158,11 +158,11 @@ fn synthesize_chunks_buckets_and_retries() {
     let log = String::from_utf8(log).unwrap();
     assert_eq!(
         log,
-        "round 1: generating 3 chunk(s)\n\
+        "round 1: 3 chunk(s): 3 take(s) to synthesise, 0 cached\n\
          \x20 [1/3]   0.0s score 1.000\n\
          \x20 [2/3]   0.0s score 0.000\n\
          \x20 [3/3]   0.0s score 1.000\n\
-         round 2: generating 1 chunk(s)\n\
+         round 2: 1 chunk(s): 1 take(s) to synthesise, 0 cached\n\
          \x20 [2/3]   0.0s score 1.000\n"
     );
 }
@@ -594,11 +594,13 @@ fn spare_batch_slots_become_extra_candidates() {
     );
     let log = String::from_utf8(log).unwrap();
     assert!(
-        log.starts_with("round 1: generating 2 chunk(s), 2 candidates each\n"),
+        log.starts_with(
+            "round 1: 2 chunk(s), 2 candidates each: 4 take(s) to synthesise, 0 cached\n"
+        ),
         "{log}"
     );
     assert!(
-        log.contains("round 2: generating 1 chunk(s), 3 candidates each\n"),
+        log.contains("round 2: 1 chunk(s), 3 candidates each: 3 take(s) to synthesise, 0 cached\n"),
         "{log}"
     );
     assert!(warn.is_empty());

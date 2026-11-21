@@ -294,7 +294,8 @@ pub struct RenderArgs {
     /// Do not pace-match the chunks.
     #[arg(long)]
     pub no_pace: bool,
-    /// Synthesise every take afresh instead of reusing cached takes (~/.cache/lectover/takes).
+    /// Run every model call afresh instead of reusing cached takes, transcripts and alignments
+    /// (~/.cache/lectover/takes).
     #[arg(long)]
     pub no_cache: bool,
     /// Takes the TTS decodes together (1 = one at a time). Batched, spare slots re-roll

@@ -6,7 +6,7 @@ pub mod run;
 mod segments;
 mod takes;
 
-pub use cache::TakeCache;
+pub use cache::{CallStats, MemoAlign, MemoAsr, TakeCache};
 pub use carrier::{
     pause_cut, with_carrier, CarrierEnding, Ending, ALIGN_SLACK_SECS, CARRIER, CUT_FADE_SECS,
     CUT_INTO_PAUSE_SECS, MIN_PAUSE_SECS, PAUSE_ABOVE_FLOOR_DB, PAUSE_BELOW_PEAK_DB,

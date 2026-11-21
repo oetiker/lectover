@@ -9,7 +9,7 @@ use lectover_sys as sys;
 
 use super::backend::{asr_library_device, check_ggml_layout};
 use super::{
-    c_len, c_path, c_str, c_string, require_file, Align, Device, FillSpanError, Transcribe,
+    c_len, c_path, c_str, c_string, file_id, require_file, Align, Device, FillSpanError, Transcribe,
 };
 
 /// The rate both models expect.
@@ -40,9 +40,20 @@ fn check_load(model: &Path, what: &str, device: Device) -> Result<CString> {
     c_path(model)
 }
 
+/// Model identity for cache fingerprints: qwen3-asr.cpp has no version call, so the lectover
+/// version (which pins the library) stands in for it.
+fn model_id(kind: &str, model: &Path, device: Device) -> String {
+    format!(
+        "{kind} lectover {} | {} | {device}",
+        env!("CARGO_PKG_VERSION"),
+        file_id(model)
+    )
+}
+
 /// Qwen3-ASR handle. Not thread safe on the C side: one handle per thread.
 pub struct QwenAsr {
     ctx: *mut sys::qwen3_asr_context,
+    model_id: String,
 }
 
 // SAFETY: the handle may move between threads; `&mut self` serialises every call.
@@ -67,7 +78,10 @@ impl QwenAsr {
                 last_error()
             );
         }
-        Ok(QwenAsr { ctx })
+        Ok(QwenAsr {
+            ctx,
+            model_id: model_id("qwen3-asr", model, device),
+        })
     }
 }
 
@@ -96,11 +110,16 @@ impl Transcribe for QwenAsr {
         }
         Ok(c_str(s.0))
     }
+
+    fn fingerprint(&self) -> Option<String> {
+        Some(self.model_id.clone())
+    }
 }
 
 /// Qwen3-ForcedAligner handle. Not thread safe on the C side: one handle per thread.
 pub struct QwenAligner {
     ctx: *mut sys::qwen3_aligner_context,
+    model_id: String,
 }
 
 // SAFETY: as for QwenAsr.
@@ -125,7 +144,10 @@ impl QwenAligner {
                 last_error()
             );
         }
-        Ok(QwenAligner { ctx })
+        Ok(QwenAligner {
+            ctx,
+            model_id: model_id("qwen3-aligner", model, device),
+        })
     }
 }
 
@@ -156,6 +178,10 @@ fn check_no_fill_spans(
 }
 
 impl Align for QwenAligner {
+    fn fingerprint(&self) -> Option<String> {
+        Some(self.model_id.clone())
+    }
+
     fn align(&mut self, pcm16k: &[f32], words: &[String]) -> Result<Vec<(String, f64, f64)>> {
         if words.is_empty() {
             return Ok(Vec::new());

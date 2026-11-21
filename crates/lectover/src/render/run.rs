@@ -15,7 +15,8 @@ use crate::audio::{assemble_parts_with, encode_mp3, encode_opus, level_sting};
 use crate::cli::RenderArgs;
 use crate::config::SiteVoice;
 use crate::ffi::{
-    asr_library_device, backend_banner, resolve_device, QwenAligner, QwenAsr, QwenTts, Synth,
+    asr_library_device, backend_banner, resolve_device, Align, QwenAligner, QwenAsr, QwenTts,
+    Synth, Transcribe,
 };
 use crate::ghost::{
     fetch_post, http_get, require_public, slug_from_arg, GhostConfig, HttpReply, Post,
@@ -23,7 +24,8 @@ use crate::ghost::{
 use crate::models::ModelFiles;
 use crate::plan::{max_tokens_for, plan_steps, Chunk};
 use crate::render::{
-    align_segments, synthesize_chunks, with_carrier, CarrierEnding, ChunkRequest, TakeCache,
+    align_segments, synthesize_chunks, with_carrier, CallStats, CarrierEnding, ChunkRequest,
+    MemoAlign, MemoAsr, TakeCache,
 };
 use crate::script::{build_script, intro_text, SiteSounds, Sting};
 use crate::settings::Settings;
@@ -302,34 +304,58 @@ fn render_voices(
         let t0 = Instant::now();
         let (wav, text) = voice_ref(site.voices_dir, voice)?;
         models.tts.set_voice(&wav, &text)?;
-        let mut cached;
-        let tts: &mut dyn Synth = if args.no_cache {
-            &mut models.tts
-        } else {
-            cached = TakeCache::new(&mut models.tts, cache_dir);
-            &mut cached
+        // --no-cache: every model call runs (the memos then answer nothing and keep nothing).
+        let mut tts = TakeCache::new(&mut models.tts, cache_dir);
+        let mut asr = MemoAsr::new(&mut models.asr, cache_dir);
+        let mut aligner = MemoAlign::new(&mut models.aligner, cache_dir);
+        let use_cache = !args.no_cache;
+        let t_takes = Instant::now();
+        let wavs = {
+            let tts: &mut dyn Synth = if use_cache { &mut tts } else { tts.inner_mut() };
+            let asr: &mut dyn Transcribe = if use_cache { &mut asr } else { asr.inner_mut() };
+            let al: &mut dyn Align = if use_cache {
+                &mut aligner
+            } else {
+                aligner.inner_mut()
+            };
+            let mut ending = CarrierEnding::new(al);
+            synthesize_chunks(
+                tts,
+                asr,
+                &mut ending,
+                &ChunkRequest {
+                    texts: &texts,
+                    budgets: &budgets,
+                    seed: args.seed,
+                    temperature: args.temperature,
+                    lex: site.lexicon,
+                },
+            )?
         };
-        let mut ending = CarrierEnding::new(&mut models.aligner);
-        let wavs = synthesize_chunks(
-            tts,
-            &mut models.asr,
-            &mut ending,
-            &ChunkRequest {
-                texts: &texts,
-                budgets: &budgets,
-                seed: args.seed,
-                temperature: args.temperature,
-                lex: site.lexicon,
-            },
-        )?;
+        let takes_secs = t_takes.elapsed().as_secs_f64();
+        let aligner_takes = aligner.stats;
         let takes: Vec<_> = wavs
             .into_iter()
             .zip(&prep.chunks)
             .map(|(w, c)| (w, c.text.clone(), c.kind))
             .collect();
         let (audio, parts) = assemble_parts_with(&takes, sr, !args.no_pace, &stings);
-        let (chunk_times, chunk_interp) =
-            align_segments(&mut models.aligner, &parts, sr, &prep.chunks)?;
+        let t_align = Instant::now();
+        let (chunk_times, chunk_interp) = {
+            let al: &mut dyn Align = if use_cache {
+                &mut aligner
+            } else {
+                aligner.inner_mut()
+            };
+            align_segments(al, &parts, sr, &prep.chunks)?
+        };
+        let align_secs = t_align.elapsed().as_secs_f64();
+        let aligner_words = CallStats {
+            hits: aligner.stats.hits - aligner_takes.hits,
+            runs: aligner.stats.runs - aligner_takes.runs,
+            secs: aligner.stats.secs - aligner_takes.secs,
+        };
+        let t_encode = Instant::now();
         let (times, interp) =
             assemble_token_times(page, page_groups, &prep.chunks, &chunk_times, &chunk_interp)?;
         let timings = build_timings(voice, round3(audio.len() as f64 / sr as f64), page, &times)?;
@@ -349,6 +375,7 @@ fn render_voices(
             encode_mp3,
         )?;
         prune_stale(slug_dir, &mut manifest, &hashes, voice)?;
+        let encode_secs = t_encode.elapsed().as_secs_f64();
         let entry = manifest["voices"]
             .as_array()
             .and_then(|vs| vs.iter().find(|v| v["id"] == voice.as_str()))
@@ -356,10 +383,17 @@ fn render_voices(
         let file = |key: &str| slug_dir.join(entry[key].as_str().unwrap_or_default());
         println!("{}", alignment_report(page, &interp));
         println!(
-            "voice {voice}: {:.1}s audio in {:.1}s",
+            "voice {voice}: {:.1}s audio in {:.1}s (takes {takes_secs:.1}s, word times {align_secs:.1}s, encoding {encode_secs:.1}s)",
             timings["duration"].as_f64().unwrap_or_default(),
             t0.elapsed().as_secs_f64()
         );
+        println!(
+            "  takes: TTS {}; ASR check {}; carrier cut {}",
+            tts.stats.summary("synthesised"),
+            asr.stats.summary("run"),
+            aligner_takes.summary("run")
+        );
+        println!("  word times: aligner {}", aligner_words.summary("run"));
         println!(
             "  {}\n  {}\n  {}\n  {}",
             file("audio").display(),

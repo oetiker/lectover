@@ -9,7 +9,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use lectover_sys as sys;
 
 use super::backend::{check_ggml_layout, ggml_device_name};
-use super::{c_len, c_path, c_str, c_string, require_file, Device, Synth, TakeRequest};
+use super::{c_len, c_path, c_str, c_string, file_id, require_file, Device, Synth, TakeRequest};
 use crate::audio::{quiet_ending, read_wav, resample};
 
 /// The codec's output rate (qt_audio.sample_rate); voice references are fed at this rate too.
@@ -289,15 +289,6 @@ impl QwenTts {
         let ctx = init(talker, codec, device, "base", max_batch)?;
         // SAFETY: qt_version returns a static string.
         let version = c_str(unsafe { sys::qt_version() });
-        let file_id = |p: &Path| -> String {
-            let meta = std::fs::metadata(p).ok();
-            let len = meta.as_ref().map_or(0, |m| m.len());
-            let mtime = meta
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map_or(0, |d| d.as_nanos());
-            format!("{}:{len}:{mtime}", p.display())
-        };
         let model_id = format!(
             "qwentts {version} | {} | {} | {device}",
             file_id(talker),

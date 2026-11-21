@@ -131,16 +131,6 @@ pub fn synthesize_chunks_with(
     let mut todo: Vec<usize> = (0..texts.len()).collect();
     for rnd in 0..MAX_ROUNDS {
         let per_chunk = (tts.max_batch() / todo.len()).clamp(1, MAX_CANDIDATES);
-        if per_chunk == 1 {
-            writeln!(log, "round {}: generating {} chunk(s)", rnd + 1, todo.len())?;
-        } else {
-            writeln!(
-                log,
-                "round {}: generating {} chunk(s), {per_chunk} candidates each",
-                rnd + 1,
-                todo.len()
-            )?;
-        }
         // (chunk, index into `reqs`), in bucket order as the log always listed them.
         let mut cands: Vec<(usize, usize)> = Vec::new();
         let mut reqs: Vec<TakeRequest> = Vec::new();
@@ -161,6 +151,20 @@ pub fn synthesize_chunks_with(
                 }
             }
         }
+        let temp = round_temperature(temperature, rnd);
+        let cached = tts.cached(&reqs, temp);
+        let candidates = if per_chunk == 1 {
+            String::new()
+        } else {
+            format!(", {per_chunk} candidates each")
+        };
+        writeln!(
+            log,
+            "round {}: {} chunk(s){candidates}: {} take(s) to synthesise, {cached} cached",
+            rnd + 1,
+            todo.len(),
+            reqs.len() - cached
+        )?;
         // The chunk whose text judges each request (the first that asked for it).
         let mut slot_chunk: Vec<Option<usize>> = vec![None; reqs.len()];
         for &(idx, slot) in &cands {
@@ -170,24 +174,20 @@ pub fn synthesize_chunks_with(
         // as the engine finishes them, so the ASR check runs while the TTS still decodes.
         let mut judged: Vec<Option<(Take, f64)>> = vec![None; reqs.len()];
         let pad = tts.tail_pad_samples();
-        let wavs = tts.generate_each(
-            &reqs,
-            round_temperature(temperature, rnd),
-            &mut |slot, raw| {
-                let text = &texts[slot_chunk[slot].expect("every request belongs to a chunk")];
-                let body = &raw[..raw.len().saturating_sub(pad)];
-                let (wav, clean) = ending.finish(body, sr, text)?;
-                let (s, heard) = score(asr, &wav, sr, text, lex)?;
-                judged[slot] = Some((
-                    Take {
-                        clipped: !clean,
-                        ..Take::new(s, wav, heard)
-                    },
-                    s,
-                ));
-                Ok(())
-            },
-        )?;
+        let wavs = tts.generate_each(&reqs, temp, &mut |slot, raw| {
+            let text = &texts[slot_chunk[slot].expect("every request belongs to a chunk")];
+            let body = &raw[..raw.len().saturating_sub(pad)];
+            let (wav, clean) = ending.finish(body, sr, text)?;
+            let (s, heard) = score(asr, &wav, sr, text, lex)?;
+            judged[slot] = Some((
+                Take {
+                    clipped: !clean,
+                    ..Take::new(s, wav, heard)
+                },
+                s,
+            ));
+            Ok(())
+        })?;
         if wavs.len() != reqs.len() {
             bail!(
                 "synthesis returned {} takes for {} requests",
