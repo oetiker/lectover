@@ -28,7 +28,8 @@ async function setup({ voices = [["erzaehler", 0.3]], byline = true, html = fixt
 
 const click = (s, e) => e.dispatchEvent(new s.win.MouseEvent("click", { bubbles: true }));
 const key = (s, e, k) => e.dispatchEvent(new s.win.KeyboardEvent("keydown", { key: k, bubbles: true }));
-// Volume ("vol") or speed ("spd") control: icon button, popover, vertical slider.
+// Volume ("vol"), speed ("spd") or voice ("voice") control: icon button and popover
+// (a vertical slider, or the voice list).
 const ctl = (s, name) => {
   const wrap = s.bar.querySelector(".lo-c" + name);
   return { wrap, button: wrap.querySelector("button"), pop: wrap.querySelector(".lo-pop"), slider: wrap.querySelector("[role=slider]") };
@@ -94,16 +95,52 @@ test("bar has region role and German labels", async () => {
   assert.match(s.bar.querySelector(".lo-sub").textContent, /^Absatz 1 von 13$/);
 });
 
-test("voice select hidden for one voice, listed for two", async () => {
+test("voice popover hidden for one voice, listed for two", async () => {
   const one = await setup();
-  assert.equal(one.bar.querySelector("select.lo-voice").hidden, true);
+  assert.equal(one.bar.querySelector("select"), null);
+  assert.equal(ctl(one, "voice").wrap.hidden, true);
   const two = await setup({ voices: [["a", 0.3, "Anna"], ["b", 0.2, "Marco"]] });
-  const sel = two.bar.querySelector("select.lo-voice");
-  assert.equal(sel.hidden, false);
-  assert.deepEqual([...sel.options].map((o) => o.textContent), ["Anna", "Marco"]);
-  sel.value = "b";
-  sel.dispatchEvent(new two.win.Event("change", { bubbles: true }));
+  const { wrap, button, pop } = ctl(two, "voice");
+  assert.equal(wrap.hidden, false);
+  assert.equal(button.getAttribute("aria-haspopup"), "listbox");
+  assert.equal(button.textContent, "Anna");
+  const list = pop.querySelector("[role=listbox]") || pop;
+  assert.equal(list.getAttribute("role"), "listbox");
+  const opts = [...pop.querySelectorAll("[role=option]")];
+  assert.deepEqual(opts.map((o) => o.textContent), ["Anna", "Marco"]);
+  assert.deepEqual(opts.map((o) => o.getAttribute("aria-selected")), ["true", "false"]);
+  two.c.start(0);
+  click(two, button);
+  assert.equal(pop.hidden, false);
+  assert.equal(two.doc.activeElement, opts[0]);
+  key(two, opts[0], "ArrowDown");
+  assert.equal(two.doc.activeElement, opts[1]);
+  key(two, opts[1], "ArrowDown"); // stops at the end
+  assert.equal(two.doc.activeElement, opts[1]);
+  click(two, opts[1]);
   assert.equal(two.c.state().voice, "b");
+  assert.equal(pop.hidden, true);
+  assert.equal(two.doc.activeElement, button);
+  assert.equal(button.textContent, "Marco");
+  assert.deepEqual(opts.map((o) => o.getAttribute("aria-selected")), ["false", "true"]);
+});
+
+test("value width is reserved for the widest value", async () => {
+  const s = await setup({ voices: [["a", 0.3, "Anna"], ["b", 0.2, "Marco Lang"]] });
+  const max = (n) => ctl(s, n).button.querySelector(".lo-val").getAttribute("data-max");
+  assert.equal(max("vol"), "100\u00a0%");
+  assert.equal(max("spd"), "1,25×");
+  assert.equal(max("voice"), "Marco Lang");
+  const css = s.doc.getElementById("lo-style").textContent;
+  assert.match(css, /\.lo-val::after\{content:attr\(data-max\);height:0;visibility:hidden\}/);
+});
+
+test("volume, speed and voice sit edge to edge", async () => {
+  const s = await setup({ voices: [["a", 0.3], ["b", 0.2]] });
+  const group = s.bar.querySelector(".lo-ctls");
+  assert.deepEqual([...group.children], ["vol", "spd", "voice"].map((n) => ctl(s, n).wrap));
+  const css = s.doc.getElementById("lo-style").textContent;
+  assert.match(css, /\.lo-ctls>\.lo-ctl\+\.lo-ctl\{margin-left:-2px\}/);
 });
 
 test("track click seeks proportionally", async () => {
@@ -163,31 +200,39 @@ test("track arrow keys still skip 10 words", async () => {
   assert.equal(s.c.state().cur, 0);
 });
 
-test("speed slider keys step through the speeds and stop at the ends", async () => {
+test("speed slider keys move in 0.05 steps and stop at the ends", async () => {
   const s = await setup();
   const { button, slider } = ctl(s, "spd");
   assert.equal(button.textContent, "1×");
   const seen = [];
-  for (let i = 0; i < 5; i++) { key(s, slider, "ArrowUp"); seen.push(button.textContent); }
-  assert.deepEqual(seen, ["1,1×", "1,25×", "1,5×", "2×", "2×"]);
+  for (let i = 0; i < 3; i++) { key(s, slider, "ArrowUp"); seen.push(button.textContent); }
+  assert.deepEqual(seen, ["1,05×", "1,1×", "1,15×"]);
+  key(s, slider, "PageUp");
+  assert.equal(s.c.state().speed, 1.4);
   key(s, slider, "Home");
   assert.equal(s.c.state().speed, 0.8);
+  key(s, slider, "ArrowDown");
+  assert.equal(s.c.state().speed, 0.8);
   key(s, slider, "ArrowRight");
-  assert.equal(s.c.state().speed, 0.9);
+  assert.equal(s.c.state().speed, 0.85);
   key(s, slider, "End");
   assert.equal(s.c.state().speed, 2);
+  key(s, slider, "ArrowUp");
+  assert.equal(s.c.state().speed, 2);
   key(s, slider, "ArrowDown");
-  assert.equal(s.c.state().speed, 1.5);
-  assert.equal(slider.getAttribute("aria-valuenow"), "1.5");
-  assert.equal(slider.getAttribute("aria-valuetext"), "1,5×");
+  assert.equal(s.c.state().speed, 1.95);
+  assert.equal(slider.getAttribute("aria-valuenow"), "1.95");
+  assert.equal(slider.getAttribute("aria-valuetext"), "1,95×");
 });
 
-test("stored speed outside the list: speed shows 1×, next step 1,1×", async () => {
+test("stored speed outside the range shows 1×; inside it snaps to 0.05", async () => {
   const s = await setup({ prepare: (p) => p.win.localStorage.setItem("lectover.speed", "7") });
   const { button, slider } = ctl(s, "spd");
   assert.equal(button.textContent, "1×");
   key(s, slider, "ArrowUp");
-  assert.equal(button.textContent, "1,1×");
+  assert.equal(button.textContent, "1,05×");
+  const t = await setup({ prepare: (p) => p.win.localStorage.setItem("lectover.speed", "1.33") });
+  assert.equal(t.c.state().speed, 1.35);
 });
 
 test("sub line is Absatz N von M", async () => {
@@ -213,24 +258,26 @@ test("CSS: 760 px query swaps desktop and phone elements, 16 px fields", async (
   assert.match(m[1], /\.lo-sub,\.lo-time,\.lo-cvol\{display:none\}/);
   assert.match(m[1], /\.lo-ends\{display:flex\}/);
   assert.doesNotMatch(m[1], /\.lo-cspd[^{]*\{display:none/);
-  assert.match(m[1], /\.lo-bar select\{font-size:16px/);
-  // A long voice label must not push the row past 360 px: the select shrinks, the rest stays.
-  assert.match(m[1], /\.lo-bar select\{[^}]*flex:0 1 auto;min-width:0;/);
+  assert.match(m[1], /\.lo-opt\{font-size:16px/);
+  // A long voice label must not push the row past 360 px: it is cut with an ellipsis.
+  assert.match(m[1], /\.lo-cvoice \.lo-val\{max-width:28vw\}/);
+  assert.match(css, /\.lo-vt\{overflow:hidden;text-overflow:ellipsis\}/);
 });
 
-test("voice select rebuilds when the controller's voice list shrinks", async () => {
+test("voice list rebuilds when the controller's voice list shrinks", async () => {
   const s = await setup({ voices: [["a", 0.3, "Anna"], ["b", 0.2, "Marco"]] });
-  const sel = s.bar.querySelector("select.lo-voice");
-  assert.equal(sel.hidden, false);
+  const { wrap, pop } = ctl(s, "voice");
+  const names = () => [...pop.querySelectorAll("[role=option]")].map((o) => o.textContent);
+  assert.equal(wrap.hidden, false);
   const orig = s.c.voices;
   s.c.voices = () => ["b"];
   s.c.setSpeed(1.5); // fires onChange
-  assert.equal(sel.hidden, true);
-  assert.deepEqual([...sel.options].map((o) => o.textContent), ["Marco"]);
+  assert.equal(wrap.hidden, true);
+  assert.deepEqual(names(), ["Marco"]);
   s.c.voices = orig;
   s.c.setSpeed(1);
-  assert.equal(sel.hidden, false);
-  assert.deepEqual([...sel.options].map((o) => o.textContent), ["Anna", "Marco"]);
+  assert.equal(wrap.hidden, false);
+  assert.deepEqual(names(), ["Anna", "Marco"]);
 });
 
 test("needsScroll band", () => {
@@ -464,16 +511,18 @@ test("render writes the byline label only when it changed", async () => {
   assert.equal(writes, 0);
 });
 
-test("speed slider pointer snaps to the speed stops", async () => {
+test("speed slider pointer is continuous on a 0.05 grid", async () => {
   const s = await setup();
   s.c.start(0);
   const { button, slider } = ctl(s, "spd");
   click(s, button);
   slider.getBoundingClientRect = () => ({ top: 0, bottom: 120, height: 120, left: 0, width: 6 });
   const ev = (type, y) => slider.dispatchEvent(new s.win.MouseEvent(type, { bubbles: true, clientY: y, button: 0 }));
-  ev("pointerdown", 120 - 0.62 * 120); // nearest stop: 4 of 6 -> 1,25
+  ev("pointerdown", 120 - 0.37 * 120); // 0.8 + 0.37 * 1.2 = 1.244 -> 1,25
   assert.equal(s.c.state().speed, 1.25);
   assert.equal(button.textContent, "1,25×");
+  ev("pointermove", 120 - 0.3 * 120); // 1.16 -> 1,15
+  assert.equal(s.c.state().speed, 1.15);
   ev("pointermove", 0);
   assert.equal(s.c.state().speed, 2);
   ev("pointerup", 0);
