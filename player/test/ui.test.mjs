@@ -743,3 +743,33 @@ test("CSS: bigger knob centred on the track, icons never take the pointer", asyn
   assert.match(css, /\.lo-ib svg,[^{]*\{pointer-events:none\}/);
   assert.match(css, /\.lo-val\{[^}]*pointer-events:none/);
 });
+
+test("popover closes shortly after the mouse leaves its control, not while dragging", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol");
+  const ev = (el, type, init = {}) => el.dispatchEvent(new s.win.MouseEvent(type, { bubbles: type !== "pointerleave" && type !== "pointerenter", button: 0, ...init }));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  click(s, v.button);
+  // leave and come back in time: stays open
+  ev(v.wrap, "pointerleave");
+  await wait(100);
+  ev(v.wrap, "pointerenter");
+  await wait(450);
+  assert.equal(v.pop.hidden, false);
+  // a drag that leaves the control keeps it open until the button is released
+  v.slider.getBoundingClientRect = () => ({ top: 0, bottom: 120, height: 120, left: 0, right: 6, width: 6 });
+  ev(v.slider, "pointerdown", { clientY: 60 });
+  ev(v.wrap, "pointerleave");
+  await wait(450);
+  assert.equal(v.pop.hidden, false);
+  ev(v.slider, "pointerup", { clientX: 500, clientY: 500 });
+  await wait(450);
+  assert.equal(v.pop.hidden, true);
+  assert.equal(v.button.getAttribute("aria-expanded"), "false");
+  // plain leave closes it
+  click(s, v.button);
+  ev(v.wrap, "pointerleave");
+  await wait(450);
+  assert.equal(v.pop.hidden, true);
+});
