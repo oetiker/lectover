@@ -525,3 +525,17 @@ test("stored volume outside 0..1 or garbage falls back to 1", async () => {
   const s = await setup({ prepare: (p) => p.win.localStorage.setItem("lectover.volume", "7") });
   assert.equal(s.audio.volume, 1);
 });
+
+test("play icon survives re-renders while the state is unchanged", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const play = s.bar.querySelector(".lo-play");
+  const icon = play.firstElementChild;
+  // render() runs on every word and timeupdate; a press on the icon must not lose its target
+  for (let i = 0; i < 5; i++) s.c.audio.dispatchEvent(new Event("timeupdate"));
+  assert.equal(play.firstElementChild, icon);
+  assert.ok(icon.isConnected);
+  s.c.toggle();
+  assert.notEqual(play.firstElementChild, icon);
+  assert.equal(play.getAttribute("aria-label"), "Wiedergabe");
+});
