@@ -557,6 +557,10 @@
   var SVG_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
   var SVG_PREV = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>';
   var SVG_NEXT = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>';
+  var SVG_VOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
+  var SVG_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M16 9l6 6M22 9l-6 6"/></svg>';
+  // Sitting rabbit facing right: two ears, head, round back, tail.
+  var SVG_RABBIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.3 8.4 13.8 3.2"/><path d="M18 8.2l1.2-4.9"/><circle cx="16.8" cy="11" r="3"/><path d="M14 13.2c-4.6-1.6-9.5.6-9.5 4.6A2.2 2.2 0 0 0 6.7 20H17"/><path d="M12 20c0-2.2 1.2-3.6 3-4"/><circle cx="3.6" cy="16.3" r=".6" fill="currentColor"/></svg>';
   var SVG_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
   var CSS = [
@@ -583,13 +587,28 @@
     ".lo-sep{color:#9ca3af;padding:0 .35em}",
     ".lo-track{height:6px;background:#eef0f3;cursor:pointer;position:relative;touch-action:none}",
     ".lo-fill{position:absolute;left:0;top:0;bottom:0;background:#d6402a;width:0}",
-    ".lo-knob{position:absolute;top:50%;left:0;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#d6402a}",
+    // The thin track gets a taller invisible hit area; the knob sits on its centre line.
+    ".lo-track::before{content:\"\";position:absolute;left:0;right:0;top:-8px;bottom:-8px}",
+    ".lo-knob{position:absolute;top:50%;left:0;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#d6402a;box-shadow:0 1px 3px rgba(0,0,0,.2)}",
+    ".lo-track:focus-visible{outline:none}",
+    ".lo-track:focus-visible .lo-knob,.lo-vtrack:focus-visible .lo-vknob{box-shadow:0 0 0 4px rgba(214,64,42,.3)}",
+    // Volume and speed: icon + value button, opening a popover with a vertical track.
+    ".lo-ctl{position:relative;display:inline-flex;flex:none}",
+    ".lo-bar .lo-pb{width:auto;border-radius:18px;padding:0 9px 0 7px;gap:5px}",
+    ".lo-bar .lo-pb[aria-expanded=true]{background:#f2f3f5}",
+    ".lo-val{font-size:13px;color:#6b7280;font-variant-numeric:tabular-nums;text-align:left;pointer-events:none}",
+    ".lo-cvol .lo-val{min-width:3.1em}",
+    ".lo-cspd .lo-val{min-width:2.6em}",
+    ".lo-pop{position:absolute;bottom:calc(100% + 14px);left:50%;transform:translateX(-50%);display:flex;justify-content:center;width:44px;padding:16px 0;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.14)}",
+    ".lo-vtrack{position:relative;width:6px;height:120px;border-radius:3px;background:#eef0f3;cursor:pointer;touch-action:none;outline:none}",
+    ".lo-vtrack::before{content:\"\";position:absolute;top:-8px;bottom:-8px;left:-12px;right:-12px}",
+    ".lo-vfill{position:absolute;left:0;right:0;bottom:0;height:0;border-radius:3px;background:#d6402a}",
+    ".lo-vknob{position:absolute;left:50%;bottom:0;width:16px;height:16px;margin:0 0 -8px -8px;border-radius:50%;background:#d6402a;box-shadow:0 1px 3px rgba(0,0,0,.2)}",
     ".lo-row{display:flex;align-items:center;gap:14px;padding:10px 20px;max-width:1100px;margin:0 auto;width:100%}",
     ".lo-sub{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#6b7280;font-size:13px}",
     ".lo-sp{display:none}",
-    ".lo-ends,.lo-step{display:none}",
+    ".lo-ends{display:none}",
     ".lo-ends{justify-content:space-between;padding:5px 10px 0;font-size:11px;line-height:1;color:#6b7280;font-variant-numeric:tabular-nums}",
-    ".lo-step{flex:none;align-items:center;justify-content:center;height:36px;min-width:44px;padding:0 6px;margin:0;border:1px solid #d6d9de;border-radius:6px;background:#fff;color:#15171a;font:inherit;font-size:14px;font-weight:600;line-height:1;cursor:pointer;font-variant-numeric:tabular-nums}",
     ".lo-ib{border:0;background:transparent;cursor:pointer;color:#333;display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;font:inherit;width:36px;height:36px;border-radius:50%;flex:none}",
     ".lo-ib:hover{background:#f2f3f5}",
     ".lo-ib svg{width:20px;height:20px}",
@@ -599,8 +618,6 @@
     ".lo-bar .lo-play:hover{background:#333}",
     ".lo-time{font-variant-numeric:tabular-nums;color:#6b7280;font-size:13px;min-width:92px;text-align:center}",
     ".lo-bar select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid #d6d9de;border-radius:6px;background:#fff;color:#15171a;width:auto;height:auto}",
-    ".lo-bar select.lo-speed{font-variant-numeric:tabular-nums}",
-    ".lo-vol{width:84px;margin:0;accent-color:#6b7280;cursor:pointer}",
     // Desktop: a centred floating pill, clear of floating site buttons (e.g. Ghost's subscribe button).
     "@media (min-width:761px){",
     ".lo-bar{left:50%;right:auto;bottom:16px;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 192px);border:1px solid #e5e7eb;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.14)}",
@@ -613,8 +630,12 @@
     ".lo-active body{padding-bottom:96px}",
     "}",
     "@media (max-width:760px){",
-    ".lo-speed,.lo-sub,.lo-time,.lo-vol{display:none}",
-    ".lo-step,.lo-ends{display:flex}",
+    // Phones set the volume with their hardware buttons; the speed button stays.
+    ".lo-sub,.lo-time,.lo-cvol{display:none}",
+    ".lo-ends{display:flex}",
+    ".lo-bar .lo-pb{padding:0 6px 0 4px;gap:3px}",
+    ".lo-cspd .lo-val{font-size:14px;color:#15171a;font-weight:600}",
+    ".lo-pop{left:auto;right:0;transform:none}",
     ".lo-sp{display:block;flex:1}",
     ".lo-row{gap:4px;padding:2px max(20px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}",
     ".lo-ends{padding:5px max(20px,env(safe-area-inset-right)) 0 max(20px,env(safe-area-inset-left))}",
@@ -789,32 +810,113 @@
     var bNext = iconButton(doc, "", "Nächster Absatz", SVG_NEXT);
     var time = el(doc, "span", "lo-time");
     function fmtSpeed(s) { return String(s).replace(".", ",") + "×"; }
-    // Desktop: speed as a dropdown (keeps the floating bar narrow).
-    var speedSel = el(doc, "select", "lo-speed");
-    speedSel.setAttribute("aria-label", "Tempo");
-    speedSel.title = "Tempo";
-    SPEEDS.forEach(function (s) {
-      var o = el(doc, "option");
-      o.value = String(s);
-      o.textContent = fmtSpeed(s);
-      speedSel.appendChild(o);
-    });
-    speedSel.addEventListener("change", function () { c.setSpeed(parseFloat(speedSel.value)); });
-    // Desktop: volume slider (hidden on phones, where the hardware buttons set the volume).
-    var vol = el(doc, "input", "lo-vol");
-    vol.type = "range";
-    vol.min = "0";
-    vol.max = "1";
-    vol.step = "0.05";
-    vol.setAttribute("aria-label", "Lautstärke");
-    vol.title = "Lautstärke";
-    vol.addEventListener("input", function () { c.setVolume(parseFloat(vol.value)); });
-    // Phone: one button that steps to the next speed, wrapping after the last.
-    var step = el(doc, "button", "lo-step");
-    step.type = "button";
-    step.addEventListener("click", function () {
-      var i = SPEEDS.indexOf(c.state().speed);
-      c.setSpeed(SPEEDS[(i + 1) % SPEEDS.length]);
+    function fmtVolume(v) { return Math.round(v * 100) + "\u00a0%"; }
+    function speedIndex(s) {
+      var best = 0;
+      SPEEDS.forEach(function (x, i) { if (Math.abs(x - s) < Math.abs(SPEEDS[best] - s)) best = i; });
+      return best;
+    }
+
+    // Volume and speed: an icon button with the value beside it, opening a popover with a
+    // vertical track styled like the progress track. Only one popover is open at a time.
+    var openCtl = null;
+    function closePopover(refocus) {
+      if (!openCtl) return;
+      var ctl = openCtl;
+      openCtl = null;
+      ctl.pop.hidden = true;
+      ctl.button.setAttribute("aria-expanded", "false");
+      if (refocus) ctl.button.focus();
+    }
+    function popControl(cls, label, svg, onFraction, keyStep) {
+      var wrap = el(doc, "span", "lo-ctl " + cls);
+      var button = iconButton(doc, "lo-pb", label, svg);
+      var val = el(doc, "span", "lo-val");
+      button.appendChild(val);
+      button.setAttribute("aria-expanded", "false");
+      button.setAttribute("aria-haspopup", "true");
+      var pop = el(doc, "div", "lo-pop", '<div class="lo-vtrack"><div class="lo-vfill"></div><div class="lo-vknob"></div></div>');
+      pop.hidden = true;
+      var vtrack = pop.firstChild, vfill = vtrack.firstChild, vknob = vtrack.lastChild;
+      vtrack.setAttribute("role", "slider");
+      vtrack.setAttribute("aria-label", label);
+      vtrack.setAttribute("aria-orientation", "vertical");
+      vtrack.tabIndex = 0;
+      wrap.appendChild(button);
+      wrap.appendChild(pop);
+      var ctl = { wrap: wrap, button: button, pop: pop, val: val, track: vtrack, frac: -1, text: null };
+      button.addEventListener("click", function () {
+        if (openCtl === ctl) { closePopover(false); return; }
+        closePopover(false);
+        openCtl = ctl;
+        pop.hidden = false;
+        button.setAttribute("aria-expanded", "true");
+        vtrack.focus();
+      });
+      function fromPointer(e) {
+        var r = vtrack.getBoundingClientRect();
+        if (!r.height) return;
+        onFraction(Math.max(0, Math.min(1, (r.bottom - e.clientY) / r.height)));
+      }
+      var dragging = false;
+      vtrack.addEventListener("pointerdown", function (e) {
+        if (e.button !== 0) return;
+        dragging = true;
+        if (vtrack.setPointerCapture && e.pointerId !== undefined) {
+          try { vtrack.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ }
+        }
+        e.preventDefault();
+        fromPointer(e);
+      });
+      vtrack.addEventListener("pointermove", function (e) { if (dragging) fromPointer(e); });
+      function endDrag() { dragging = false; }
+      vtrack.addEventListener("pointerup", endDrag);
+      vtrack.addEventListener("pointercancel", endDrag);
+      vtrack.addEventListener("keydown", function (e) {
+        var d = { ArrowUp: 1, ArrowRight: 1, PageUp: 2, ArrowDown: -1, ArrowLeft: -1, PageDown: -2 }[e.key];
+        if (e.key === "Home") { e.preventDefault(); onFraction(0); return; }
+        if (e.key === "End") { e.preventDefault(); onFraction(1); return; }
+        if (!d) return;
+        e.preventDefault();
+        onFraction(Math.max(0, Math.min(1, ctl.frac + d * keyStep)));
+      });
+      // Writes only what changed: render() runs on every word.
+      ctl.set = function (frac, now, text) {
+        if (frac !== ctl.frac) {
+          ctl.frac = frac;
+          vfill.style.height = frac * 100 + "%";
+          vknob.style.bottom = frac * 100 + "%";
+          vtrack.setAttribute("aria-valuenow", String(now));
+        }
+        if (text !== ctl.text) {
+          ctl.text = text;
+          val.textContent = text;
+          vtrack.setAttribute("aria-valuetext", text);
+        }
+      };
+      return ctl;
+    }
+    // Desktop only (phones set the volume with their hardware buttons).
+    var volCtl = popControl("lo-cvol", "Lautstärke", SVG_VOL, function (f) {
+      c.setVolume(Math.round(f * 20) / 20);
+    }, 0.05);
+    volCtl.track.setAttribute("aria-valuemin", "0");
+    volCtl.track.setAttribute("aria-valuemax", "100");
+    // Speed: the track snaps to the SPEEDS stops, evenly spaced.
+    var spdCtl = popControl("lo-cspd", "Tempo", SVG_RABBIT, function (f) {
+      var s = SPEEDS[Math.round(f * (SPEEDS.length - 1))];
+      if (s !== c.state().speed) c.setSpeed(s);
+    }, 1 / (SPEEDS.length - 1));
+    spdCtl.track.setAttribute("aria-valuemin", String(SPEEDS[0]));
+    spdCtl.track.setAttribute("aria-valuemax", String(SPEEDS[SPEEDS.length - 1]));
+    doc.addEventListener("pointerdown", function (e) {
+      if (openCtl && !openCtl.wrap.contains(e.target)) closePopover(false);
+    }, true);
+    doc.addEventListener("keydown", function (e) {
+      if (openCtl && (e.key === "Escape" || e.key === "Esc")) {
+        e.preventDefault();
+        closePopover(openCtl.wrap.contains(doc.activeElement));
+      }
     });
     var select = el(doc, "select", "lo-voice");
     select.setAttribute("aria-label", "Stimme");
@@ -846,7 +948,7 @@
     bNext.addEventListener("click", function () { c.nextBlock(); });
     bClose.addEventListener("click", function () { c.close(); });
 
-    [sub, bPrev, bPlay, bNext, sp, time, vol, speedSel, step, select, bClose].forEach(function (x) { row.appendChild(x); });
+    [sub, bPrev, bPlay, bNext, sp, time, volCtl.wrap, spdCtl.wrap, select, bClose].forEach(function (x) { row.appendChild(x); });
     bar.appendChild(track);
     bar.appendChild(ends);
     bar.appendChild(row);
@@ -897,7 +999,7 @@
     win.addEventListener("keydown", function (e) {
       if (!SCROLL_KEYS[e.key]) return;
       var t = e.target;
-      if (t && t.closest && t.closest("input, select, textarea, [contenteditable]")) return;
+      if (t && t.closest && t.closest("input, select, textarea, [contenteditable], [role=slider]")) return;
       suspend();
     });
 
@@ -916,11 +1018,13 @@
     }
 
     var lastListenLabel = null;
-    var lastPlaying = null;
+    var lastPlaying = null, lastMuted = false;
     function render() {
       var st = c.state();
       var rp = c.resumePoint();
-      var listenLabel = rp ? "Weiterhören ab " + fmtTime(c.timeOf(rp)) : "Anhören";
+      // Times shown are listening time at the current speed; positions stay in audio time.
+      var rate = st.speed > 0 ? st.speed : 1;
+      var listenLabel = rp ? "Weiterhören ab " + fmtTime(c.timeOf(rp) / rate) : "Anhören";
       if (listenLabel !== lastListenLabel) {
         lastListenLabel = listenLabel;
         listen.innerHTML = SVG_SPK + listenLabel;
@@ -928,6 +1032,7 @@
       again.hidden = !rp;
       sep.hidden = !rp;
       bar.hidden = !st.open;
+      if (!st.open) closePopover(false);
       // Swap the icon only when the state flips: render() runs on every word, and replacing
       // the svg between mousedown and mouseup detaches the press target, so the browser
       // drops the click.
@@ -941,19 +1046,23 @@
       var d = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : c.duration();
       var cur = audio.currentTime || 0;
       var frac = d > 0 ? Math.max(0, Math.min(1, cur / d)) : 0;
-      time.textContent = fmtTime(cur) + " / " + fmtTime(d);
-      elEl.textContent = fmtTime(cur);
-      elTot.textContent = fmtTime(d);
+      time.textContent = fmtTime(cur / rate) + " / " + fmtTime(d / rate);
+      elEl.textContent = fmtTime(cur / rate);
+      elTot.textContent = fmtTime(d / rate);
       fill.style.width = frac * 100 + "%";
       knob.style.left = frac * 100 + "%";
       track.setAttribute("aria-valuenow", String(Math.round(frac * 100)));
       var bi = 0;
       if (st.cur >= 0) while (bi + 1 < firsts.length && firsts[bi + 1] <= st.cur) bi++;
       sub.textContent = "Absatz " + (bi + 1) + " von " + blocks.length;
-      if (speedSel.value !== String(st.speed)) speedSel.value = String(st.speed);
-      if (parseFloat(vol.value) !== st.volume) vol.value = String(st.volume);
-      step.textContent = fmtSpeed(st.speed);
-      step.setAttribute("aria-label", "Tempo " + fmtSpeed(st.speed));
+      volCtl.set(st.volume, Math.round(st.volume * 100), fmtVolume(st.volume));
+      var muted = st.volume === 0;
+      if (muted !== lastMuted) {
+        lastMuted = muted;
+        volCtl.button.replaceChild(el(doc, "span", "", muted ? SVG_MUTE : SVG_VOL).firstChild, volCtl.button.firstChild);
+      }
+      var si = speedIndex(st.speed);
+      spdCtl.set(si / (SPEEDS.length - 1), st.speed, fmtSpeed(st.speed));
       rebuildVoices();
       if (select.value !== st.voice) select.value = st.voice;
       if (st.open && st.playing) autoscroll();

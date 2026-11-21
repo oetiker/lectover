@@ -27,6 +27,12 @@ async function setup({ voices = [["erzaehler", 0.3]], byline = true, html = fixt
 }
 
 const click = (s, e) => e.dispatchEvent(new s.win.MouseEvent("click", { bubbles: true }));
+const key = (s, e, k) => e.dispatchEvent(new s.win.KeyboardEvent("keydown", { key: k, bubbles: true }));
+// Volume ("vol") or speed ("spd") control: icon button, popover, vertical slider.
+const ctl = (s, name) => {
+  const wrap = s.bar.querySelector(".lo-c" + name);
+  return { wrap, button: wrap.querySelector("button"), pop: wrap.querySelector(".lo-pop"), slider: wrap.querySelector("[role=slider]") };
+};
 
 test("style injected once and nothing visible before start", async () => {
   const s = await setup();
@@ -77,11 +83,12 @@ test("bar has region role and German labels", async () => {
   assert.equal(s.bar.getAttribute("role"), "region");
   assert.equal(s.bar.getAttribute("aria-label"), "Vorlesen");
   const labels = [...s.bar.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label"));
-  for (const l of ["Wiedergabe", "Vorheriger Absatz", "Nächster Absatz", "Tempo", "Stimme", "Vorlesen schliessen", "Fortschritt"]) {
+  for (const l of ["Wiedergabe", "Vorheriger Absatz", "Nächster Absatz", "Tempo", "Lautstärke", "Stimme", "Vorlesen schliessen", "Fortschritt"]) {
     assert.ok(labels.includes(l), l);
   }
   assert.equal(s.bar.querySelector(".lo-track").getAttribute("role"), "slider");
-  assert.deepEqual([...s.bar.querySelectorAll("select.lo-speed option")].map((o) => o.textContent), ["0,8×", "0,9×", "1×", "1,1×", "1,25×", "1,5×", "2×"]);
+  assert.equal(s.bar.querySelector("select.lo-speed"), null);
+  assert.equal(s.bar.querySelector("input.lo-vol"), null);
   s.c.start(0);
   assert.equal(s.bar.querySelector(".lo-play").getAttribute("aria-label"), "Pause");
   assert.match(s.bar.querySelector(".lo-sub").textContent, /^Absatz 1 von 13$/);
@@ -156,34 +163,31 @@ test("track arrow keys still skip 10 words", async () => {
   assert.equal(s.c.state().cur, 0);
 });
 
-test("step button shows speed and steps through the list, wrapping to 0,8", async () => {
+test("speed slider keys step through the speeds and stop at the ends", async () => {
   const s = await setup();
-  const step = s.bar.querySelector(".lo-step");
-  assert.equal(step.textContent, "1×");
-  assert.equal(step.getAttribute("aria-label"), "Tempo 1×");
+  const { button, slider } = ctl(s, "spd");
+  assert.equal(button.textContent, "1×");
   const seen = [];
-  for (let i = 0; i < 7; i++) { click(s, step); seen.push(step.textContent); }
-  assert.deepEqual(seen, ["1,1×", "1,25×", "1,5×", "2×", "0,8×", "0,9×", "1×"]);
-  click(s, step); click(s, step);
-  assert.equal(step.getAttribute("aria-label"), "Tempo 1,25×");
+  for (let i = 0; i < 5; i++) { key(s, slider, "ArrowUp"); seen.push(button.textContent); }
+  assert.deepEqual(seen, ["1,1×", "1,25×", "1,5×", "2×", "2×"]);
+  key(s, slider, "Home");
+  assert.equal(s.c.state().speed, 0.8);
+  key(s, slider, "ArrowRight");
+  assert.equal(s.c.state().speed, 0.9);
+  key(s, slider, "End");
+  assert.equal(s.c.state().speed, 2);
+  key(s, slider, "ArrowDown");
+  assert.equal(s.c.state().speed, 1.5);
+  assert.equal(slider.getAttribute("aria-valuenow"), "1.5");
+  assert.equal(slider.getAttribute("aria-valuetext"), "1,5×");
 });
 
-test("stored speed outside the list: step button 1×, next tap 1,1×", async () => {
-  const v = load();
-  const page = makePage(fixtureHtml(), { byline: true });
-  const blocks = v.extractBlocks(page.content);
-  const hashes = await Promise.all(blocks.map((b) => v.hashText(b.text)));
-  page.win.localStorage.setItem("lectover.speed", "7");
-  page.win.fetch = fakeFetch({
-    [BASE + "manifest.json"]: { version: 1, default: "e", voices: [{ id: "e", label: "e", audio: "e.aaaa1111.ogg", timings: "e.aaaa1111.json", duration: 1 }] },
-    [`${BASE}e.aaaa1111.json`]: fakeTimings(blocks, hashes, { voice: "e", step: 0.3 })
-  });
-  page.win.console = { warn() {} };
-  await v.init(page.win, page.script, { createAudio: () => new FakeAudio() });
-  const step = page.doc.querySelector(".lo-step");
-  assert.equal(step.textContent, "1×");
-  step.dispatchEvent(new page.win.MouseEvent("click", { bubbles: true }));
-  assert.equal(step.textContent, "1,1×");
+test("stored speed outside the list: speed shows 1×, next step 1,1×", async () => {
+  const s = await setup({ prepare: (p) => p.win.localStorage.setItem("lectover.speed", "7") });
+  const { button, slider } = ctl(s, "spd");
+  assert.equal(button.textContent, "1×");
+  key(s, slider, "ArrowUp");
+  assert.equal(button.textContent, "1,1×");
 });
 
 test("sub line is Absatz N von M", async () => {
@@ -206,8 +210,9 @@ test("CSS: 760 px query swaps desktop and phone elements, 16 px fields", async (
   const css = s.doc.getElementById("lo-style").textContent;
   const m = css.match(/@media \(max-width:760px\)\{([^@]*)\}/);
   assert.ok(m, "760 media query");
-  assert.match(m[1], /\.lo-speed,\.lo-sub,\.lo-time,\.lo-vol\{display:none\}/);
-  assert.match(m[1], /\.lo-step,\.lo-ends\{display:/);
+  assert.match(m[1], /\.lo-sub,\.lo-time,\.lo-cvol\{display:none\}/);
+  assert.match(m[1], /\.lo-ends\{display:flex\}/);
+  assert.doesNotMatch(m[1], /\.lo-cspd[^{]*\{display:none/);
   assert.match(m[1], /\.lo-bar select\{font-size:16px/);
   // A long voice label must not push the row past 360 px: the select shrinks, the rest stays.
   assert.match(m[1], /\.lo-bar select\{[^}]*flex:0 1 auto;min-width:0;/);
@@ -459,17 +464,22 @@ test("render writes the byline label only when it changed", async () => {
   assert.equal(writes, 0);
 });
 
-test("desktop speed dropdown sets and follows the speed", async () => {
+test("speed slider pointer snaps to the speed stops", async () => {
   const s = await setup();
   s.c.start(0);
-  const sel = s.bar.querySelector("select.lo-speed");
-  assert.equal(sel.getAttribute("aria-label"), "Tempo");
-  assert.equal(sel.value, String(s.c.state().speed));
-  sel.value = "1.25";
-  sel.dispatchEvent(new s.win.Event("change"));
+  const { button, slider } = ctl(s, "spd");
+  click(s, button);
+  slider.getBoundingClientRect = () => ({ top: 0, bottom: 120, height: 120, left: 0, width: 6 });
+  const ev = (type, y) => slider.dispatchEvent(new s.win.MouseEvent(type, { bubbles: true, clientY: y, button: 0 }));
+  ev("pointerdown", 120 - 0.62 * 120); // nearest stop: 4 of 6 -> 1,25
   assert.equal(s.c.state().speed, 1.25);
-  s.bar.querySelector(".lo-step").click();
-  assert.equal(sel.value, "1.5");
+  assert.equal(button.textContent, "1,25×");
+  ev("pointermove", 0);
+  assert.equal(s.c.state().speed, 2);
+  ev("pointerup", 0);
+  ev("pointermove", 120); // released: no change
+  assert.equal(s.c.state().speed, 2);
+  assert.equal(s.win.localStorage.getItem("lectover.speed"), "2");
 });
 
 test("CSS: desktop bar is a centred floating pill", async () => {
@@ -504,21 +514,31 @@ test("CSS: phone bar keeps controls clear of rounded corners and the home indica
   assert.match(m[1], /\.lo-ends\{padding:[^}]*max\(20px,env\(safe-area-inset-left\)\)/);
 });
 
-test("desktop volume slider sets, stores and restores the volume", async () => {
+test("volume slider sets, stores and restores the volume", async () => {
   const s = await setup();
   s.c.start(0);
-  const vol = s.bar.querySelector("input.lo-vol");
-  assert.equal(vol.type, "range");
-  assert.equal(vol.getAttribute("aria-label"), "Lautstärke");
+  const { button, slider } = ctl(s, "vol");
+  assert.equal(button.getAttribute("aria-label"), "Lautstärke");
+  assert.equal(slider.getAttribute("aria-label"), "Lautstärke");
+  assert.equal(button.textContent, "100\u00a0%");
   assert.equal(s.audio.volume, 1);
-  vol.value = "0.4";
-  vol.dispatchEvent(new s.win.Event("input"));
+  click(s, button);
+  slider.getBoundingClientRect = () => ({ top: 0, bottom: 100, height: 100, left: 0, width: 6 });
+  slider.dispatchEvent(new s.win.MouseEvent("pointerdown", { bubbles: true, clientY: 61, button: 0 }));
   assert.equal(s.audio.volume, 0.4);
   assert.equal(s.c.state().volume, 0.4);
+  assert.equal(button.textContent, "40\u00a0%");
+  assert.equal(slider.getAttribute("aria-valuenow"), "40");
+  assert.equal(slider.getAttribute("aria-valuetext"), "40\u00a0%");
   assert.equal(s.win.localStorage.getItem("lectover.volume"), "0.4");
+  key(s, slider, "ArrowUp");
+  assert.equal(s.c.state().volume, 0.45);
+  key(s, slider, "Home");
+  assert.equal(s.c.state().volume, 0);
   const again = await setup({ prepare: (p) => p.win.localStorage.setItem("lectover.volume", "0.3") });
   assert.equal(again.audio.volume, 0.3);
-  assert.equal(again.bar.querySelector("input.lo-vol").value, "0.3");
+  assert.equal(ctl(again, "vol").button.textContent, "30\u00a0%");
+  assert.equal(ctl(again, "vol").slider.querySelector(".lo-vfill").style.height, "30%");
 });
 
 test("stored volume outside 0..1 or garbage falls back to 1", async () => {
@@ -538,4 +558,139 @@ test("play icon survives re-renders while the state is unchanged", async () => {
   s.c.toggle();
   assert.notEqual(play.firstElementChild, icon);
   assert.equal(play.getAttribute("aria-label"), "Wiedergabe");
+});
+
+test("time display shows listening time at the current speed", async () => {
+  const s = await setup();
+  s.c.start(0);
+  s.audio.duration = 150;
+  s.audio.currentTime = 60;
+  s.c.setSpeed(1.5);
+  s.audio.dispatchEvent(new Event("timeupdate"));
+  assert.equal(s.bar.querySelector(".lo-time").textContent, "0:40 / 1:40");
+  assert.equal(s.bar.querySelector(".lo-el").textContent, "0:40");
+  assert.equal(s.bar.querySelector(".lo-tot").textContent, "1:40");
+  assert.equal(s.audio.currentTime, 60); // positions stay in audio time
+  // seeking is unaffected by the speed
+  const track = s.bar.querySelector(".lo-track");
+  track.getBoundingClientRect = () => ({ left: 0, width: 200, top: 0, height: 6 });
+  track.dispatchEvent(new s.win.MouseEvent("click", { bubbles: true, clientX: 100 }));
+  assert.equal(s.audio.currentTime, 75);
+  s.c.setSpeed(0.8);
+  assert.equal(s.bar.querySelector(".lo-time").textContent, "1:33 / 3:07");
+});
+
+test("Weiterhören label shows the listening time at the current speed", async () => {
+  const s = await resumed(); // token 7 at 252 s audio time
+  s.c.setSpeed(2);
+  assert.equal(bylineButtons(s)[0].textContent.trim(), "Weiterhören ab 2:06");
+  s.c.setSpeed(1);
+  assert.equal(bylineButtons(s)[0].textContent.trim(), "Weiterhören ab 4:12");
+});
+
+test("popover: icon toggles it, aria-expanded follows, slider gets focus", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol");
+  assert.equal(v.pop.hidden, true);
+  assert.equal(v.button.getAttribute("aria-expanded"), "false");
+  click(s, v.button);
+  assert.equal(v.pop.hidden, false);
+  assert.equal(v.button.getAttribute("aria-expanded"), "true");
+  assert.equal(s.doc.activeElement, v.slider);
+  assert.equal(v.slider.getAttribute("aria-orientation"), "vertical");
+  assert.equal(v.slider.tabIndex, 0);
+  click(s, v.button);
+  assert.equal(v.pop.hidden, true);
+  assert.equal(v.button.getAttribute("aria-expanded"), "false");
+});
+
+test("popover: only one open at a time", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol"), p = ctl(s, "spd");
+  click(s, v.button);
+  // the press on the other icon is outside the open popover's control
+  p.button.dispatchEvent(new s.win.MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+  click(s, p.button);
+  assert.equal(v.pop.hidden, true);
+  assert.equal(v.button.getAttribute("aria-expanded"), "false");
+  assert.equal(p.pop.hidden, false);
+  // even without a pointer event (keyboard activation)
+  click(s, v.button);
+  assert.equal(p.pop.hidden, true);
+  assert.equal(v.pop.hidden, false);
+});
+
+test("popover: closes on outside press, not on a press inside", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const p = ctl(s, "spd");
+  click(s, p.button);
+  p.slider.getBoundingClientRect = () => ({ top: 0, bottom: 120, height: 120, left: 0, width: 6 });
+  p.slider.dispatchEvent(new s.win.MouseEvent("pointerdown", { bubbles: true, clientY: 60, button: 0 }));
+  assert.equal(p.pop.hidden, false);
+  s.blocks[0].el.dispatchEvent(new s.win.MouseEvent("pointerdown", { bubbles: true, button: 0 }));
+  assert.equal(p.pop.hidden, true);
+  assert.equal(p.button.getAttribute("aria-expanded"), "false");
+});
+
+test("popover: Escape closes it and returns focus to the icon", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol");
+  click(s, v.button);
+  key(s, v.slider, "Escape");
+  assert.equal(v.pop.hidden, true);
+  assert.equal(s.doc.activeElement, v.button);
+});
+
+test("popover closes with the bar", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol");
+  click(s, v.button);
+  s.c.close();
+  assert.equal(v.pop.hidden, true);
+});
+
+test("volume and speed icons and values survive re-renders", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol"), p = ctl(s, "spd");
+  const nodes = [v.button.querySelector("svg"), v.button.querySelector(".lo-val"), p.button.querySelector("svg"), p.button.querySelector(".lo-val")];
+  const texts = [v.button.querySelector(".lo-val").firstChild, p.button.querySelector(".lo-val").firstChild];
+  for (let i = 0; i < 5; i++) s.c.audio.dispatchEvent(new Event("timeupdate"));
+  assert.deepEqual([v.button.querySelector("svg"), v.button.querySelector(".lo-val"), p.button.querySelector("svg"), p.button.querySelector(".lo-val")], nodes);
+  assert.deepEqual([v.button.querySelector(".lo-val").firstChild, p.button.querySelector(".lo-val").firstChild], texts);
+  assert.ok(nodes.every((n) => n.isConnected));
+  // a value change rewrites the number only, never the icon
+  s.c.setSpeed(1.25);
+  assert.equal(p.button.querySelector("svg"), nodes[2]);
+  assert.equal(p.button.querySelector(".lo-val").textContent, "1,25×");
+});
+
+test("volume 0 swaps to the muted icon once, and back", async () => {
+  const s = await setup();
+  s.c.start(0);
+  const v = ctl(s, "vol");
+  const icon = v.button.firstElementChild;
+  s.c.setVolume(0);
+  const muted = v.button.firstElementChild;
+  assert.notEqual(muted, icon);
+  assert.equal(muted.localName, "svg");
+  s.c.audio.dispatchEvent(new Event("timeupdate"));
+  assert.equal(v.button.firstElementChild, muted);
+  s.c.setVolume(0.5);
+  assert.notEqual(v.button.firstElementChild, muted);
+  assert.equal(v.button.querySelector(".lo-val").textContent, "50\u00a0%");
+});
+
+test("CSS: bigger knob centred on the track, icons never take the pointer", async () => {
+  const s = await setup();
+  const css = s.doc.getElementById("lo-style").textContent;
+  assert.match(css, /\.lo-knob\{[^}]*top:50%;[^}]*width:16px;height:16px;margin:-8px 0 0 -8px/);
+  assert.match(css, /\.lo-vknob\{[^}]*width:16px;height:16px;margin:0 0 -8px -8px/);
+  assert.match(css, /\.lo-ib svg,[^{]*\{pointer-events:none\}/);
+  assert.match(css, /\.lo-val\{[^}]*pointer-events:none/);
 });

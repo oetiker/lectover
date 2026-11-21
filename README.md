@@ -521,8 +521,10 @@ it: whoever controls that host controls the script, so keep it locked down.
 - **Format choice.** Safari and every browser on iPhone/iPad get the MP3 (WebKit seeks Ogg/Opus
   imprecisely); others get the Ogg. `data-format="mp3"` or `"ogg"` on the script tag forces one.
 - **Compact bar.** The player is a slim bar at the bottom of the page (a
-  two-row layout on phones): previous/next paragraph, play/pause, time, speed
-  and voice, close.
+  two-row layout on phones): previous/next paragraph, play/pause, time, volume
+  (desktop only) and speed, voice, close. Volume and speed are icon buttons with
+  the current value beside them; each opens a small vertical slider. The times
+  shown are listening time at the chosen speed.
 - **Resume.** The listening position is kept per post in `localStorage`
   (`lectover.pos.<slug>`) for 30 days. On the next visit the link reads
   "Weiterhören ab M:SS", with "Von vorne" beside it. A position is dropped when
