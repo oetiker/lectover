@@ -17,7 +17,9 @@ use crate::ffi::{asr_library_device, resolve_device, QwenAligner, QwenAsr, QwenT
 use crate::models::ModelFiles;
 use crate::plan::max_tokens_for;
 use crate::render::run::voice_ref;
-use crate::render::{synthesize_chunks, with_carrier, CarrierEnding, ChunkRequest, TakeCache};
+use crate::render::{
+    synthesize_chunks, with_carrier, CarrierEnding, ChunkRequest, MemoAlign, MemoAsr, TakeCache,
+};
 use crate::settings::Settings;
 use crate::text::normalize::{load_lexicon, spoken_groups, Lexicon};
 use crate::voices::load_registry;
@@ -134,10 +136,12 @@ pub fn run(args: &SayArgs, settings: &Settings) -> Result<()> {
             tts.set_voice(&wav, &text)?;
             let sr = tts.sample_rate();
             let mut cached = TakeCache::new(&mut tts, &settings.takes);
-            let mut ending = CarrierEnding::new(&mut aligner);
+            let mut memo_asr = MemoAsr::new(&mut asr, &settings.takes);
+            let mut memo_aligner = MemoAlign::new(&mut aligner, &settings.takes);
+            let mut ending = CarrierEnding::new(&mut memo_aligner);
             let takes = synthesize_chunks(
                 &mut cached,
-                &mut asr,
+                &mut memo_asr,
                 &mut ending,
                 &ChunkRequest {
                     texts: &texts,

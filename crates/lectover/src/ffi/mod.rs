@@ -68,6 +68,11 @@ pub trait Synth {
     fn max_batch(&self) -> usize {
         1
     }
+    /// How many of `reqs` a cache in front of the engine would answer without synthesis
+    /// (progress output only).
+    fn cached(&self, _reqs: &[TakeRequest], _temperature: f32) -> usize {
+        0
+    }
     /// Samples of ring-out padding after the generated end of every take (room tone the
     /// decoder needs to let the last syllable decay). End-of-speech checks look before it.
     fn tail_pad_samples(&self) -> usize {
@@ -86,6 +91,11 @@ pub trait Synth {
 /// Speech recognition on 16 kHz mono audio (resample with `audio::resample` first).
 pub trait Transcribe {
     fn transcribe(&mut self, pcm16k: &[f32]) -> Result<String>;
+    /// Model and device the transcripts depend on; the same fingerprint and audio give the
+    /// same transcript, which lets `render::MemoAsr` reuse it. `None` disables that.
+    fn fingerprint(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Forced alignment of a word list to 16 kHz mono audio. `words` must be punctuation-free
@@ -93,6 +103,21 @@ pub trait Transcribe {
 /// `(word, start_s, end_s)` per word, in order.
 pub trait Align {
     fn align(&mut self, pcm16k: &[f32], words: &[String]) -> Result<Vec<(String, f64, f64)>>;
+    /// Model and device the alignments depend on (see [`Transcribe::fingerprint`]).
+    fn fingerprint(&self) -> Option<String> {
+        None
+    }
+}
+
+/// Identity of a model file for cache fingerprints: path, size and modification time.
+pub(crate) fn file_id(p: &std::path::Path) -> String {
+    let meta = std::fs::metadata(p).ok();
+    let len = meta.as_ref().map_or(0, |m| m.len());
+    let mtime = meta
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_nanos());
+    format!("{}:{len}:{mtime}", p.display())
 }
 
 /// The aligner got no timestamps for word `word` (1-based) of `total` and filled it with the
