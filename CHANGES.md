@@ -13,7 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### New
 - `lectover render FILE.md` and `lectover dev build FILE.md` read a local Markdown or HTML file instead of a Ghost post: no Content API key, no network. `--title`, `--author`, `--date` and `--slug` set what Ghost would otherwise supply.
-- Player: the volume, speed and voice buttons show their value and open a popover: a vertical slider for volume and speed, a list for the voice (no native select anymore). Speed is continuous from 0.8× to 2× in steps of 0.05. Times shown are divided by the playback speed. On a phone, the speed button replaces the step button.
+- Player: the volume, speed and voice buttons show their value and open a popover: a vertical slider for volume and speed, a list for the voice (no native select anymore). A popover closes shortly after the mouse leaves its button. Speed is continuous from 0.8× to 2× in steps of 0.05. Times shown are divided by the playback speed. On a phone, the speed button replaces the step button.
 
 ### Changed
 - On macOS a plain `cargo build` includes the Metal backend; `--features metal` is no longer needed.

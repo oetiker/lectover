@@ -563,9 +563,8 @@
   var SVG_NEXT = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>';
   var SVG_VOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
   var SVG_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M16 9l6 6M22 9l-6 6"/></svg>';
-  // Sitting rabbit facing right, filled (an outline reads as a scribble at 20 px): back, head
-  // with the eye cut out, two ears, tail, front paw.
-  var SVG_RABBIT = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="10.5" cy="15.5" rx="7" ry="5.2"/><path fill-rule="evenodd" d="M13.2 11a3.8 3.8 0 1 0 7.6 0a3.8 3.8 0 1 0-7.6 0zM17.4 10.4a.8.8 0 1 0 1.6 0a.8.8 0 1 0-1.6 0z"/><ellipse cx="15.6" cy="4.8" rx="1.5" ry="4.2" transform="rotate(-12 15.6 4.8)"/><ellipse cx="19" cy="5.3" rx="1.5" ry="4.2" transform="rotate(18 19 5.3)"/><circle cx="3.2" cy="13.6" r="1.9"/><ellipse cx="14.5" cy="20.3" rx="3.2" ry="1.3"/></svg>';
+  // Speedometer: a gauge arc with its needle.
+  var SVG_SPEED = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.2 18.5a9 9 0 1 1 15.6 0"/><path d="M12 14l4.5-5"/><circle cx="12" cy="14" r="1.4" fill="currentColor"/></svg>';
   // Speaking head: a person with sound waves.
   var SVG_VOICE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><path d="M17 5.5a4 4 0 0 1 0 5"/><path d="M19.8 3a8 8 0 0 1 0 10"/></svg>';
   var SVG_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
@@ -834,6 +833,7 @@
     // Only one popover is open at a time. The value reserves the width of the widest value
     // (data-max, drawn invisibly by CSS), so the button keeps its size as the value changes.
     var openCtl = null;
+    var LEAVE_MS = 400;
     function closePopover(refocus) {
       if (!openCtl) return;
       var ctl = openCtl;
@@ -856,7 +856,33 @@
       pop.hidden = true;
       wrap.appendChild(button);
       wrap.appendChild(pop);
-      var ctl = { wrap: wrap, button: button, pop: pop, val: val, text: null, focusIn: null };
+      var ctl = { wrap: wrap, button: button, pop: pop, val: val, text: null, focusIn: null, busy: false };
+      // Mouse only: leaving the control closes its popover after a moment, so no other button
+      // looks active beside an open one. Not while a slider is being dragged.
+      var leaveTimer = null;
+      function cancelLeave() {
+        if (leaveTimer !== null) { win.clearTimeout(leaveTimer); leaveTimer = null; }
+      }
+      ctl.leave = function () {
+        cancelLeave();
+        if (openCtl !== ctl) return;
+        leaveTimer = win.setTimeout(function () {
+          leaveTimer = null;
+          if (openCtl === ctl && !ctl.busy) closePopover(false);
+        }, LEAVE_MS);
+      };
+      // True when the point lies on the button or its popover.
+      ctl.contains = function (x, y) {
+        return [button, pop].some(function (n) {
+          var r = n.getBoundingClientRect();
+          return r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+        });
+      };
+      wrap.addEventListener("pointerleave", function (e) {
+        if (e.pointerType === "touch" || ctl.busy) return;
+        ctl.leave();
+      });
+      wrap.addEventListener("pointerenter", cancelLeave);
       button.addEventListener("click", function () {
         if (openCtl === ctl) { closePopover(false); return; }
         closePopover(false);
@@ -895,6 +921,7 @@
       vtrack.addEventListener("pointerdown", function (e) {
         if (e.button !== 0) return;
         dragging = true;
+        ctl.busy = true;
         if (vtrack.setPointerCapture && e.pointerId !== undefined) {
           try { vtrack.setPointerCapture(e.pointerId); } catch (err) { /* not capturable */ }
         }
@@ -902,7 +929,12 @@
         fromPointer(e);
       });
       vtrack.addEventListener("pointermove", function (e) { if (dragging) fromPointer(e); });
-      function endDrag() { dragging = false; }
+      function endDrag(e) {
+        dragging = false;
+        ctl.busy = false;
+        // A drag released outside the control: the pointer has left it.
+        if (e.pointerType !== "touch" && !ctl.contains(e.clientX, e.clientY)) ctl.leave();
+      }
       vtrack.addEventListener("pointerup", endDrag);
       vtrack.addEventListener("pointercancel", endDrag);
       vtrack.addEventListener("keydown", function (e) {
@@ -932,7 +964,7 @@
     volCtl.track.setAttribute("aria-valuemax", "100");
     // Speed: continuous from SPEED_MIN to SPEED_MAX on a 0.05 grid.
     var SPEED_SPAN = SPEED_MAX - SPEED_MIN;
-    var spdCtl = sliderControl("lo-cspd", "Tempo", SVG_RABBIT, fmtSpeed(1.25), function (f) {
+    var spdCtl = sliderControl("lo-cspd", "Tempo", SVG_SPEED, fmtSpeed(1.25), function (f) {
       var sp = snapSpeed(SPEED_MIN + f * SPEED_SPAN);
       if (sp !== c.state().speed) c.setSpeed(sp);
     }, 0.05 / SPEED_SPAN);
