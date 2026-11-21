@@ -12,10 +12,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### New
+- `lectover render FILE.md` and `lectover dev build FILE.md` read a local Markdown or HTML file instead of a Ghost post: no Content API key, no network. `--title`, `--author`, `--date` and `--slug` set what Ghost would otherwise supply.
+- Player: the volume and speed buttons show their value and open a vertical slider; times shown are divided by the playback speed. On a phone, the speed button replaces the step button.
 
 ### Changed
+- On macOS a plain `cargo build` includes the Metal backend; `--features metal` is no longer needed.
+- Gender forms like `Schüler:innen`, `Autor*in`, `Lehrer_innen` and `Bürger/innen` are spoken with a short glottal stop instead of a pause. A lexicon entry still takes precedence.
 
 ### Fixed
+- Player: clicking the play/pause button while audio was playing was sometimes ignored.
 
 ## 0.1.1 - 2026-11-16
 ### Changed
