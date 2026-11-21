@@ -271,6 +271,14 @@ Each chunk is generated, transcribed and compared with its text; a take
 scoring below 0.90 is regenerated with the next seed, up to four rounds. On an
 M-series Mac a post renders in about 0.6 times its audio length.
 
+Takes, their transcripts and their word alignments are cached in the takes
+directory, so a re-render after an edit (of the post or the lexicon) only
+synthesises and checks the chunks whose text changed; an 18-minute post with
+one changed word re-renders in about half a minute per voice. `--no-cache`
+runs every model call afresh. Each round reports how many takes it
+synthesises and how many it reads from the cache, and each voice ends with
+the time per step and the model calls made and answered from the cache.
+
 Output goes to `<deploy tree>/<domain>/<slug>/`, where `<domain>` is the
 site's config key: `manifest.json` plus `<voice>.<hash>.ogg`,
 `<voice>.<hash>.mp3` and `<voice>.<hash>.json` per voice. The MP3 (64 kbps,

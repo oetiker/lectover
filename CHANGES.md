@@ -16,6 +16,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Player: the volume, speed and voice buttons show their value and open a popover: a vertical slider for volume and speed, a list for the voice (no native select anymore). A popover closes shortly after the mouse leaves its button. Speed is continuous from 0.8× to 2× in steps of 0.05. Times shown are divided by the playback speed. On a phone, the speed button replaces the step button.
 
 ### Changed
+- Re-rendering after an edit is fast: besides the takes, their ASR transcripts and word alignments are cached (`asr/` and `align/` in the takes directory), so unchanged chunks need no model call. An 18-minute post went from about 100 s to 19 s per voice unchanged, 34 s with one changed word. `--no-cache` bypasses all of it.
+- `render` reports per round how many takes are synthesised and how many come from the cache (it said "generating" for all of them), and per voice the time per step and the calls per model.
 - On macOS a plain `cargo build` includes the Metal backend; `--features metal` is no longer needed.
 - Gender forms like `Schüler:innen`, `Autor*in`, `Lehrer_innen` and `Bürger/innen` are spoken with a short glottal stop instead of a pause. A lexicon entry still takes precedence.
 
