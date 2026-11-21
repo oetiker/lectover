@@ -88,10 +88,18 @@ pub fn build(
     site: &Path,
     get: &dyn Fn(&str) -> Result<HttpReply>,
 ) -> Result<PathBuf> {
-    let slug = slug_from_arg(arg)?;
-    let post = fetch_post(cfg, &slug, get)?;
+    write_page(&fetch(cfg, arg, get)?, domain, site)
+}
+
+/// The public post `arg` (URL or slug) names.
+pub fn fetch(
+    cfg: &GhostConfig,
+    arg: &str,
+    get: &dyn Fn(&str) -> Result<HttpReply>,
+) -> Result<Post> {
+    let post = fetch_post(cfg, &slug_from_arg(arg)?, get)?;
     require_public(&post)?;
-    write_page(&post, domain, site)
+    Ok(post)
 }
 
 /// Write the dev page of `post` under `site/<domain>/<slug>/`; returns the page's path.
@@ -104,6 +112,26 @@ pub fn write_page(post: &Post, domain: &str, site: &Path) -> Result<PathBuf> {
     fs::write(&page, render_dev_page(post, domain))
         .with_context(|| format!("writing {}", page.display()))?;
     Ok(page)
+}
+
+/// The voices rendered for `post` from different text than the page now has; the player
+/// turns itself off for them until they are rendered again.
+pub fn stale_voices(post: &Post, domain: &str, site: &Path) -> Result<Vec<String>> {
+    let hashes: Vec<String> = crate::text::extract_blocks(&post.html)
+        .into_iter()
+        .map(|b| b.hash)
+        .collect();
+    crate::site::mismatched_voices(&site.join(domain).join(&post.slug), &hashes)
+}
+
+/// The warning line for [`stale_voices`], or `None` when every voice matches.
+pub fn stale_warning(stale: &[String]) -> Option<String> {
+    (!stale.is_empty()).then(|| {
+        format!(
+            "warning: voice(s) {} were rendered from other text; the player stays off until you render the post again",
+            stale.join(", ")
+        )
+    })
 }
 
 // --- server ------------------------------------------------------------------------------

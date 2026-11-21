@@ -284,6 +284,44 @@ pub fn encode_and_publish(
     result
 }
 
+/// Whether the timings file of manifest entry `v` carries exactly the block hashes `current`.
+fn voice_matches(slug_dir: &Path, v: &Value, current: &[Value]) -> Result<bool> {
+    let id = v["id"].as_str().unwrap_or_default();
+    let tfile = v["timings"]
+        .as_str()
+        .ok_or_else(|| anyhow!("voice {id}: no timings file"))?;
+    let hashes: Option<Vec<Value>> = fs::read_to_string(slug_dir.join(tfile))
+        .ok()
+        .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+        .and_then(|doc| {
+            doc.get("blocks")?
+                .as_array()?
+                .iter()
+                .map(|b| b.get("hash").cloned())
+                .collect()
+        });
+    Ok(hashes.as_deref() == Some(current))
+}
+
+/// The voices in `slug_dir/manifest.json` whose timings do not match the block hashes
+/// `current`: the player turns itself off on a page with that text. No manifest, no voices.
+pub fn mismatched_voices(slug_dir: &Path, current_hashes: &[String]) -> Result<Vec<String>> {
+    let path = slug_dir.join("manifest.json");
+    let Ok(text) = fs::read_to_string(&path) else {
+        return Ok(Vec::new());
+    };
+    let manifest: Value =
+        serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+    let current: Vec<Value> = current_hashes.iter().map(|h| json!(h)).collect();
+    let mut stale = Vec::new();
+    for v in manifest["voices"].as_array().into_iter().flatten() {
+        if !voice_matches(slug_dir, v, &current)? {
+            stale.push(v["id"].as_str().unwrap_or_default().to_string());
+        }
+    }
+    Ok(stale)
+}
+
 /// Drop voices (except `keep`) whose timings no longer match the post's block hashes.
 pub fn prune_stale(
     slug_dir: &Path,
@@ -304,20 +342,7 @@ pub fn prune_stale(
             kept.push(v);
             continue;
         }
-        let tfile = v["timings"]
-            .as_str()
-            .ok_or_else(|| anyhow!("voice {id}: no timings file"))?;
-        let hashes: Option<Vec<Value>> = fs::read_to_string(slug_dir.join(tfile))
-            .ok()
-            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
-            .and_then(|doc| {
-                doc.get("blocks")?
-                    .as_array()?
-                    .iter()
-                    .map(|b| b.get("hash").cloned())
-                    .collect()
-            });
-        if hashes.as_deref() == Some(&current[..]) {
+        if voice_matches(slug_dir, &v, &current)? {
             kept.push(v);
         } else {
             println!("voice {id} no longer matches the post text; re-render it");

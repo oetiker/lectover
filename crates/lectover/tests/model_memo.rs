@@ -2,7 +2,7 @@
 
 use anyhow::{bail, Result};
 use lectover::ffi::{Align, Synth, TakeRequest, Transcribe};
-use lectover::render::{CallStats, MemoAlign, MemoAsr, TakeCache};
+use lectover::render::{prune, CallStats, MemoAlign, MemoAsr, PruneReport, TakeCache};
 
 /// Transcribes audio as its length and counts the calls.
 struct FakeAsr {
@@ -192,4 +192,82 @@ fn call_stats_summary() {
         secs: 3.06,
     };
     assert_eq!(s.summary("run"), "7 run, 46 cached, 3.1s");
+}
+
+/// Set `path`'s mtime `days` into the past.
+fn age(path: &std::path::Path, days: u64) {
+    let then = std::time::SystemTime::now() - std::time::Duration::from_secs(days * 86_400);
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(then)
+        .unwrap();
+}
+
+fn mtime(path: &std::path::Path) -> std::time::SystemTime {
+    std::fs::metadata(path).unwrap().modified().unwrap()
+}
+
+#[test]
+fn a_cache_hit_marks_the_entry_as_used() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inner = FakeAsr {
+        fingerprint: Some("asr-a".into()),
+        calls: 0,
+    };
+    let mut asr = MemoAsr::new(&mut inner, dir.path());
+    asr.transcribe(&[0.25; 10]).unwrap();
+    let file = std::fs::read_dir(dir.path().join("asr"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    age(&file, 200);
+    let old = mtime(&file);
+    asr.transcribe(&[0.25; 10]).unwrap();
+    assert_eq!(asr.stats.hits, 1);
+    assert!(mtime(&file) > old, "hit did not refresh the mtime");
+}
+
+#[test]
+fn prune_removes_only_unused_cache_entries() {
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    std::fs::create_dir_all(d.join("asr")).unwrap();
+    std::fs::create_dir_all(d.join("align")).unwrap();
+    let files = [
+        ("old.f32", 100, true),
+        ("new.f32", 1, false),
+        ("asr/old.txt", 100, true),
+        ("align/old.tsv", 100, true),
+        ("align/new.tsv", 10, false),
+        ("notes.txt", 100, false), // not a cache entry
+    ];
+    for (name, days, _) in files {
+        std::fs::write(d.join(name), b"1234").unwrap();
+        age(&d.join(name), days);
+    }
+    let unused = std::time::Duration::from_secs(90 * 86_400);
+    let dry = prune(d, unused, true).unwrap();
+    let want = PruneReport {
+        removed: 3,
+        removed_bytes: 12,
+        kept: 2,
+        kept_bytes: 8,
+    };
+    assert_eq!(dry, want);
+    assert!(
+        files.iter().all(|(n, _, _)| d.join(n).exists()),
+        "dry run removed"
+    );
+    assert_eq!(prune(d, unused, false).unwrap(), want);
+    for (name, _, gone) in files {
+        assert_eq!(!d.join(name).exists(), gone, "{name}");
+    }
+    assert_eq!(
+        prune(&d.join("missing"), unused, false).unwrap(),
+        PruneReport::default()
+    );
 }

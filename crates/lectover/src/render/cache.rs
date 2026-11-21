@@ -9,9 +9,9 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant, SystemTime};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use sha1::{Digest, Sha1};
 
 use crate::ffi::{Align, Synth, TakeRequest, Transcribe};
@@ -89,7 +89,62 @@ fn read_take(path: &Path) -> Option<Vec<f32>> {
         return None;
     }
     let (words, _) = bytes.as_chunks::<4>();
+    touch(path);
     Some(words.iter().map(|b| f32::from_le_bytes(*b)).collect())
+}
+
+/// Mark a cache file as used now (its mtime), so [`prune`] keeps it. Best effort.
+fn touch(path: &Path) {
+    let _ = fs::File::options()
+        .write(true)
+        .open(path)
+        .and_then(|f| f.set_modified(SystemTime::now()));
+}
+
+/// What [`prune`] removed (or, dry, would remove) and kept, in files and bytes.
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct PruneReport {
+    pub removed: usize,
+    pub removed_bytes: u64,
+    pub kept: usize,
+    pub kept_bytes: u64,
+}
+
+/// Remove the cache entries in `dir` (takes `*.f32`, `asr/*.txt`, `align/*.tsv`) not used for
+/// `unused` (by mtime: a render that reads an entry refreshes it). `dry` only counts. Other
+/// files are left alone; a missing `dir` is an empty cache.
+pub fn prune(dir: &Path, unused: Duration, dry: bool) -> Result<PruneReport> {
+    let cutoff = SystemTime::now()
+        .checked_sub(unused)
+        .unwrap_or(SystemTime::UNIX_EPOCH);
+    let mut report = PruneReport::default();
+    for (sub, ext) in [("", "f32"), ("asr", "txt"), ("align", "tsv")] {
+        let Ok(entries) = fs::read_dir(dir.join(sub)) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry?.path();
+            if path.extension().and_then(|e| e.to_str()) != Some(ext) {
+                continue;
+            }
+            let meta = fs::metadata(&path)?;
+            if !meta.is_file() {
+                continue;
+            }
+            if meta.modified()? < cutoff {
+                if !dry {
+                    fs::remove_file(&path)
+                        .with_context(|| format!("removing {}", path.display()))?;
+                }
+                report.removed += 1;
+                report.removed_bytes += meta.len();
+            } else {
+                report.kept += 1;
+                report.kept_bytes += meta.len();
+            }
+        }
+    }
+    Ok(report)
 }
 
 /// Write via a temporary file and rename, so a crash never leaves a half take behind.
@@ -253,9 +308,12 @@ impl Transcribe for MemoAsr<'_> {
             .inner
             .fingerprint()
             .map(|fp| self.dir.join(format!("{}.txt", memo_key(&fp, pcm16k, &[]))));
-        if let Some(text) = path.as_ref().and_then(|p| fs::read_to_string(p).ok()) {
-            self.stats.hits += 1;
-            return Ok(text);
+        if let Some(p) = &path {
+            if let Ok(text) = fs::read_to_string(p) {
+                touch(p);
+                self.stats.hits += 1;
+                return Ok(text);
+            }
         }
         let t0 = Instant::now();
         let text = self.inner.transcribe(pcm16k)?;
@@ -325,13 +383,15 @@ impl Align for MemoAlign<'_> {
             self.dir
                 .join(format!("{}.tsv", memo_key(&fp, pcm16k, words)))
         });
-        if let Some(spans) = path
-            .as_ref()
-            .and_then(|p| fs::read_to_string(p).ok())
-            .and_then(|t| parse_spans(&t, words))
-        {
-            self.stats.hits += 1;
-            return Ok(spans);
+        if let Some(p) = &path {
+            if let Some(spans) = fs::read_to_string(p)
+                .ok()
+                .and_then(|t| parse_spans(&t, words))
+            {
+                touch(p);
+                self.stats.hits += 1;
+                return Ok(spans);
+            }
         }
         let t0 = Instant::now();
         let result = self.inner.align(pcm16k, words);

@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use anyhow::bail;
 use lectover::audio::encode_opus;
 use lectover::ghost::Post;
-use lectover::site::{encode_and_publish, prune_stale, publish_voice, VoiceTarget};
+use lectover::site::{
+    encode_and_publish, mismatched_voices, prune_stale, publish_voice, VoiceTarget,
+};
 use serde_json::{json, Value};
 
 fn post() -> Post {
@@ -572,4 +574,18 @@ fn failed_mp3_encode_leaves_no_tmp_and_old_set() {
         "mp3 temp left behind"
     );
     assert_eq!(snapshot(&site), before, "old set and manifest unchanged");
+}
+
+#[test]
+fn mismatched_voices_names_the_voices_rendered_from_other_text() {
+    let tmp = tempfile::tempdir().unwrap();
+    seed_two_voices(tmp.path());
+    let site = tmp.path().join("site");
+    assert_eq!(mismatched_voices(&site, &current()).unwrap(), ["b"]);
+    let old = vec!["old1".to_string(), "old2".to_string()];
+    assert_eq!(mismatched_voices(&site, &old).unwrap(), ["a"]);
+    // nothing rendered yet: nothing to warn about
+    assert!(mismatched_voices(&tmp.path().join("none"), &current())
+        .unwrap()
+        .is_empty());
 }

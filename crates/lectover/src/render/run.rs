@@ -183,6 +183,7 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
     let files = ModelFiles::check(&settings.models)?; // before any network or model work
     let site = settings.site_for_post(&args.post, args.site.as_deref())?;
     let local = crate::cli::local_post(&args.post, &args.local)?;
+    let is_local = local.is_some();
     let lexicon_path = args.lexicon.as_ref().unwrap_or(&site.lexicon);
     let lexicon = load_lexicon(lexicon_path)
         .with_context(|| format!("reading {}", lexicon_path.display()))?;
@@ -248,7 +249,14 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
         &mut models,
     );
     drop(models);
-    result
+    result?;
+    if is_local {
+        // A local file has no Ghost page: write its dev page from the very text the audio was
+        // made from, so an edit to the file during the render cannot desynchronise the two.
+        let page = crate::dev::write_page(&prep.post, &site.domain, &settings.site_root)?;
+        println!("page: {}", page.display());
+    }
+    Ok(())
 }
 
 /// The per-site inputs of a render besides the post: its sounds, the voice registry and the
@@ -387,13 +395,17 @@ fn render_voices(
             timings["duration"].as_f64().unwrap_or_default(),
             t0.elapsed().as_secs_f64()
         );
-        println!(
-            "  takes: TTS {}; ASR check {}; carrier cut {}",
-            tts.stats.summary("synthesised"),
-            asr.stats.summary("run"),
-            aligner_takes.summary("run")
-        );
-        println!("  word times: aligner {}", aligner_words.summary("run"));
+        if use_cache {
+            println!(
+                "  takes: TTS {}; ASR check {}; carrier cut {}",
+                tts.stats.summary("synthesised"),
+                asr.stats.summary("run"),
+                aligner_takes.summary("run")
+            );
+            println!("  word times: aligner {}", aligner_words.summary("run"));
+        } else {
+            println!("  cache off (--no-cache): every take, ASR check and alignment ran afresh");
+        }
         println!(
             "  {}\n  {}\n  {}\n  {}",
             file("audio").display(),
