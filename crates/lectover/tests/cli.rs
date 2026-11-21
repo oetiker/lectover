@@ -616,3 +616,25 @@ fn model_sources_match_spike_log() {
         .collect();
     assert_eq!(got, want);
 }
+
+#[test]
+fn cache_prune_defaults_to_90_days() {
+    use lectover::cli::CacheCommand;
+    let cli = Cli::try_parse_from(["lectover", "cache", "prune"]).unwrap();
+    assert!(matches!(
+        cli.command,
+        Commands::Cache(CacheCommand::Prune {
+            days: 90,
+            dry_run: false
+        })
+    ));
+    let cli =
+        Cli::try_parse_from(["lectover", "cache", "prune", "--days", "7", "--dry-run"]).unwrap();
+    assert!(matches!(
+        cli.command,
+        Commands::Cache(CacheCommand::Prune {
+            days: 7,
+            dry_run: true
+        })
+    ));
+}

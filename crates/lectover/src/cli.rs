@@ -36,6 +36,9 @@ pub enum Commands {
     /// Manage the reference voices.
     #[command(subcommand)]
     Voice(VoiceCommand),
+    /// Manage the render cache (takes, transcripts, alignments).
+    #[command(subcommand)]
+    Cache(CacheCommand),
     /// Local Ghost-like page for trying the player.
     #[command(subcommand)]
     Dev(DevCommand),
@@ -215,6 +218,20 @@ pub enum ModelsCommand {
     },
 }
 
+#[derive(Debug, Subcommand)]
+pub enum CacheCommand {
+    /// Remove cached takes, transcripts and alignments no render has used for a while (the
+    /// `takes` directory of the config [default: ~/.cache/lectover/takes]).
+    Prune {
+        /// Remove what no render has read or written for this many days.
+        #[arg(long, value_name = "N", default_value_t = 90)]
+        days: u64,
+        /// Only report what would go.
+        #[arg(long)]
+        dry_run: bool,
+    },
+}
+
 /// Options of a local post file (no Ghost key, no network); rejected for a Ghost post.
 #[derive(Debug, Clone, Default, Args)]
 pub struct LocalArgs {
@@ -356,7 +373,7 @@ pub fn overrides(cli: &Cli) -> Overrides {
             o.site = out.clone()
         }
         Commands::Say(a) => (o.models, o.voices) = (a.models.clone(), a.voices_dir.clone()),
-        Commands::Doctor { .. } => {}
+        Commands::Doctor { .. } | Commands::Cache(_) => {}
     }
     o
 }
@@ -386,23 +403,40 @@ fn run_command(cli: Cli, settings: &Settings) -> Result<()> {
             post, local, site, ..
         }) => {
             let s = settings.site_for_post(&post, site.as_deref())?;
-            let page = match local_post(&post, &local)? {
-                Some(p) => crate::dev::write_page(&p, &s.domain, &settings.site_root)?,
+            let p = match local_post(&post, &local)? {
+                Some(p) => p,
                 None => {
                     let cfg = crate::ghost::GhostConfig::for_site(&s, &|k| std::env::var(k).ok())?;
-                    crate::dev::build(
-                        &cfg,
-                        &s.domain,
-                        &post,
-                        &settings.site_root,
-                        &crate::ghost::http_get,
-                    )?
+                    crate::dev::fetch(&cfg, &post, &crate::ghost::http_get)?
                 }
             };
+            let page = crate::dev::write_page(&p, &s.domain, &settings.site_root)?;
             println!("wrote {}", page.display());
+            let stale = crate::dev::stale_voices(&p, &s.domain, &settings.site_root)?;
+            if let Some(w) = crate::dev::stale_warning(&stale) {
+                eprintln!("{w}");
+            }
             Ok(())
         }
         Commands::Say(args) => crate::say::run(&args, settings),
+        Commands::Cache(CacheCommand::Prune { days, dry_run }) => {
+            let r = crate::render::prune(
+                &settings.takes,
+                std::time::Duration::from_secs(days * 86_400),
+                dry_run,
+            )?;
+            let mb = |b: u64| b as f64 / 1e6;
+            let verb = if dry_run { "would remove" } else { "removed" };
+            println!(
+                "{}: {verb} {} file(s), {:.1} MB unused for {days} day(s); kept {} file(s), {:.1} MB",
+                settings.takes.display(),
+                r.removed,
+                mb(r.removed_bytes),
+                r.kept,
+                mb(r.kept_bytes)
+            );
+            Ok(())
+        }
         Commands::Doctor { .. } => unreachable!("handled in run"),
         Commands::Dev(DevCommand::Serve { port, .. }) => crate::dev::serve(
             &settings.site_root,

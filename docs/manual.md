@@ -22,6 +22,8 @@ lectover - render Ghost blog posts as narrated audio for a read-aloud player
 
 **lectover** [**--config** *FILE*] **dev build** *POST* | **dev serve** [*options*]
 
+**lectover** [**--config** *FILE*] **cache prune** [**--days** *N*] [**--dry-run**]
+
 **lectover** [**--config** *FILE*] **doctor** [**--site** *DOMAIN*] [**--offline**]
 
 # CONFIGURATION
@@ -33,7 +35,7 @@ A leading `~` in a path is the home directory; a relative path resolves against 
 An unknown key produces a warning.
 
 - `paths.models`: Models directory. Default `~/.cache/lectover/models`.
-- `paths.takes`: Cache of synthesised takes. Default `~/.cache/lectover/takes`.
+- `paths.takes`: Cache of synthesised takes, their transcripts and alignments. Default `~/.cache/lectover/takes`.
 - `paths.site`: Deploy tree. Default `~/.local/share/lectover/site`.
 - `paths.voices`: Voice registry directory. Default `~/.local/share/lectover/voices`.
 - `paths.sounds`: Parent directory of the per-site sound directories. Default `~/.local/share/lectover/sites`.
@@ -55,7 +57,7 @@ The optional `[upload]` table has `target` and `ssh_key` (both required) and `kn
 
 # DESCRIPTION
 
-**lectover** fetches a public post through the Ghost Content API, splits it into chunks, speaks each chunk with Qwen3-TTS through ggml, transcribes the take with Qwen3 ASR and compares the transcript with the text.
+**lectover** fetches a public post through the Ghost Content API, or reads a local Markdown or HTML file, splits it into chunks, speaks each chunk with Qwen3-TTS through ggml, transcribes the take with Qwen3 ASR and compares the transcript with the text.
 A take that scores below 0.90 is generated again with the next seed, for up to four rounds.
 A forced aligner gives the time of every word.
 
@@ -88,7 +90,12 @@ Options shared by several commands:
 
 ## render POST
 
-Renders a public post, given as URL or slug, into the deploy tree.
+Renders a public post, given as URL or slug, or a local file into the deploy tree.
+A *POST* naming an existing file (`.md`, `.markdown`, `.html`, `.htm`, any other file read as Markdown) is loaded from disk without Ghost: Markdown is converted to HTML, raw HTML and comments pass through, and of a full HTML document only the `<body>` is used.
+For a local file **render** also writes the dev page (see **dev build**) from the text it read.
+
+Takes, their ASR transcripts and their word alignments are cached in the takes directory, so a re-render only runs the models for chunks whose text changed.
+Each voice ends with the time per step and the model calls made and answered from the cache.
 
 - `--voice ID`: Voice id from the registry; repeat for more voices. Default: the site's `voices`, else the first voice in the registry.
 - `--out DIR`: Deploy tree. The post goes to `DIR/<domain>/<slug>/`.
@@ -98,7 +105,11 @@ Renders a public post, given as URL or slug, into the deploy tree.
 - `--max-batch N`: Takes decoded together, 1 to 64. Batched takes depend on what shares the batch and differ from unbatched ones. Default 6.
 - `--streaming`: Feed the chunk text to the talker step by step instead of in the prompt.
 - `--no-pace`: Do not pace-match the chunks.
-- `--no-cache`: Synthesise every take again instead of reusing cached takes.
+- `--no-cache`: Run every model call afresh instead of reusing cached takes, transcripts and alignments.
+- `--title TEXT`: Title of a local file. Default: its first `<h1>` or `# heading`, which then leaves the body; else the file name.
+- `--author NAME`: Author of a local file, spoken in the intro; repeat for more authors.
+- `--date YYYY-MM-DD`: Publication date of a local file, spoken in the intro. Default: today.
+- `--slug SLUG`: Output folder of a local file. Default: the file name in lowercase ASCII with hyphens.
 - `--lexicon FILE`: Pronunciation lexicon. A missing file means none. Default: the site's lexicon.
 - `--sounds DIR`: Directory holding `intro.wav` and `break.wav`. Default: the site's sounds directory.
 
@@ -154,6 +165,8 @@ Clips longer than 90 seconds are refused.
 ## dev build POST
 
 Writes `<deploy tree>/<domain>/<slug>/index.html`, a Ghost-like page that loads the player from `/js?domain=<domain>`.
+*POST* is a URL, a slug or a local file, which takes the local-file options of **render**.
+Warns about rendered voices whose text differs from the page; the player stays off for them until the post is rendered again.
 
 - `--out DIR`: Deploy tree.
 
@@ -163,6 +176,14 @@ Serves the deploy tree on 127.0.0.1 with HTTP Range support and answers `/js` wi
 
 - `--port N`: Port. Default 8000.
 - `--out DIR`: Deploy tree.
+
+## cache prune
+
+Removes cached takes, transcripts and alignments that no render has read or written for a number of days; a render that uses an entry refreshes its file time.
+Other files in the takes directory are left alone.
+
+- `--days N`: Days without use. Default 90.
+- `--dry-run`: Only report what would be removed.
 
 ## doctor
 
@@ -183,7 +204,7 @@ A usage error exits 2.
 
 - `LECTOVER_CONFIG`: Configuration file.
 - `LECTOVER_MODELS`: Models directory.
-- `LECTOVER_TAKES`: Cache of synthesised takes.
+- `LECTOVER_TAKES`: Cache of synthesised takes, their transcripts and alignments.
 - `LECTOVER_SITE`: Deploy tree.
 - `LECTOVER_VOICES`: Voice registry directory.
 - `XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME`: Replace the `~/.config`, `~/.local/share`, `~/.local/state` and `~/.cache` prefixes of the default paths, on Linux and macOS alike.
@@ -195,7 +216,7 @@ A usage error exits 2.
 - `~/.config/lectover/config.toml`: Configuration file.
 - `~/.config/lectover/lexicon/<domain>.txt`: Pronunciation lexicon of a site.
 - `~/.cache/lectover/models/`: Model files.
-- `~/.cache/lectover/takes/`: Cached takes.
+- `~/.cache/lectover/takes/`: Cached takes; `asr/` and `align/` hold their transcripts and alignments.
 - `~/.local/share/lectover/site/`: Deploy tree.
 - `~/.local/share/lectover/voices/`: Voice registry: `voices.json` and, per voice, `<id>.wav` and `<id>.txt`.
 - `~/.local/share/lectover/sites/<domain>/`: Sounds of a site, `intro.wav` and `break.wav`.
