@@ -98,7 +98,7 @@ Takes, their ASR transcripts and their word alignments are cached in the takes d
 Each voice ends with the time per step and the model calls made and answered from the cache.
 It then lists tempo outliers: chunks more than 10 % faster or slower than the median of up to two chunks on each side, by the aligner's rate and confirmed by the loudness-based one (same direction, over 5 %).
 Listeners judge tempo against what they just heard, so only a jump against the neighbours is audible, not a slow region or a gradual drift; titles and chunks under 40 syllables are left out.
-With **--reroll-tempo** the outliers are regenerated, otherwise this only reports.
+The outliers are then regenerated; with **--no-reroll-tempo** or **--pace** this only reports.
 
 - `--voice ID`: Voice id from the registry; repeat for more voices. Default: the site's `voices`, else the first voice in the registry.
 - `--out DIR`: Deploy tree. The post goes to `DIR/<domain>/<slug>/`.
@@ -108,7 +108,7 @@ With **--reroll-tempo** the outliers are regenerated, otherwise this only report
 - `--max-batch N`: Takes decoded together, 1 to 64. Batched takes depend on what shares the batch and differ from unbatched ones. Default 6.
 - `--streaming`: Feed the chunk text to the talker step by step instead of in the prompt.
 - `--pace`: Stretch each chunk towards the post's median speaking rate, by at most 12 %. Off by default: the takes vary about as much as a reader does between paragraphs, and stretching neighbours apart is heard as a tempo jump.
-- `--reroll-tempo`: Regenerate the tempo outliers instead of stretching them: up to four new takes per flagged chunk, with seeds a render never uses and the same ASR check; the take whose rate is closest to the neighbours replaces the original if it is within 10 % of them. The audio is then assembled and aligned again and the tempo report repeated. Extra synthesis only for flagged chunks; cached like every take. Opt-in; not with `--pace`.
+- `--no-reroll-tempo`: Keep the tempo outliers; only report them. By default they are regenerated instead of stretched: up to four new takes per flagged chunk, with seeds a render never uses and the same ASR check; the take whose rate is closest to the neighbours replaces the original if it is within 10 % of them. The audio is then assembled and aligned again and the tempo report repeated. Extra synthesis only for flagged chunks; cached like every take. `--pace` turns the re-roll off.
 - `--no-cache`: Run every model call afresh instead of reusing cached takes, transcripts and alignments.
 - `--title TEXT`: Title of a local file. Default: its first `<h1>` or `# heading`, which then leaves the body; else the file name.
 - `--author NAME`: Author of a local file, spoken in the intro; repeat for more authors.
