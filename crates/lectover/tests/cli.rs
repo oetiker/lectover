@@ -372,7 +372,7 @@ fn render_args_have_no_relative_defaults() {
         panic!()
     };
     assert!(a.out.is_none() && a.lexicon.is_none() && a.sounds.is_none() && a.site.is_none());
-    assert_eq!((a.seed, a.temperature, a.no_pace), (42, 0.9, false));
+    assert_eq!((a.seed, a.temperature, a.pace), (42, 0.9, false));
     assert!(a.models.is_none() && a.device.is_none() && a.voices.is_empty());
     let cli = Cli::try_parse_from([
         "lectover", "render", "p", "--config", "/c.toml", "--out", "/o",
@@ -637,4 +637,23 @@ fn cache_prune_defaults_to_90_days() {
             dry_run: true
         })
     ));
+}
+
+#[test]
+fn pacing_is_opt_in_and_no_pace_still_parses() {
+    let Commands::Render(a) = Cli::try_parse_from(["lectover", "render", "p", "--pace"])
+        .unwrap()
+        .command
+    else {
+        panic!()
+    };
+    assert!(a.pace);
+    let Commands::Render(a) = Cli::try_parse_from(["lectover", "render", "p", "--no-pace"])
+        .unwrap()
+        .command
+    else {
+        panic!()
+    };
+    assert!(!a.pace);
+    assert!(Cli::try_parse_from(["lectover", "render", "p", "--pace", "--no-pace"]).is_err());
 }

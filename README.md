@@ -264,7 +264,7 @@ lectover render frohburg-spiel-satz-patt --voice erzaehler --voice warm   # `war
 are used, else the first voice in the registry. Other options: `--site DOMAIN`
 (for a slug or local file), `--out DIR` (deploy tree, default
 `~/.local/share/lectover/site`), `--seed N` (42), `--temperature T` (0.9),
-`--no-pace`, `--device cpu|metal|cuda|hip|vulkan`, `--lexicon FILE` (default:
+`--pace`, `--device cpu|metal|cuda|hip|vulkan`, `--lexicon FILE` (default:
 the site's lexicon), `--sounds DIR` (default: the site's sounds).
 
 Each chunk is generated, transcribed and compared with its text; a take

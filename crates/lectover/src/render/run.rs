@@ -347,7 +347,7 @@ fn render_voices(
             .zip(&prep.chunks)
             .map(|(w, c)| (w, c.text.clone(), c.kind))
             .collect();
-        let (audio, parts) = assemble_parts_with(&takes, sr, !args.no_pace, &stings);
+        let (audio, parts) = assemble_parts_with(&takes, sr, args.pace, &stings);
         let t_align = Instant::now();
         let (chunk_times, chunk_interp) = {
             let al: &mut dyn Align = if use_cache {
