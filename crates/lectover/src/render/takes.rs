@@ -24,7 +24,7 @@ pub const RETRY_COOLING: f32 = 0.1;
 /// ... but never below this.
 pub const MIN_RETRY_TEMPERATURE: f32 = 0.5;
 
-/// New takes tried for each tempo outlier (`render --reroll-tempo`, see [`reroll_takes`]).
+/// New takes tried for each tempo outlier (`render`, unless `--no-reroll-tempo`; see [`reroll_takes`]).
 pub const REROLL_CANDIDATES: usize = 4;
 /// Offset of the tempo re-roll seeds from the render's base seed. A normal render seeds
 /// candidate `j` of round `r` with `seed + r + MAX_ROUNDS * j`, `r < MAX_ROUNDS` and

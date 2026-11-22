@@ -657,3 +657,24 @@ fn pacing_is_opt_in_and_no_pace_still_parses() {
     assert!(!a.pace);
     assert!(Cli::try_parse_from(["lectover", "render", "p", "--pace", "--no-pace"]).is_err());
 }
+
+#[test]
+fn tempo_reroll_is_default_and_can_be_switched_off() {
+    let parse = |extra: &[&str]| {
+        let mut argv = vec!["lectover", "render", "p"];
+        argv.extend_from_slice(extra);
+        match Cli::try_parse_from(argv).map(|c| c.command) {
+            Ok(Commands::Render(a)) => Ok(a.reroll_outliers()),
+            Ok(_) => panic!(),
+            Err(e) => Err(e),
+        }
+    };
+    assert!(parse(&[]).unwrap());
+    assert!(!parse(&["--no-reroll-tempo"]).unwrap());
+    // --pace stretches instead of re-rolling.
+    assert!(!parse(&["--pace"]).unwrap());
+    // The old opt-in flag still parses.
+    assert!(parse(&["--reroll-tempo"]).unwrap());
+    assert!(parse(&["--reroll-tempo", "--pace"]).is_err());
+    assert!(parse(&["--reroll-tempo", "--no-reroll-tempo"]).is_err());
+}

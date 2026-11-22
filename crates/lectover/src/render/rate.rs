@@ -9,7 +9,7 @@
 //! Neither rate measure is reliable on its own (they agree only at r ≈ 0.85): the aligner
 //! rate (syllables over the time inside aligned words) is the primary one, the voiced rate
 //! (syllables over the loud frames of the take, see [`crate::audio::voiced_rate`]) has to
-//! confirm it. Outliers are reported; `render --reroll-tempo` replaces them with a new take
+//! confirm it. Outliers are reported; `render` replaces them (unless `--no-reroll-tempo`) with a new take
 //! closer to the neighbours when one of a few tries is ([`pick_reroll`]).
 
 use std::io;

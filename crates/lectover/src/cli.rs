@@ -313,10 +313,13 @@ pub struct RenderArgs {
     /// neighbours apart is heard as a tempo jump at the paragraph break.
     #[arg(long)]
     pub pace: bool,
-    /// Re-synthesise the chunks the tempo report flags (up to 4 new takes each, fresh seeds,
-    /// same ASR check) and keep a take within 10 % of its neighbours' rate; regenerates
-    /// instead of stretching, so it cannot be combined with --pace.
-    #[arg(long, conflicts_with = "pace")]
+    /// Keep the chunks the tempo report flags as they are. By default they are re-synthesised
+    /// (up to 4 new takes each, fresh seeds, same ASR check) and a take within 10 % of its
+    /// neighbours' rate replaces the original. --pace stretches instead and turns this off.
+    #[arg(long)]
+    pub no_reroll_tempo: bool,
+    /// Accepted for old scripts; re-rolling tempo outliers is the default now.
+    #[arg(long, hide = true, conflicts_with_all = ["pace", "no_reroll_tempo"])]
     pub reroll_tempo: bool,
     /// Accepted for old scripts; not pacing is the default now.
     #[arg(long, hide = true, conflicts_with = "pace")]
@@ -345,6 +348,14 @@ pub struct RenderArgs {
     /// [default: ~/.local/share/lectover/sites/<domain>].
     #[arg(long, value_name = "DIR")]
     pub sounds: Option<PathBuf>,
+}
+
+impl RenderArgs {
+    /// Whether tempo outliers are re-synthesised: the default, unless `--no-reroll-tempo`
+    /// or `--pace` (which stretches instead).
+    pub fn reroll_outliers(&self) -> bool {
+        !self.no_reroll_tempo && !self.pace
+    }
 }
 
 pub fn parse_device(s: &str) -> Result<Device> {

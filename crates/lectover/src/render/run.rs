@@ -430,7 +430,7 @@ fn render_voices(
         let mut tempo = vec![tempo_report(prep, &outliers)];
         // (seconds, TTS, ASR, aligner) of the tempo re-roll, if it ran.
         let mut reroll: Option<(f64, CallStats, CallStats, CallStats)> = None;
-        if args.reroll_tempo && !outliers.is_empty() {
+        if args.reroll_outliers() && !outliers.is_empty() {
             let t_reroll = Instant::now();
             let before = (tts.stats, asr.stats, aligner.stats);
             let flagged: Vec<usize> = outliers.iter().map(|o| o.index).collect();
