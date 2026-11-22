@@ -104,7 +104,7 @@ Each voice ends with the time per step and the model calls made and answered fro
 - `--max-chars N`: Longest chunk in characters; longer blocks are split at sentences. Default 1000.
 - `--max-batch N`: Takes decoded together, 1 to 64. Batched takes depend on what shares the batch and differ from unbatched ones. Default 6.
 - `--streaming`: Feed the chunk text to the talker step by step instead of in the prompt.
-- `--no-pace`: Do not pace-match the chunks.
+- `--pace`: Stretch each chunk towards the post's median speaking rate, by at most 12 %. Off by default: the takes vary about as much as a reader does between paragraphs, and stretching neighbours apart is heard as a tempo jump.
 - `--no-cache`: Run every model call afresh instead of reusing cached takes, transcripts and alignments.
 - `--title TEXT`: Title of a local file. Default: its first `<h1>` or `# heading`, which then leaves the body; else the file name.
 - `--author NAME`: Author of a local file, spoken in the intro; repeat for more authors.

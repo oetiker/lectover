@@ -308,8 +308,13 @@ pub struct RenderArgs {
     /// putting it all in the prompt; the streaming feed drifts in room and timbre mid-take.
     #[arg(long)]
     pub streaming: bool,
-    /// Do not pace-match the chunks.
+    /// Stretch each chunk towards the post's median speaking rate (±12 %). Off by default:
+    /// takes vary by about as much as one reader does between paragraphs, and stretching
+    /// neighbours apart is heard as a tempo jump at the paragraph break.
     #[arg(long)]
+    pub pace: bool,
+    /// Accepted for old scripts; not pacing is the default now.
+    #[arg(long, hide = true, conflicts_with = "pace")]
     pub no_pace: bool,
     /// Run every model call afresh instead of reusing cached takes, transcripts and alignments
     /// (~/.cache/lectover/takes).
