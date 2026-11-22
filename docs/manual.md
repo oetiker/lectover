@@ -14,6 +14,8 @@ lectover - render Ghost blog posts as narrated audio for a read-aloud player
 
 **lectover** [**--config** *FILE*] **render** *POST* [*options*]
 
+**lectover** [**--config** *FILE*] **render** [**--since** *DATE*] [**--until** *DATE*] [*options*]
+
 **lectover** [**--config** *FILE*] **say** *TEXT*... [*options*]
 
 **lectover** [**--config** *FILE*] **models fetch** [**--design**] [**--models** *DIR*]
@@ -46,7 +48,7 @@ The domain also names the site's folder in the deploy tree.
 
 - `ghost_url`: Base URL of the Ghost site. Required.
 - `language`: Language of the posts. Default and only supported value `de-CH`.
-- `since`: A date. Validated, not used.
+- `since`: A date `YYYY-MM-DD`: the first publication date **render --until** takes when **--since** is not given. Optional.
 - `voices`: List of `{ id = "...", label = "..." }` tables: the voices rendered for the site and their labels in the player. Default: the first voice in the registry.
 - `sounds`: Directory under the sounds root holding `intro.wav` and `break.wav`. Default: the domain.
 - `lexicon`: Lexicon file under `~/.config/lectover/lexicon/`, without `.txt`. Default: the domain.
@@ -94,12 +96,19 @@ Renders a public post, given as URL or slug, or a local file into the deploy tre
 A *POST* naming an existing file (`.md`, `.markdown`, `.html`, `.htm`, any other file read as Markdown) is loaded from disk without Ghost: Markdown is converted to HTML, raw HTML and comments pass through, and of a full HTML document only the `<body>` is used.
 For a local file **render** also writes the dev page (see **dev build**) from the text it read.
 
+Without *POST*, **--since** and/or **--until** render every public post of the site published in that range, both dates inclusive, oldest first; without **--since** the site's `since` is the first date.
+The date is the one the site shows (Ghost's site-local time).
+Members-only and paid posts are skipped with a note, drafts are not listed.
+The models load once; a post that fails is reported, the next one rendered, and the command exits with an error naming the failed posts.
+
 Takes, their ASR transcripts and their word alignments are cached in the takes directory, so a re-render only runs the models for chunks whose text changed.
 Each voice ends with the time per step and the model calls made and answered from the cache.
 It then lists tempo outliers: chunks more than 10 % faster or slower than the median of up to two chunks on each side, by the aligner's rate and confirmed by the loudness-based one (same direction, over 5 %).
 Listeners judge tempo against what they just heard, so only a jump against the neighbours is audible, not a slow region or a gradual drift; titles and chunks under 40 syllables are left out.
 The outliers are then regenerated; with **--no-reroll-tempo** or **--pace** this only reports.
 
+- `--since DATE`: Instead of *POST*, render every public post published on or after `DATE` (`YYYY-MM-DD`).
+- `--until DATE`: Instead of *POST*, render every public post published on or before `DATE`; with **--since**, the range between.
 - `--voice ID`: Voice id from the registry; repeat for more voices. Default: the site's `voices`, else the first voice in the registry.
 - `--out DIR`: Deploy tree. The post goes to `DIR/<domain>/<slug>/`.
 - `--temperature T`: Sampling temperature of the talker. Default 0.9.
@@ -239,6 +248,12 @@ Render a post in two voices:
 
 ```sh
 lectover render https://example.org/a-post/ --voice erzaehler --voice warm
+```
+
+Render every post published in 2026:
+
+```sh
+lectover render --site example.org --since 2026-01-01 --until 2026-12-31
 ```
 
 Try two spellings of a word:

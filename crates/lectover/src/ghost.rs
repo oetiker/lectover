@@ -110,6 +110,118 @@ pub fn settings_api_url(cfg: &GhostConfig) -> String {
     )
 }
 
+/// Publication dates to render, `YYYY-MM-DD`, both ends inclusive; `None` leaves that end open.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DateRange {
+    pub since: Option<String>,
+    pub until: Option<String>,
+}
+
+impl DateRange {
+    /// Whether the site-local date `date` (`YYYY-MM-DD`) lies in the range.
+    pub fn contains(&self, date: &str) -> bool {
+        self.since.as_deref().is_none_or(|s| date >= s)
+            && self.until.as_deref().is_none_or(|u| date <= u)
+    }
+
+    /// `2026-01-01..2026-12-31`, with `…` for an open end.
+    pub fn describe(&self) -> String {
+        format!(
+            "{}..{}",
+            self.since.as_deref().unwrap_or("…"),
+            self.until.as_deref().unwrap_or("…")
+        )
+    }
+}
+
+/// A published post as listed by [`list_posts`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(default)]
+pub struct PostSummary {
+    pub slug: String,
+    pub title: String,
+    /// Site-local timestamp; its first ten characters are the publication date.
+    pub published_at: String,
+    pub visibility: String,
+}
+
+impl PostSummary {
+    pub fn date(&self) -> &str {
+        self.published_at.get(..10).unwrap_or(&self.published_at)
+    }
+}
+
+/// The posts of a [`list_posts`] call, oldest first.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PostListing {
+    pub public: Vec<PostSummary>,
+    /// In the range but not public (members or paid): never rendered.
+    pub not_public: Vec<PostSummary>,
+}
+
+/// Posts per page of the listing (Ghost's maximum).
+const LIST_PAGE: u32 = 100;
+
+pub fn posts_api_url(cfg: &GhostConfig, page: u32) -> String {
+    format!(
+        "{}/ghost/api/content/posts/?key={}&fields=slug,title,published_at,visibility&limit={LIST_PAGE}&page={page}",
+        cfg.url,
+        utf8_percent_encode(&cfg.key, QUOTE)
+    )
+}
+
+/// Every published post whose site-local publication date lies in `range`, oldest first.
+/// The date is compared as Ghost reports it (site-local), not in UTC, so a post is counted
+/// on the day its readers saw on the site.
+pub fn list_posts(
+    cfg: &GhostConfig,
+    range: &DateRange,
+    get: &dyn Fn(&str) -> Result<HttpReply>,
+) -> Result<PostListing> {
+    #[derive(Deserialize, Default)]
+    #[serde(default)]
+    struct Pagination {
+        next: Option<u32>,
+    }
+    #[derive(Deserialize, Default)]
+    #[serde(default)]
+    struct Meta {
+        pagination: Pagination,
+    }
+    #[derive(Deserialize)]
+    struct Envelope {
+        #[serde(default)]
+        posts: Vec<PostSummary>,
+        #[serde(default)]
+        meta: Meta,
+    }
+    let mut posts = Vec::new();
+    let mut page = 1;
+    loop {
+        let reply = get(&posts_api_url(cfg, page))
+            .map_err(|e| anyhow!("cannot reach Ghost at {}: {e}", cfg.url))?;
+        if !(200..=299).contains(&reply.status) {
+            // Do not echo the URL: it contains the API key.
+            bail!("Ghost API error {} listing posts", reply.status);
+        }
+        let env: Envelope = serde_json::from_slice(&reply.body)
+            .map_err(|e| anyhow!("invalid Ghost API response listing posts: {e}"))?;
+        posts.extend(env.posts);
+        match env.meta.pagination.next {
+            Some(next) if next > page => page = next,
+            _ => break,
+        }
+    }
+    posts.retain(|p| range.contains(p.date()));
+    posts.sort_by(|a, b| {
+        a.date()
+            .cmp(b.date())
+            .then(a.published_at.cmp(&b.published_at))
+    });
+    let (public, not_public) = posts.into_iter().partition(|p| p.visibility == "public");
+    Ok(PostListing { public, not_public })
+}
+
 /// Fetch a post by slug. `get` performs the HTTP GET and returns `Err` only for
 /// transport failures (its message must not contain the request URL: it holds the key).
 pub fn fetch_post(

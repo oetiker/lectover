@@ -353,7 +353,7 @@ fn voice_flags_keep_order_and_slug() {
         let Commands::Render(args) = cli.command else {
             panic!("not render: {argv:?}")
         };
-        assert_eq!(args.post, "slug", "{argv:?}");
+        assert_eq!(args.post.as_deref(), Some("slug"), "{argv:?}");
         assert_eq!(args.voices, strings(&["b", "a"]), "{argv:?}");
     }
     // `--voice a b` no longer takes two ids: b is the slug.
@@ -361,7 +361,10 @@ fn voice_flags_keep_order_and_slug() {
     let Commands::Render(args) = cli.command else {
         panic!()
     };
-    assert_eq!((args.post.as_str(), args.voices), ("b", strings(&["a"])));
+    assert_eq!(
+        (args.post.as_deref(), args.voices),
+        (Some("b"), strings(&["a"]))
+    );
 }
 
 #[test]
@@ -677,4 +680,40 @@ fn tempo_reroll_is_default_and_can_be_switched_off() {
     assert!(parse(&["--reroll-tempo"]).unwrap());
     assert!(parse(&["--reroll-tempo", "--pace"]).is_err());
     assert!(parse(&["--reroll-tempo", "--no-reroll-tempo"]).is_err());
+}
+
+#[test]
+fn render_since_until_replace_the_post() {
+    let parse = |argv: &[&str]| {
+        let mut full = vec!["lectover", "render"];
+        full.extend_from_slice(argv);
+        match Cli::try_parse_from(full).map(|c| c.command) {
+            Ok(Commands::Render(a)) => Ok(a),
+            Ok(_) => panic!(),
+            Err(e) => Err(e),
+        }
+    };
+    let a = parse(&[
+        "--site",
+        "olten.jetzt",
+        "--since",
+        "2026-01-01",
+        "--until",
+        "2026-12-31",
+    ])
+    .unwrap();
+    assert_eq!(a.post, None);
+    assert_eq!(a.since.as_deref(), Some("2026-01-01"));
+    assert_eq!(a.until.as_deref(), Some("2026-12-31"));
+    let a = parse(&["--until", "2026-06-30"]).unwrap();
+    assert_eq!((a.since, a.until.as_deref()), (None, Some("2026-06-30")));
+    // A post or nothing at all.
+    assert!(parse(&[]).is_err());
+    assert!(parse(&["slug", "--since", "2026-01-01"]).is_err());
+    // Local-file options belong to one file.
+    assert!(parse(&["--since", "2026-01-01", "--title", "T"]).is_err());
+    assert!(parse(&["--until", "2026-01-01", "--date", "2026-01-01"]).is_err());
+    // Calendar dates only.
+    assert!(parse(&["--since", "2026-02-30"]).is_err());
+    assert!(parse(&["--since", "1.1.2026"]).is_err());
 }
