@@ -264,8 +264,9 @@ lectover render frohburg-spiel-satz-patt --voice erzaehler --voice warm   # `war
 are used, else the first voice in the registry. Other options: `--site DOMAIN`
 (for a slug or local file), `--out DIR` (deploy tree, default
 `~/.local/share/lectover/site`), `--seed N` (42), `--temperature T` (0.9),
-`--pace`, `--device cpu|metal|cuda|hip|vulkan`, `--lexicon FILE` (default:
-the site's lexicon), `--sounds DIR` (default: the site's sounds).
+`--pace`, `--reroll-tempo`, `--device cpu|metal|cuda|hip|vulkan`,
+`--lexicon FILE` (default: the site's lexicon), `--sounds DIR` (default: the
+site's sounds).
 
 Each chunk is generated, transcribed and compared with its text; a take
 scoring below 0.90 is regenerated with the next seed, up to four rounds. On an
@@ -286,8 +287,17 @@ chunk, its block and the start of its text). Listeners judge tempo against the
 paragraph just heard, so a jump against the neighbours is audible while a
 slower region or a gradual drift is not; and since the aligner's rate and the
 loudness-based one often disagree, a chunk is only flagged when both do (the
-second by over 5 %). Titles and chunks under 40 syllables are left out. This
-only reports; nothing is corrected.
+second by over 5 %). Titles and chunks under 40 syllables are left out.
+
+`--reroll-tempo` (opt-in) fixes outliers by regenerating instead of
+stretching: each flagged chunk gets up to four new takes with seeds the render
+never uses, each through the same ASR check, and the one whose rate comes
+closest to its neighbours replaces the original if it is within 10 % of them.
+The audio is then assembled and aligned again, and the summary shows
+`tempo re-roll: chunk 24 +14 % -> +3 % (seed …)` (or `still +11 % (kept)`)
+followed by the tempo report of the final audio. Only flagged chunks cost extra
+synthesis, and a repeat render answers it all from the cache. It cannot be
+combined with `--pace`.
 
 The cache only grows. Every render that uses an entry refreshes its file
 time, so `lectover cache prune` removes what no render has used for 90 days

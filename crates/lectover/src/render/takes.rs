@@ -24,6 +24,24 @@ pub const RETRY_COOLING: f32 = 0.1;
 /// ... but never below this.
 pub const MIN_RETRY_TEMPERATURE: f32 = 0.5;
 
+/// New takes tried for each tempo outlier (`render --reroll-tempo`, see [`reroll_takes`]).
+pub const REROLL_CANDIDATES: usize = 4;
+/// Offset of the tempo re-roll seeds from the render's base seed. A normal render seeds
+/// candidate `j` of round `r` with `seed + r + MAX_ROUNDS * j`, `r < MAX_ROUNDS` and
+/// `j < MAX_CANDIDATES`, so it never goes beyond `seed + MAX_ROUNDS * MAX_CANDIDATES - 1`
+/// (`seed + 11`): any offset from there on yields takes the render has not tried yet.
+pub const REROLL_SEED_OFFSET: u64 = 1_000_000;
+
+/// Seed of tempo re-roll candidate `k` (see [`REROLL_SEED_OFFSET`]).
+pub fn reroll_seed(seed: u64, k: usize) -> u64 {
+    seed + REROLL_SEED_OFFSET + k as u64
+}
+
+/// Seed of candidate `j` in round `rnd` of a normal render (see [`synthesize_chunks_with`]).
+pub fn take_seed(seed: u64, rnd: usize, j: usize) -> u64 {
+    seed + (rnd + MAX_ROUNDS * j) as u64
+}
+
 /// Talker temperature for round `rnd` (0-based): `temperature`, then [`RETRY_COOLING`] less
 /// per round, floored at [`MIN_RETRY_TEMPERATURE`] (or `temperature` if that is lower).
 pub fn round_temperature(temperature: f32, rnd: usize) -> f32 {
@@ -87,6 +105,49 @@ pub struct ChunkRequest<'a> {
     pub lex: &'a Lexicon,
 }
 
+/// Synthesise `reqs` at `temp` and judge each finished take against `judges[slot]`: tail
+/// padding removed, [`Ending::finish`], ASR [`score`]. Returns each take with its unrounded
+/// score (the log shows three decimals), in request order. Takes are judged as the engine
+/// finishes them, so the ASR check runs while the TTS still decodes.
+fn generate_judged(
+    tts: &mut dyn Synth,
+    asr: &mut dyn Transcribe,
+    ending: &mut dyn Ending,
+    reqs: &[TakeRequest],
+    judges: &[&str],
+    temp: f32,
+    lex: &Lexicon,
+) -> Result<Vec<(Take, f64)>> {
+    let sr = tts.sample_rate();
+    let pad = tts.tail_pad_samples();
+    let mut judged: Vec<Option<(Take, f64)>> = vec![None; reqs.len()];
+    let wavs = tts.generate_each(reqs, temp, &mut |slot, raw| {
+        let text = judges[slot];
+        let body = &raw[..raw.len().saturating_sub(pad)];
+        let (wav, clean) = ending.finish(body, sr, text)?;
+        let (s, heard) = score(asr, &wav, sr, text, lex)?;
+        judged[slot] = Some((
+            Take {
+                clipped: !clean,
+                ..Take::new(s, wav, heard)
+            },
+            s,
+        ));
+        Ok(())
+    })?;
+    if wavs.len() != reqs.len() {
+        bail!(
+            "synthesis returned {} takes for {} requests",
+            wavs.len(),
+            reqs.len()
+        );
+    }
+    Ok(judged
+        .into_iter()
+        .map(|j| j.expect("every take was judged"))
+        .collect())
+}
+
 /// Synthesise `req.texts`. Progress goes to stdout, warnings to stderr.
 pub fn synthesize_chunks(
     tts: &mut dyn Synth,
@@ -106,8 +167,9 @@ pub fn synthesize_chunks(
 /// each with its bucket's token budget, sampled at [`round_temperature`]. Spare batch slots
 /// ([`Synth::max_batch`]) go to extra candidates: every chunk of the round gets
 /// `max_batch / chunks` takes, at least 1 and at most [`MAX_CANDIDATES`], candidate `j` seeded
-/// `req.seed + round + MAX_ROUNDS * j` (so candidate 0 keeps the `req.seed + round` of an unbatched render). Identical requests
-/// (a heading repeated in the post) are generated and scored once.
+/// [`take_seed`] `= req.seed + round + MAX_ROUNDS * j` (so candidate 0 keeps the
+/// `req.seed + round` of an unbatched render). Identical requests (a heading repeated in the
+/// post) are generated and scored once.
 pub fn synthesize_chunks_with(
     tts: &mut dyn Synth,
     asr: &mut dyn Transcribe,
@@ -141,7 +203,7 @@ pub fn synthesize_chunks_with(
                     let req = TakeRequest::new(
                         ending.tts_text(&texts[i]),
                         bucket,
-                        seed + (rnd + MAX_ROUNDS * j) as u64,
+                        take_seed(seed, rnd, j),
                     );
                     let slot = *seen.entry(req.clone()).or_insert_with(|| {
                         reqs.push(req);
@@ -170,34 +232,14 @@ pub fn synthesize_chunks_with(
         for &(idx, slot) in &cands {
             slot_chunk[slot].get_or_insert(idx);
         }
-        // Each take with its unrounded score (the log shows three decimals). Takes are judged
-        // as the engine finishes them, so the ASR check runs while the TTS still decodes.
-        let mut judged: Vec<Option<(Take, f64)>> = vec![None; reqs.len()];
-        let pad = tts.tail_pad_samples();
-        let wavs = tts.generate_each(&reqs, temp, &mut |slot, raw| {
-            let text = &texts[slot_chunk[slot].expect("every request belongs to a chunk")];
-            let body = &raw[..raw.len().saturating_sub(pad)];
-            let (wav, clean) = ending.finish(body, sr, text)?;
-            let (s, heard) = score(asr, &wav, sr, text, lex)?;
-            judged[slot] = Some((
-                Take {
-                    clipped: !clean,
-                    ..Take::new(s, wav, heard)
-                },
-                s,
-            ));
-            Ok(())
-        })?;
-        if wavs.len() != reqs.len() {
-            bail!(
-                "synthesis returned {} takes for {} requests",
-                wavs.len(),
-                reqs.len()
-            );
-        }
+        let judges: Vec<&str> = slot_chunk
+            .iter()
+            .map(|c| texts[c.expect("every request belongs to a chunk")].as_str())
+            .collect();
+        let judged = generate_judged(tts, asr, ending, &reqs, &judges, temp, lex)?;
         // Pick and log in request order, independent of the order the takes finished in.
         for (idx, slot) in cands {
-            let (cand, raw) = judged[slot].clone().expect("every take was judged");
+            let (cand, raw) = judged[slot].clone();
             writeln!(
                 log,
                 "  [{}/{}] {:5.1}s score {raw:.3}{}",
@@ -239,4 +281,70 @@ pub fn synthesize_chunks_with(
         }
     }
     Ok(best.into_iter().map(|b| b.wav).collect())
+}
+
+/// New takes of the chunks `chunks` (indices into `req.texts`), for the tempo re-roll:
+/// [`REROLL_CANDIDATES`] each, seeded [`reroll_seed`] and sampled at `req.temperature`, all in
+/// one `generate` call and judged like the takes of [`synthesize_chunks_with`]. Per chunk, in
+/// `chunks` order, candidate `k` is `None` when it failed the check (not [`Take::accepted`]).
+/// Progress goes to `log`.
+pub fn reroll_takes(
+    tts: &mut dyn Synth,
+    asr: &mut dyn Transcribe,
+    ending: &mut dyn Ending,
+    req: &ChunkRequest,
+    chunks: &[usize],
+    log: &mut dyn Write,
+) -> Result<Vec<Vec<Option<Take>>>> {
+    let ChunkRequest {
+        texts,
+        budgets,
+        seed,
+        temperature,
+        lex,
+    } = *req;
+    if budgets.len() != texts.len() {
+        bail!("{} token budgets for {} texts", budgets.len(), texts.len());
+    }
+    let mut reqs = Vec::new();
+    let mut judges = Vec::new();
+    for &i in chunks {
+        for k in 0..REROLL_CANDIDATES {
+            reqs.push(TakeRequest::new(
+                ending.tts_text(&texts[i]),
+                bucket_for(budgets[i]),
+                reroll_seed(seed, k),
+            ));
+            judges.push(texts[i].as_str());
+        }
+    }
+    let cached = tts.cached(&reqs, temperature);
+    writeln!(
+        log,
+        "tempo re-roll: {} chunk(s), {REROLL_CANDIDATES} candidates each: {} take(s) to synthesise, {cached} cached",
+        chunks.len(),
+        reqs.len() - cached
+    )?;
+    let sr = tts.sample_rate();
+    let judged = generate_judged(tts, asr, ending, &reqs, &judges, temperature, lex)?;
+    let mut out = Vec::with_capacity(chunks.len());
+    let mut judged = judged.into_iter();
+    for &i in chunks {
+        let mut takes = Vec::with_capacity(REROLL_CANDIDATES);
+        for k in 0..REROLL_CANDIDATES {
+            let (take, raw) = judged.next().expect("one take per request");
+            writeln!(
+                log,
+                "  [{}/{}] seed {} {:5.1}s score {raw:.3}{}",
+                i + 1,
+                texts.len(),
+                reroll_seed(seed, k),
+                take.wav.len() as f64 / sr as f64,
+                if take.clipped { " (no clean cut)" } else { "" }
+            )?;
+            takes.push(take.accepted().then_some(take));
+        }
+        out.push(takes);
+    }
+    Ok(out)
 }

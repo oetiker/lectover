@@ -34,6 +34,19 @@ pub struct CallStats {
     pub secs: f64,
 }
 
+impl std::ops::Sub for CallStats {
+    type Output = CallStats;
+
+    /// The calls made between two snapshots of the same counter.
+    fn sub(self, before: CallStats) -> CallStats {
+        CallStats {
+            hits: self.hits - before.hits,
+            runs: self.runs - before.runs,
+            secs: self.secs - before.secs,
+        }
+    }
+}
+
 impl CallStats {
     /// "7 run, 46 cached, 3.1s"
     pub fn summary(&self, ran: &str) -> String {

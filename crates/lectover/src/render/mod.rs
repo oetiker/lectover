@@ -14,11 +14,11 @@ pub use carrier::{
     PAUSE_MAX_BELOW_PEAK_DB,
 };
 pub use rate::{
-    rate_outliers, ChunkRate, RateOutlier, RATE_CONFIRM, RATE_MIN_NEIGHBOURS, RATE_MIN_SYLLABLES,
-    RATE_NEIGHBOURS, RATE_OUTLIER,
+    chunk_rate, measure_take, pick_reroll, rate_outliers, ChunkRate, RateOutlier, RerollPick,
+    RATE_CONFIRM, RATE_MIN_NEIGHBOURS, RATE_MIN_SYLLABLES, RATE_NEIGHBOURS, RATE_OUTLIER,
 };
 pub use segments::{align_segments, align_segments_with};
 pub use takes::{
-    synthesize_chunks, synthesize_chunks_with, ChunkRequest, Take, MAX_CANDIDATES, MAX_ROUNDS,
-    MIN_SCORE,
+    reroll_seed, reroll_takes, synthesize_chunks, synthesize_chunks_with, take_seed, ChunkRequest,
+    Take, MAX_CANDIDATES, MAX_ROUNDS, MIN_SCORE, REROLL_CANDIDATES, REROLL_SEED_OFFSET,
 };

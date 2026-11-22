@@ -328,6 +328,12 @@ pub fn level_sting(wav: &[f32], from: u32, to: u32) -> Vec<f32> {
     out
 }
 
+/// A take as [`assemble_parts_with`] places it without pacing: trimmed, levelled, its
+/// segments levelled. It depends on the take alone.
+pub fn place_take(wav: &[f32], sr: u32) -> Vec<f32> {
+    level_segments(&trim_and_level(wav, sr), sr)
+}
+
 /// takes: (raw wav, chunk text, kind). Trim, level, pace-match and join with pauses.
 ///
 /// Returns the final audio and, per chunk, (offset_seconds, processed_wav) exactly as placed.
@@ -349,9 +355,7 @@ pub fn assemble_parts_with(
     pace: bool,
     stings: &[(usize, Option<&[f32]>)],
 ) -> (Vec<f32>, Vec<(f64, Vec<f32>)>) {
-    let trimmed: Vec<Vec<f32>> = par_map(takes, |(w, _, _)| {
-        level_segments(&trim_and_level(w, sr), sr)
-    });
+    let trimmed: Vec<Vec<f32>> = par_map(takes, |(w, _, _)| place_take(w, sr));
     let rates: Vec<f64> = trimmed
         .iter()
         .zip(takes)
