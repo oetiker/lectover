@@ -280,6 +280,15 @@ synthesises and how many it reads from the cache, and each voice ends with
 the time per step and the model calls made and answered from the cache
 (`cache off` under `--no-cache`).
 
+The summary also lists tempo outliers: chunks more than 10 % faster or slower
+than the two chunks before and after them (`tempo: 1 outlier(s):` with the
+chunk, its block and the start of its text). Listeners judge tempo against the
+paragraph just heard, so a jump against the neighbours is audible while a
+slower region or a gradual drift is not; and since the aligner's rate and the
+loudness-based one often disagree, a chunk is only flagged when both do (the
+second by over 5 %). Titles and chunks under 40 syllables are left out. This
+only reports; nothing is corrected.
+
 The cache only grows. Every render that uses an entry refreshes its file
 time, so `lectover cache prune` removes what no render has used for 90 days
 (`--days N` to change that, `--dry-run` to only count):

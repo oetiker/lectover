@@ -256,6 +256,13 @@ fn voiced_secs(wav: &[f32], sr: u32) -> f64 {
     voiced_frames(&db).len() as f64 * 0.01
 }
 
+/// Speaking rate of a trimmed and levelled take: syllables of `text` (the spoken form) per
+/// second of voiced (loud) audio. The measure [`assemble_parts_with`] paces by; on the parts
+/// it returns it gives the rate as placed (after any pacing).
+pub fn voiced_rate(wav: &[f32], sr: u32, text: &str) -> f64 {
+    syllables(text) as f64 / voiced_secs(wav, sr)
+}
+
 fn median(values: &[f64]) -> f64 {
     let mut v = values.to_vec();
     v.sort_by(f64::total_cmp);
@@ -348,7 +355,7 @@ pub fn assemble_parts_with(
     let rates: Vec<f64> = trimmed
         .iter()
         .zip(takes)
-        .map(|(w, (_, text, _))| syllables(text) as f64 / voiced_secs(w, sr))
+        .map(|(w, (_, text, _))| voiced_rate(w, sr, text))
         .collect();
     // the title is too short for a meaningful rate
     let body: Vec<f64> = rates
