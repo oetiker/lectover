@@ -13,6 +13,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### New
 - `lectover render --since DATE --until DATE` renders every public post of a site published in that range (both inclusive, site-local dates, oldest first), loading the models once; either end may be left open, and without `--since` the site's `since` is the first date (the key was validated but unused until now). Members-only and paid posts are skipped with a note; a failing post is reported and the run continues, exiting with an error that names the failed posts.
+
+### Changed
+
+### Fixed
+
+## 0.2.0 - 2026-11-22
+### New
 - `lectover render FILE.md` and `lectover dev build FILE.md` read a local Markdown or HTML file instead of a Ghost post: no Content API key, no network. `--title`, `--author`, `--date` and `--slug` set what Ghost would otherwise supply.
 - `lectover cache prune` removes cached takes, transcripts and alignments no render has used for 90 days (`--days N`, `--dry-run`). A render that uses an entry refreshes its file time.
 - `dev build` warns about voices rendered from other text than the page shows, for which the player stays off.
