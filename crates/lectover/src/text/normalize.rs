@@ -415,9 +415,13 @@ static RULES: LazyLock<Vec<(Regex, Action)>> = LazyLock::new(|| {
             format!(r"(?<![{W}:.,])(\d{{1,2}}):(\d{{2}}) Uhr(?![{W}])"),
             clock,
         ),
-        // dates: "25." before a month name (month stays its own token), 15.10.2025 / 15.10. / 15.10
+        // dates: "25." before a month name (month stays its own token), also each day of a
+        // list before it ("25. und 26. November", "1., 2. und 3. Mai", "3. bis 5. Mai");
+        // 15.10.2025 / 15.10. / 15.10
         call(
-            format!(r"(?<![{W}.,])(\d{{1,2}})\.(?= (?:{months})(?![{W}]))"),
+            format!(
+                r"(?<![{W}.,])(\d{{1,2}})\.(?=(?:,? (?:und |bis |oder )?\d{{1,2}}\.)* (?:{months})(?![{W}]))"
+            ),
             day_of_month,
         ),
         call(
