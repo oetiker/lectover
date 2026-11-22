@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `lectover cache prune` removes cached takes, transcripts and alignments no render has used for 90 days (`--days N`, `--dry-run`). A render that uses an entry refreshes its file time.
 - `dev build` warns about voices rendered from other text than the page shows, for which the player stays off.
 - `render` reports tempo outliers per voice: chunks more than 10 % faster or slower than the two chunks on each side, by the aligner's rate and confirmed by the loudness-based one. Neighbours are the reference because listeners judge tempo against what they just heard; a slow region or a gradual drift is not flagged. It only reports, with or without `--pace`.
+- `render --reroll-tempo` (opt-in) regenerates tempo outliers instead of stretching them: up to four new takes per flagged chunk (seeds disjoint from the render's, same ASR check), and the one closest to its neighbours' rate replaces the original if within 10 %. The summary shows what changed and the tempo report of the final audio. Only flagged chunks cost extra synthesis.
 - Player: the volume, speed and voice buttons show their value and open a popover: a vertical slider for volume and speed, a list for the voice (no native select anymore). A popover closes shortly after the mouse leaves its button. Speed is continuous from 0.8× to 2× in steps of 0.05. Times shown are divided by the playback speed. On a phone, the speed button replaces the step button.
 
 ### Changed

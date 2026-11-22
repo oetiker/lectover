@@ -313,6 +313,11 @@ pub struct RenderArgs {
     /// neighbours apart is heard as a tempo jump at the paragraph break.
     #[arg(long)]
     pub pace: bool,
+    /// Re-synthesise the chunks the tempo report flags (up to 4 new takes each, fresh seeds,
+    /// same ASR check) and keep a take within 10 % of its neighbours' rate; regenerates
+    /// instead of stretching, so it cannot be combined with --pace.
+    #[arg(long, conflicts_with = "pace")]
+    pub reroll_tempo: bool,
     /// Accepted for old scripts; not pacing is the default now.
     #[arg(long, hide = true, conflicts_with = "pace")]
     pub no_pace: bool,

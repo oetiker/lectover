@@ -9,9 +9,19 @@
 //! Neither rate measure is reliable on its own (they agree only at r ≈ 0.85): the aligner
 //! rate (syllables over the time inside aligned words) is the primary one, the voiced rate
 //! (syllables over the loud frames of the take, see [`crate::audio::voiced_rate`]) has to
-//! confirm it. This only reports; nothing is corrected.
+//! confirm it. Outliers are reported; `render --reroll-tempo` replaces them with a new take
+//! closer to the neighbours when one of a few tries is ([`pick_reroll`]).
 
-use crate::plan::ChunkKind;
+use std::io;
+
+use anyhow::Result;
+
+use crate::audio::voiced_rate;
+use crate::ffi::Align;
+use crate::plan::{syllables, Chunk, ChunkKind};
+use crate::timings::WordTime;
+
+use super::segments::align_segments_with;
 
 /// Eligible neighbours taken on each side of a chunk for its reference rate.
 pub const RATE_NEIGHBOURS: usize = 2;
@@ -59,10 +69,59 @@ pub struct RateOutlier {
     pub index: usize,
     /// Aligner rate relative to the neighbours' median, minus 1 (+0.11: 11 % faster).
     pub aligner_dev: f64,
+    /// The neighbours' median aligner rate (syllables per second): the reference.
+    pub aligner_ref: f64,
     /// Voiced rate relative to the neighbours' median, minus 1.
     pub voiced_dev: f64,
     /// Eligible neighbours the reference was taken from.
     pub neighbours: usize,
+}
+
+/// The rates of chunk `index` from its take as placed and its word times: syllables over the
+/// summed word durations (not finite when a word was interpolated) and over the voiced audio.
+pub fn chunk_rate(
+    index: usize,
+    chunk: &Chunk,
+    placed: &[f32],
+    sr: u32,
+    times: &[WordTime],
+    interp: &[bool],
+) -> ChunkRate {
+    let syl = syllables(&chunk.text);
+    let inside: f64 = times.iter().map(|(s, e)| e - s).sum();
+    let aligner = if interp.iter().any(|&f| f) {
+        f64::NAN
+    } else {
+        syl as f64 / inside
+    };
+    ChunkRate {
+        index,
+        kind: chunk.kind,
+        syllables: syl,
+        aligner,
+        voiced: voiced_rate(placed, sr, &chunk.text),
+    }
+}
+
+/// [`chunk_rate`] of a take on its own: `placed` (see [`crate::audio::place_take`]) aligned
+/// with the chunk's words, as the assembled audio would be. Aligner warnings are dropped: an
+/// unaligned take just has no aligner rate.
+pub fn measure_take(
+    aligner: &mut dyn Align,
+    index: usize,
+    chunk: &Chunk,
+    placed: &[f32],
+    sr: u32,
+) -> Result<ChunkRate> {
+    let parts = [(0.0, placed.to_vec())];
+    let (times, interp) = align_segments_with(
+        aligner,
+        &parts,
+        sr,
+        std::slice::from_ref(chunk),
+        &mut io::sink(),
+    )?;
+    Ok(chunk_rate(index, chunk, placed, sr, &times[0], &interp[0]))
 }
 
 fn median(values: &mut [f64]) -> f64 {
@@ -92,7 +151,8 @@ pub fn rate_outliers(chunks: &[ChunkRate]) -> Vec<RateOutlier> {
         }
         let mut aligner: Vec<f64> = near.iter().map(|n| n.aligner).collect();
         let mut voiced: Vec<f64> = near.iter().map(|n| n.voiced).collect();
-        let aligner_dev = c.aligner / median(&mut aligner) - 1.0;
+        let aligner_ref = median(&mut aligner);
+        let aligner_dev = c.aligner / aligner_ref - 1.0;
         let voiced_dev = c.voiced / median(&mut voiced) - 1.0;
         if aligner_dev.abs() > RATE_OUTLIER
             && voiced_dev.abs() > RATE_CONFIRM
@@ -101,10 +161,47 @@ pub fn rate_outliers(chunks: &[ChunkRate]) -> Vec<RateOutlier> {
             out.push(RateOutlier {
                 index: c.index,
                 aligner_dev,
+                aligner_ref,
                 voiced_dev,
                 neighbours: near.len(),
             });
         }
     }
     out
+}
+
+/// The re-roll candidate [`pick_reroll`] chose.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RerollPick {
+    /// Index into the candidates.
+    pub candidate: usize,
+    /// Its aligner rate relative to the reference, minus 1.
+    pub dev: f64,
+    /// Within [`RATE_OUTLIER`] of the reference: it replaces the original take.
+    pub replace: bool,
+}
+
+/// Among a tempo outlier's re-roll candidates (aligner rates; `None`: failed the ASR check;
+/// not finite: not measurable, both skipped), the one closest to the neighbours' `reference`
+/// rate, if any. It replaces the original only when it deviates by at most [`RATE_OUTLIER`]:
+/// the neighbour reference is kept from the first pass, so a candidate cannot pass by moving
+/// the goalposts. On a tie the earlier candidate wins.
+pub fn pick_reroll(reference: f64, candidates: &[Option<f64>]) -> Option<RerollPick> {
+    if !(reference.is_finite() && reference > 0.0) {
+        return None;
+    }
+    candidates
+        .iter()
+        .enumerate()
+        .filter_map(|(k, r)| r.filter(|r| r.is_finite() && *r > 0.0).map(|r| (k, r)))
+        .map(|(candidate, r)| (candidate, r / reference - 1.0))
+        .fold(None, |best: Option<(usize, f64)>, (k, dev)| match best {
+            Some((_, b)) if b.abs() <= dev.abs() => best,
+            _ => Some((k, dev)),
+        })
+        .map(|(candidate, dev)| RerollPick {
+            candidate,
+            dev,
+            replace: dev.abs() <= RATE_OUTLIER,
+        })
 }

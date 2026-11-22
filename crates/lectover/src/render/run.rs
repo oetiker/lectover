@@ -5,13 +5,14 @@
 //! Ghost: [`prepare_post`] takes the post as is.
 
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
 
-use crate::audio::{assemble_parts_with, encode_mp3, encode_opus, level_sting, voiced_rate};
+use crate::audio::{assemble_parts_with, encode_mp3, encode_opus, level_sting, place_take};
 use crate::cli::RenderArgs;
 use crate::config::SiteVoice;
 use crate::ffi::{
@@ -22,10 +23,11 @@ use crate::ghost::{
     fetch_post, http_get, require_public, slug_from_arg, GhostConfig, HttpReply, Post,
 };
 use crate::models::ModelFiles;
-use crate::plan::{max_tokens_for, plan_steps, syllables, Chunk};
+use crate::plan::{max_tokens_for, plan_steps, Chunk};
 use crate::render::{
-    align_segments, rate_outliers, synthesize_chunks, with_carrier, CallStats, CarrierEnding,
-    ChunkRate, ChunkRequest, MemoAlign, MemoAsr, TakeCache, RATE_NEIGHBOURS, RATE_OUTLIER,
+    align_segments, chunk_rate, measure_take, pick_reroll, rate_outliers, reroll_seed,
+    reroll_takes, synthesize_chunks, with_carrier, CallStats, CarrierEnding, ChunkRate,
+    ChunkRequest, MemoAlign, MemoAsr, RateOutlier, TakeCache, RATE_NEIGHBOURS, RATE_OUTLIER,
 };
 use crate::script::{build_script, intro_text, SiteSounds, Sting};
 use crate::settings::Settings;
@@ -260,42 +262,29 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
     Ok(())
 }
 
-/// The per-site inputs of a render besides the post: its sounds, the voice registry and the
-/// pronunciation lexicon.
-/// The `tempo:` lines of the per-voice summary: chunks clearly faster or slower than their
-/// neighbours (see [`rate_outliers`]), from the placed parts and the final word times. A chunk
-/// with an interpolated word has no aligner rate and is left out.
-fn tempo_report(
+/// Each chunk's rates from the placed parts and the final word times (see [`chunk_rate`]).
+fn chunk_rates(
     prep: &Prepared,
     parts: &[(f64, Vec<f32>)],
     sr: u32,
     chunk_times: &[Vec<WordTime>],
     chunk_interp: &[Vec<bool>],
-) -> String {
-    let rates: Vec<ChunkRate> = prep
-        .chunks
+) -> Vec<ChunkRate> {
+    prep.chunks
         .iter()
         .zip(parts)
         .zip(chunk_times.iter().zip(chunk_interp))
         .enumerate()
         .map(|(index, ((chunk, (_, wav)), (times, interp)))| {
-            let syl = syllables(&chunk.text);
-            let inside: f64 = times.iter().map(|(s, e)| e - s).sum();
-            let aligner = if interp.iter().any(|&f| f) {
-                f64::NAN
-            } else {
-                syl as f64 / inside
-            };
-            ChunkRate {
-                index,
-                kind: chunk.kind,
-                syllables: syl,
-                aligner,
-                voiced: voiced_rate(wav, sr, &chunk.text),
-            }
+            chunk_rate(index, chunk, wav, sr, times, interp)
         })
-        .collect();
-    let outliers = rate_outliers(&rates);
+        .collect()
+}
+
+/// The `tempo:` lines of the per-voice summary: chunks clearly faster or slower than their
+/// neighbours (see [`rate_outliers`]). A chunk with an interpolated word has no aligner rate
+/// and is left out.
+fn tempo_report(prep: &Prepared, outliers: &[RateOutlier]) -> String {
     if outliers.is_empty() {
         return format!(
             "  tempo: no outliers (> {:.0} % vs {RATE_NEIGHBOURS}+{RATE_NEIGHBOURS} neighbours, both measures)",
@@ -324,6 +313,8 @@ fn tempo_report(
     out
 }
 
+/// The per-site inputs of a render besides the post: its sounds, the voice registry and the
+/// pronunciation lexicon.
 struct SiteInputs<'a> {
     sounds: &'a SiteSounds,
     voices_dir: &'a Path,
@@ -380,52 +371,126 @@ fn render_voices(
         let mut asr = MemoAsr::new(&mut models.asr, cache_dir);
         let mut aligner = MemoAlign::new(&mut models.aligner, cache_dir);
         let use_cache = !args.no_cache;
-        let t_takes = Instant::now();
-        let wavs = {
-            let tts: &mut dyn Synth = if use_cache { &mut tts } else { tts.inner_mut() };
-            let asr: &mut dyn Transcribe = if use_cache { &mut asr } else { asr.inner_mut() };
-            let al: &mut dyn Align = if use_cache {
-                &mut aligner
-            } else {
-                aligner.inner_mut()
+        macro_rules! tts {
+            () => {
+                if use_cache {
+                    &mut tts as &mut dyn Synth
+                } else {
+                    tts.inner_mut()
+                }
             };
-            let mut ending = CarrierEnding::new(al);
-            synthesize_chunks(
-                tts,
-                asr,
-                &mut ending,
-                &ChunkRequest {
-                    texts: &texts,
-                    budgets: &budgets,
-                    seed: args.seed,
-                    temperature: args.temperature,
-                    lex: site.lexicon,
-                },
-            )?
+        }
+        macro_rules! asr {
+            () => {
+                if use_cache {
+                    &mut asr as &mut dyn Transcribe
+                } else {
+                    asr.inner_mut()
+                }
+            };
+        }
+        macro_rules! al {
+            () => {
+                if use_cache {
+                    &mut aligner as &mut dyn Align
+                } else {
+                    aligner.inner_mut()
+                }
+            };
+        }
+        let req = ChunkRequest {
+            texts: &texts,
+            budgets: &budgets,
+            seed: args.seed,
+            temperature: args.temperature,
+            lex: site.lexicon,
+        };
+        let t_takes = Instant::now();
+        let mut wavs = {
+            let mut ending = CarrierEnding::new(al!());
+            synthesize_chunks(tts!(), asr!(), &mut ending, &req)?
         };
         let takes_secs = t_takes.elapsed().as_secs_f64();
-        let aligner_takes = aligner.stats;
-        let takes: Vec<_> = wavs
-            .into_iter()
-            .zip(&prep.chunks)
-            .map(|(w, c)| (w, c.text.clone(), c.kind))
-            .collect();
-        let (audio, parts) = assemble_parts_with(&takes, sr, args.pace, &stings);
+        let (tts_takes, asr_takes, aligner_takes) = (tts.stats, asr.stats, aligner.stats);
+        let assemble = |wavs: &[Vec<f32>]| {
+            let takes: Vec<_> = wavs
+                .iter()
+                .zip(&prep.chunks)
+                .map(|(w, c)| (w.clone(), c.text.clone(), c.kind))
+                .collect();
+            assemble_parts_with(&takes, sr, args.pace, &stings)
+        };
+        let (mut audio, mut parts) = assemble(&wavs);
         let t_align = Instant::now();
-        let (chunk_times, chunk_interp) = {
-            let al: &mut dyn Align = if use_cache {
-                &mut aligner
-            } else {
-                aligner.inner_mut()
-            };
-            align_segments(al, &parts, sr, &prep.chunks)?
-        };
+        let (mut chunk_times, mut chunk_interp) = align_segments(al!(), &parts, sr, &prep.chunks)?;
         let align_secs = t_align.elapsed().as_secs_f64();
-        let aligner_words = CallStats {
-            hits: aligner.stats.hits - aligner_takes.hits,
-            runs: aligner.stats.runs - aligner_takes.runs,
-            secs: aligner.stats.secs - aligner_takes.secs,
-        };
+        let aligner_words = aligner.stats - aligner_takes;
+
+        let outliers = rate_outliers(&chunk_rates(prep, &parts, sr, &chunk_times, &chunk_interp));
+        let mut tempo = vec![tempo_report(prep, &outliers)];
+        // (seconds, TTS, ASR, aligner) of the tempo re-roll, if it ran.
+        let mut reroll: Option<(f64, CallStats, CallStats, CallStats)> = None;
+        if args.reroll_tempo && !outliers.is_empty() {
+            let t_reroll = Instant::now();
+            let before = (tts.stats, asr.stats, aligner.stats);
+            let flagged: Vec<usize> = outliers.iter().map(|o| o.index).collect();
+            let candidates = {
+                let mut ending = CarrierEnding::new(al!());
+                reroll_takes(
+                    tts!(),
+                    asr!(),
+                    &mut ending,
+                    &req,
+                    &flagged,
+                    &mut io::stdout(),
+                )?
+            };
+            let mut items = Vec::new();
+            let mut replaced = false;
+            for (o, mut cands) in outliers.iter().zip(candidates) {
+                let chunk = &prep.chunks[o.index];
+                // Measured as placed, against the reference of the first pass.
+                let rates: Vec<Option<f64>> = cands
+                    .iter()
+                    .map(|c| {
+                        c.as_ref()
+                            .map(|t| {
+                                measure_take(al!(), o.index, chunk, &place_take(&t.wav, sr), sr)
+                                    .map(|r| r.aligner)
+                            })
+                            .transpose()
+                    })
+                    .collect::<Result<_>>()?;
+                let from = format!("chunk {} {:+.0} %", o.index + 1, o.aligner_dev * 100.0);
+                items.push(match pick_reroll(o.aligner_ref, &rates) {
+                    Some(p) if p.replace => {
+                        let take = cands[p.candidate].take().expect("picked a passing take");
+                        wavs[o.index] = take.wav;
+                        replaced = true;
+                        format!(
+                            "{from} -> {:+.0} % (seed {})",
+                            p.dev * 100.0,
+                            reroll_seed(args.seed, p.candidate)
+                        )
+                    }
+                    Some(p) => format!("{from} -> still {:+.0} % (kept)", p.dev * 100.0),
+                    None => format!("{from} -> no usable take (kept)"),
+                });
+            }
+            tempo.push(format!("  tempo re-roll: {}", items.join(", ")));
+            if replaced {
+                (audio, parts) = assemble(&wavs);
+                (chunk_times, chunk_interp) = align_segments(al!(), &parts, sr, &prep.chunks)?;
+                let rates = chunk_rates(prep, &parts, sr, &chunk_times, &chunk_interp);
+                tempo.push(tempo_report(prep, &rate_outliers(&rates)));
+            }
+            reroll = Some((
+                t_reroll.elapsed().as_secs_f64(),
+                tts.stats - before.0,
+                asr.stats - before.1,
+                aligner.stats - before.2,
+            ));
+        }
         let t_encode = Instant::now();
         let (times, interp) =
             assemble_token_times(page, page_groups, &prep.chunks, &chunk_times, &chunk_interp)?;
@@ -453,26 +518,33 @@ fn render_voices(
             .ok_or_else(|| anyhow!("manifest lost voice {voice}"))?;
         let file = |key: &str| slug_dir.join(entry[key].as_str().unwrap_or_default());
         println!("{}", alignment_report(page, &interp));
+        let reroll_time =
+            reroll.map_or(String::new(), |(secs, ..)| format!(", re-roll {secs:.1}s"));
         println!(
-            "voice {voice}: {:.1}s audio in {:.1}s (takes {takes_secs:.1}s, word times {align_secs:.1}s, encoding {encode_secs:.1}s)",
+            "voice {voice}: {:.1}s audio in {:.1}s (takes {takes_secs:.1}s, word times {align_secs:.1}s{reroll_time}, encoding {encode_secs:.1}s)",
             timings["duration"].as_f64().unwrap_or_default(),
             t0.elapsed().as_secs_f64()
         );
         if use_cache {
             println!(
                 "  takes: TTS {}; ASR check {}; carrier cut {}",
-                tts.stats.summary("synthesised"),
-                asr.stats.summary("run"),
+                tts_takes.summary("synthesised"),
+                asr_takes.summary("run"),
                 aligner_takes.summary("run")
             );
             println!("  word times: aligner {}", aligner_words.summary("run"));
+            if let Some((_, tts, asr, al)) = reroll {
+                println!(
+                    "  re-roll: TTS {}; ASR check {}; aligner {}",
+                    tts.summary("synthesised"),
+                    asr.summary("run"),
+                    al.summary("run")
+                );
+            }
         } else {
             println!("  cache off (--no-cache): every take, ASR check and alignment ran afresh");
         }
-        println!(
-            "{}",
-            tempo_report(prep, &parts, sr, &chunk_times, &chunk_interp)
-        );
+        println!("{}", tempo.join("\n"));
         println!(
             "  {}\n  {}\n  {}\n  {}",
             file("audio").display(),
