@@ -560,3 +560,27 @@ fn lexicon_entry_wins_over_gender_rule() {
         .collect();
     assert_eq!(got, ["Schülerinnen und Schüler"]);
 }
+
+#[test]
+fn days_listed_before_one_month_are_all_ordinals() {
+    let lex = Lexicon::new();
+    for (text, want) in [
+        (
+            "Am 25. und 26. November tagt der Rat.",
+            "Am fünfundzwanzigsten und sechsundzwanzigsten November tagt der Rat.",
+        ),
+        ("vom 3. bis 5. Mai", "vom dritten bis fünften Mai"),
+        (
+            "am 1., 2. und 3. Juni",
+            "am ersten, zweiten und dritten Juni",
+        ),
+        ("am 4. oder 5. Juli", "am vierten oder fünften Juli"),
+    ] {
+        assert_eq!(normalize(text, &lex), want, "{text}");
+    }
+    // A number ending a sentence before "und" stays a cardinal.
+    assert_eq!(
+        normalize("Es waren 25. Und am 3. Mai kam der Rest.", &lex),
+        "Es waren fünfundzwanzig. Und am dritten Mai kam der Rest."
+    );
+}

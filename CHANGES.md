@@ -30,6 +30,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Gender forms like `Schüler:innen`, `Autor*in`, `Lehrer_innen` and `Bürger/innen` are spoken with a short glottal stop instead of a pause. A lexicon entry still takes precedence.
 
 ### Fixed
+- Every day of a list before a month name is read as a date: "am 25. und 26. November" said "fünfundzwanzig." for the first day; also "1., 2. und 3. Mai" and "3. bis 5. Mai".
 - Player: clicking the play/pause button while audio was playing was sometimes ignored.
 
 ## 0.1.1 - 2026-11-16
