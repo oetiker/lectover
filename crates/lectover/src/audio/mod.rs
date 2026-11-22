@@ -10,8 +10,8 @@ pub mod wav;
 
 pub use assemble::{
     apply_trim, assemble_parts, assemble_parts_with, level_segments, level_sting, quiet_ending,
-    room_tone, trim_and_level, trim_and_level_with, Trim, FADE_IN_SECS, FADE_OUT_SECS, PACE_MAX,
-    PACE_MIN, ROOM_TONE_DB, SPEECH_TARGET_DB, START_LEAD_SECS, TRIM_BELOW_SPEECH_DB,
+    room_tone, trim_and_level, trim_and_level_with, voiced_rate, Trim, FADE_IN_SECS, FADE_OUT_SECS,
+    PACE_MAX, PACE_MIN, ROOM_TONE_DB, SPEECH_TARGET_DB, START_LEAD_SECS, TRIM_BELOW_SPEECH_DB,
     TRIM_KEEP_SECS, TRIM_KEEP_TAIL_SECS,
 };
 pub use mp3::encode_mp3;

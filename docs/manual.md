@@ -96,6 +96,9 @@ For a local file **render** also writes the dev page (see **dev build**) from th
 
 Takes, their ASR transcripts and their word alignments are cached in the takes directory, so a re-render only runs the models for chunks whose text changed.
 Each voice ends with the time per step and the model calls made and answered from the cache.
+It then lists tempo outliers: chunks more than 10 % faster or slower than the median of up to two chunks on each side, by the aligner's rate and confirmed by the loudness-based one (same direction, over 5 %).
+Listeners judge tempo against what they just heard, so only a jump against the neighbours is audible, not a slow region or a gradual drift; titles and chunks under 40 syllables are left out.
+This only reports; nothing is corrected.
 
 - `--voice ID`: Voice id from the registry; repeat for more voices. Default: the site's `voices`, else the first voice in the registry.
 - `--out DIR`: Deploy tree. The post goes to `DIR/<domain>/<slug>/`.

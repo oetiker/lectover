@@ -11,7 +11,7 @@ use std::time::Instant;
 use anyhow::{anyhow, Context, Result};
 use indexmap::IndexMap;
 
-use crate::audio::{assemble_parts_with, encode_mp3, encode_opus, level_sting};
+use crate::audio::{assemble_parts_with, encode_mp3, encode_opus, level_sting, voiced_rate};
 use crate::cli::RenderArgs;
 use crate::config::SiteVoice;
 use crate::ffi::{
@@ -22,16 +22,17 @@ use crate::ghost::{
     fetch_post, http_get, require_public, slug_from_arg, GhostConfig, HttpReply, Post,
 };
 use crate::models::ModelFiles;
-use crate::plan::{max_tokens_for, plan_steps, Chunk};
+use crate::plan::{max_tokens_for, plan_steps, syllables, Chunk};
 use crate::render::{
-    align_segments, synthesize_chunks, with_carrier, CallStats, CarrierEnding, ChunkRequest,
-    MemoAlign, MemoAsr, TakeCache,
+    align_segments, rate_outliers, synthesize_chunks, with_carrier, CallStats, CarrierEnding,
+    ChunkRate, ChunkRequest, MemoAlign, MemoAsr, TakeCache, RATE_NEIGHBOURS, RATE_OUTLIER,
 };
 use crate::script::{build_script, intro_text, SiteSounds, Sting};
 use crate::settings::Settings;
 use crate::site::{encode_and_publish, prune_stale, VoiceTarget};
 use crate::text::normalize::{load_lexicon, spoken_groups, Group, Lexicon};
 use crate::text::{extract_marks, Block};
+use crate::timings::WordTime;
 use crate::timings::{alignment_report, assemble_token_times, build_timings, round3};
 use crate::voices::load_registry;
 
@@ -261,6 +262,68 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
 
 /// The per-site inputs of a render besides the post: its sounds, the voice registry and the
 /// pronunciation lexicon.
+/// The `tempo:` lines of the per-voice summary: chunks clearly faster or slower than their
+/// neighbours (see [`rate_outliers`]), from the placed parts and the final word times. A chunk
+/// with an interpolated word has no aligner rate and is left out.
+fn tempo_report(
+    prep: &Prepared,
+    parts: &[(f64, Vec<f32>)],
+    sr: u32,
+    chunk_times: &[Vec<WordTime>],
+    chunk_interp: &[Vec<bool>],
+) -> String {
+    let rates: Vec<ChunkRate> = prep
+        .chunks
+        .iter()
+        .zip(parts)
+        .zip(chunk_times.iter().zip(chunk_interp))
+        .enumerate()
+        .map(|(index, ((chunk, (_, wav)), (times, interp)))| {
+            let syl = syllables(&chunk.text);
+            let inside: f64 = times.iter().map(|(s, e)| e - s).sum();
+            let aligner = if interp.iter().any(|&f| f) {
+                f64::NAN
+            } else {
+                syl as f64 / inside
+            };
+            ChunkRate {
+                index,
+                kind: chunk.kind,
+                syllables: syl,
+                aligner,
+                voiced: voiced_rate(wav, sr, &chunk.text),
+            }
+        })
+        .collect();
+    let outliers = rate_outliers(&rates);
+    if outliers.is_empty() {
+        return format!(
+            "  tempo: no outliers (> {:.0} % vs {RATE_NEIGHBOURS}+{RATE_NEIGHBOURS} neighbours, both measures)",
+            RATE_OUTLIER * 100.0
+        );
+    }
+    let mut out = format!("  tempo: {} outlier(s):", outliers.len());
+    for o in outliers {
+        let chunk = &prep.chunks[o.index];
+        let block = if chunk.block < prep.page_blocks {
+            format!("block {}", chunk.block + 1)
+        } else {
+            "audio only".to_string()
+        };
+        let mut text: String = chunk.text.chars().take(50).collect();
+        if chunk.text.chars().count() > 50 {
+            text.push_str(" …");
+        }
+        out.push_str(&format!(
+            "\n    chunk {} ({block}): {:+.0} % vs neighbours (voiced {:+.0} %) «{text}»",
+            o.index + 1,
+            o.aligner_dev * 100.0,
+            o.voiced_dev * 100.0
+        ));
+    }
+    out
+}
+
 struct SiteInputs<'a> {
     sounds: &'a SiteSounds,
     voices_dir: &'a Path,
@@ -406,6 +469,10 @@ fn render_voices(
         } else {
             println!("  cache off (--no-cache): every take, ASR check and alignment ran afresh");
         }
+        println!(
+            "{}",
+            tempo_report(prep, &parts, sr, &chunk_times, &chunk_interp)
+        );
         println!(
             "  {}\n  {}\n  {}\n  {}",
             file("audio").display(),
