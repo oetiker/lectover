@@ -1,4 +1,4 @@
-# repo-infra: man v4
+# repo-infra: man v5
 #
 # Purpose: Build the man page from docs/manual.md (D23).
 # Choose: The project ships a man page.
@@ -34,10 +34,22 @@
 # The include may go anywhere in the Makefile; it saves and restores
 # .DEFAULT_GOAL so that adding this fragment never makes `man` the target a
 # bare `make` builds.
+#
+# An autotools project includes it from the top-level Makefile.am, where
+# automake reads the file itself, and ships it in the tarball:
+#
+#     MAN_NAME = mytool
+#     include $(top_srcdir)/build/man.mk
+#     EXTRA_DIST = docs/manual.md build/man.mk build/man-deflist.lua
+#
+# For that the file has no GNU make conditional (ifeq, else, endif): automake
+# stops at one. `:=`, $(shell) and $(if) remain, and automake warns about them
+# under -Wportability, so a project with -Werror adds -Wno-portability. The
+# paths are relative to the top directory: the build runs in the source tree,
+# and a Makefile.am in a subdirectory cannot include the file.
 
-ifeq ($(strip $(MAN_NAME)),)
-$(error MAN_NAME is not set: set it before `include build/man.mk`, for example MAN_NAME = mytool)
-endif
+
+_repo_infra_man_check := $(if $(strip $(MAN_NAME)),,$(error MAN_NAME is not set: set it before `include build/man.mk`, for example MAN_NAME = mytool))
 
 _repo_infra_man_goal := $(.DEFAULT_GOAL)
 
@@ -49,18 +61,17 @@ _repo_infra_man_section := $(shell awk \
    sub(/^section:[[:space:]]*/, "") { gsub(/["\047[:space:]]/, ""); print; exit }' \
   docs/manual.md 2>/dev/null | grep -E '^[1-9][a-z]*$$')
 
-.PHONY: man
-ifeq ($(_repo_infra_man_section),)
-man:
-	@echo "build/man.mk: docs/manual.md has no section: line in its front matter that names a man section such as 1 or 8" >&2
-	@exit 1
-else
-man: man/$(MAN_NAME).$(_repo_infra_man_section)
+_repo_infra_man_page := man/$(MAN_NAME).$(_repo_infra_man_section)
 
-man/$(MAN_NAME).$(_repo_infra_man_section): docs/manual.md build/man-deflist.lua
+# Without a section `man` has no prerequisite and its recipe says why; with
+# one the recipe is `:` and the page rule below does the work.
+.PHONY: man
+man: $(if $(_repo_infra_man_section),$(_repo_infra_man_page))
+	@$(if $(_repo_infra_man_section),:,echo "build/man.mk: docs/manual.md has no section: line in its front matter that names a man section such as 1 or 8" >&2; exit 1)
+
+$(_repo_infra_man_page): docs/manual.md build/man-deflist.lua
 	@mkdir -p man
 	pandoc --standalone --from markdown-smart --to man --lua-filter build/man-deflist.lua \
 	  docs/manual.md -o $@
-endif
 
 .DEFAULT_GOAL := $(_repo_infra_man_goal)
