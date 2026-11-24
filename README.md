@@ -151,7 +151,7 @@ device = "auto"                    # cpu | metal | cuda | hip | vulkan | auto; -
 [site."olten.jetzt"]
 ghost_url = "https://olten.jetzt"
 language  = "de-CH"                # default; the only supported language
-since     = 2026-01-01             # validated; not used yet
+since     = 2026-01-01             # first date of `render --since/--until`; optional
 voices    = [ { id = "erzaehler", label = "Erzähler" }, { id = "warm", label = "Warme Stimme" } ]
 sounds    = "olten.jetzt"          # directory under the sounds root; default: the domain
 lexicon   = "olten.jetzt"          # file under lexicon/ without .txt; default: the domain
@@ -267,6 +267,26 @@ are used, else the first voice in the registry. Other options: `--site DOMAIN`
 `--pace`, `--no-reroll-tempo`, `--device cpu|metal|cuda|hip|vulkan`,
 `--lexicon FILE` (default: the site's lexicon), `--sounds DIR` (default: the
 site's sounds).
+
+### Rendering several posts
+
+Instead of a post, `--since DATE` and/or `--until DATE` (`YYYY-MM-DD`, both
+inclusive) render every public post of the site published in that range,
+oldest first:
+
+```bash
+lectover render --site olten.jetzt --since 2026-01-01 --until 2026-12-31
+lectover render --site olten.jetzt --until 2026-06-30   # from the site's `since`
+```
+
+The publication date is the one the site shows (Ghost's site-local time).
+Without `--since`, the site's `since` is the first date, else the range is
+open. The posts are listed before rendering; members-only and paid posts are
+skipped with a note. The models load once for all posts, and the cache makes
+an unchanged post cost about 20 s per voice. A post that fails is reported and
+the next one rendered; the command then exits with an error naming the failed
+posts. Drafts are not listed: render them from a local file. The local-file
+options (`--title`, `--author`, `--date`, `--slug`) do not apply.
 
 Each chunk is generated, transcribed and compared with its text; a take
 scoring below 0.90 is regenerated with the next seed, up to four rounds. On an

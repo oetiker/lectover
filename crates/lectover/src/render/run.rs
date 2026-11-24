@@ -20,7 +20,8 @@ use crate::ffi::{
     Synth, Transcribe,
 };
 use crate::ghost::{
-    fetch_post, http_get, require_public, slug_from_arg, GhostConfig, HttpReply, Post,
+    fetch_post, http_get, list_posts, require_public, slug_from_arg, DateRange, GhostConfig,
+    HttpReply, Post,
 };
 use crate::models::ModelFiles;
 use crate::plan::{max_tokens_for, plan_steps, Chunk};
@@ -30,7 +31,7 @@ use crate::render::{
     ChunkRequest, MemoAlign, MemoAsr, RateOutlier, TakeCache, RATE_NEIGHBOURS, RATE_OUTLIER,
 };
 use crate::script::{build_script, intro_text, SiteSounds, Sting};
-use crate::settings::Settings;
+use crate::settings::{Settings, SiteSettings};
 use crate::site::{encode_and_publish, prune_stale, VoiceTarget};
 use crate::text::normalize::{load_lexicon, spoken_groups, Group, Lexicon};
 use crate::text::{extract_marks, Block};
@@ -184,35 +185,170 @@ struct Models {
 
 pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
     let files = ModelFiles::check(&settings.models)?; // before any network or model work
-    let site = settings.site_for_post(&args.post, args.site.as_deref())?;
-    let local = crate::cli::local_post(&args.post, &args.local)?;
+    match &args.post {
+        Some(post) => render_one(args, settings, &files, post),
+        None => render_range(args, settings, &files),
+    }
+}
+
+/// What every post of a site shares in a render: its settings, lexicon, voices and sounds.
+struct SiteContext {
+    site: SiteSettings,
+    lexicon: Lexicon,
+    voices: Vec<SiteVoice>,
+    sounds: SiteSounds,
+}
+
+impl SiteContext {
+    fn load(args: &RenderArgs, site: SiteSettings) -> Result<SiteContext> {
+        let lexicon_path = args.lexicon.as_ref().unwrap_or(&site.lexicon);
+        let lexicon = load_lexicon(lexicon_path)
+            .with_context(|| format!("reading {}", lexicon_path.display()))?;
+        let voices = select_voices(&args.voices, &site.voices);
+        let sounds_dir = args.sounds.as_ref().unwrap_or(&site.sounds_dir);
+        let sounds = SiteSounds::load(sounds_dir)
+            .with_context(|| format!("reading {}", sounds_dir.display()))?;
+        Ok(SiteContext {
+            site,
+            lexicon,
+            voices,
+            sounds,
+        })
+    }
+}
+
+/// Render the post `post` names: a Ghost post URL or slug, or a local file.
+fn render_one(
+    args: &RenderArgs,
+    settings: &Settings,
+    files: &ModelFiles,
+    post: &str,
+) -> Result<()> {
+    let site = settings.site_for_post(post, args.site.as_deref())?;
+    let local = crate::cli::local_post(post, &args.local)?;
     let is_local = local.is_some();
-    let lexicon_path = args.lexicon.as_ref().unwrap_or(&site.lexicon);
-    let lexicon = load_lexicon(lexicon_path)
-        .with_context(|| format!("reading {}", lexicon_path.display()))?;
+    let ctx = SiteContext::load(args, site)?;
     let voices_dir = settings.voices.as_path();
-    let voices = select_voices(&args.voices, &site.voices);
     let prep = match local {
-        Some(post) => prepare_post(post, &voices, voices_dir, &lexicon, args.max_chars)?,
+        Some(post) => prepare_post(post, &ctx.voices, voices_dir, &ctx.lexicon, args.max_chars)?,
         None => {
-            let cfg = GhostConfig::for_site(&site, &|k| std::env::var(k).ok())?;
-            let slug = slug_from_arg(&args.post)?;
+            let cfg = GhostConfig::for_site(&ctx.site, &|k| std::env::var(k).ok())?;
+            let slug = slug_from_arg(post)?;
             prepare(
                 &cfg,
                 &slug,
                 &http_get,
-                &voices,
+                &ctx.voices,
                 voices_dir,
-                &lexicon,
+                &ctx.lexicon,
                 args.max_chars,
             )?
         }
     };
-    let slug = prep.post.slug.clone();
-    let sounds_dir = args.sounds.as_ref().unwrap_or(&site.sounds_dir);
-    let sounds = SiteSounds::load(sounds_dir)
-        .with_context(|| format!("reading {}", sounds_dir.display()))?;
+    let mut models = load_models(args, settings, files, &prep)?;
+    let result = render_prepared(args, settings, &ctx, &prep, &mut models);
+    drop(models);
+    result?;
+    if is_local {
+        // A local file has no Ghost page: write its dev page from the very text the audio was
+        // made from, so an edit to the file during the render cannot desynchronise the two.
+        let page = crate::dev::write_page(&prep.post, &ctx.site.domain, &settings.site_root)?;
+        println!("page: {}", page.display());
+    }
+    Ok(())
+}
 
+/// Render every public post of the site published in `--since`..`--until` (the site's `since`
+/// when `--since` is not given), oldest first, loading the models once. A post that fails is
+/// reported and skipped; the render fails at the end if any did.
+fn render_range(args: &RenderArgs, settings: &Settings, files: &ModelFiles) -> Result<()> {
+    let site = settings.site_for_post("", args.site.as_deref())?;
+    let range = DateRange {
+        since: args.since.clone().or_else(|| site.since.clone()),
+        until: args.until.clone(),
+    };
+    let cfg = GhostConfig::for_site(&site, &|k| std::env::var(k).ok())?;
+    let listing = list_posts(&cfg, &range, &http_get)?;
+    let ctx = SiteContext::load(args, site)?;
+    for p in &listing.not_public {
+        println!(
+            "skipping {} {}: not public (visibility={})",
+            p.date(),
+            p.slug,
+            p.visibility
+        );
+    }
+    let total = listing.public.len();
+    if total == 0 {
+        println!(
+            "{}: no public posts published {}",
+            ctx.site.domain,
+            range.describe()
+        );
+        return Ok(());
+    }
+    println!(
+        "{}: {total} public post(s) published {}",
+        ctx.site.domain,
+        range.describe()
+    );
+    for p in &listing.public {
+        println!("  {} {}", p.date(), p.slug);
+    }
+    let started = Instant::now();
+    let mut models: Option<Models> = None;
+    let mut failed: Vec<String> = Vec::new();
+    for (n, p) in listing.public.iter().enumerate() {
+        println!("\n=== [{}/{total}] {} {}", n + 1, p.date(), p.slug);
+        if let Err(e) = render_listed(args, settings, files, &cfg, &ctx, &p.slug, &mut models) {
+            eprintln!("{}: {e:#}", p.slug);
+            failed.push(p.slug.clone());
+        }
+    }
+    drop(models);
+    println!(
+        "\nrendered {} of {total} post(s) in {:.0}s",
+        total - failed.len(),
+        started.elapsed().as_secs_f64()
+    );
+    if !failed.is_empty() {
+        anyhow::bail!("{} post(s) failed: {}", failed.len(), failed.join(", "));
+    }
+    Ok(())
+}
+
+/// One post of [`render_range`]: fetch and plan it, load the models on first use, render.
+fn render_listed(
+    args: &RenderArgs,
+    settings: &Settings,
+    files: &ModelFiles,
+    cfg: &GhostConfig,
+    ctx: &SiteContext,
+    slug: &str,
+    models: &mut Option<Models>,
+) -> Result<()> {
+    let prep = prepare(
+        cfg,
+        slug,
+        &http_get,
+        &ctx.voices,
+        settings.voices.as_path(),
+        &ctx.lexicon,
+        args.max_chars,
+    )?;
+    if models.is_none() {
+        *models = Some(load_models(args, settings, files, &prep)?);
+    }
+    render_prepared(args, settings, ctx, &prep, models.as_mut().unwrap())
+}
+
+/// Load the models on the configured device, the TTS with the first voice of `prep`.
+fn load_models(
+    args: &RenderArgs,
+    settings: &Settings,
+    files: &ModelFiles,
+    prep: &Prepared,
+) -> Result<Models> {
     let device = resolve_device(args.device.or(settings.device))?;
     println!("{}", backend_banner(device));
     // qwen3-asr.cpp has no device parameter; load it where it will run.
@@ -220,7 +356,7 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
     if asr_device != device {
         println!("ASR and aligner: {asr_device} (qwen3-asr.cpp uses the first GPU)");
     }
-    let (wav, text) = voice_ref(voices_dir, &prep.voices[0])?;
+    let (wav, text) = voice_ref(settings.voices.as_path(), &prep.voices[0])?;
     let mut models = Models {
         tts: QwenTts::load(
             &files.talker,
@@ -237,29 +373,34 @@ pub fn render(args: &RenderArgs, settings: &Settings) -> Result<()> {
         .tts
         .set_subtalker_temperature(args.subtalker_temperature);
     models.tts.set_non_streaming(!args.streaming);
-    let slug_dir = settings.site_root.join(&site.domain).join(&prep.post.slug);
-    let result = render_voices(
+    Ok(models)
+}
+
+/// Render every voice of a planned post into the deploy tree.
+fn render_prepared(
+    args: &RenderArgs,
+    settings: &Settings,
+    ctx: &SiteContext,
+    prep: &Prepared,
+    models: &mut Models,
+) -> Result<()> {
+    let slug_dir = settings
+        .site_root
+        .join(&ctx.site.domain)
+        .join(&prep.post.slug);
+    render_voices(
         args,
         &slug_dir,
         &settings.takes,
-        &slug,
-        &prep,
+        &prep.post.slug,
+        prep,
         &SiteInputs {
-            sounds: &sounds,
-            voices_dir,
-            lexicon: &lexicon,
+            sounds: &ctx.sounds,
+            voices_dir: settings.voices.as_path(),
+            lexicon: &ctx.lexicon,
         },
-        &mut models,
-    );
-    drop(models);
-    result?;
-    if is_local {
-        // A local file has no Ghost page: write its dev page from the very text the audio was
-        // made from, so an edit to the file during the render cannot desynchronise the two.
-        let page = crate::dev::write_page(&prep.post, &site.domain, &settings.site_root)?;
-        println!("page: {}", page.display());
-    }
-    Ok(())
+        models,
+    )
 }
 
 /// Each chunk's rates from the placed parts and the final word times (see [`chunk_rate`]).

@@ -1,7 +1,7 @@
 use lectover::config::SecretRef;
 use lectover::ghost::{
-    domain_of_url, fetch_post, post_api_url, require_public, slug_from_arg, GhostConfig, HttpReply,
-    Post,
+    domain_of_url, fetch_post, list_posts, post_api_url, require_public, slug_from_arg, DateRange,
+    GhostConfig, HttpReply, Post,
 };
 use lectover::settings::SiteSettings;
 use std::collections::HashMap;
@@ -64,6 +64,7 @@ fn site(url: &str, key: SecretRef) -> SiteSettings {
         ghost_key: key,
         sounds_dir: "/s".into(),
         lexicon: "/l.txt".into(),
+        since: None,
     }
 }
 
@@ -173,4 +174,72 @@ fn domain_of_url_is_bare_lowercase_host() {
         domain_of_url("https://WWW.Example.org:8443/blog"),
         "example.org"
     );
+}
+
+fn range(since: Option<&str>, until: Option<&str>) -> DateRange {
+    DateRange {
+        since: since.map(String::from),
+        until: until.map(String::from),
+    }
+}
+
+#[test]
+fn list_posts_pages_filters_by_local_date_and_sorts_oldest_first() {
+    // Two pages, newest first as Ghost returns them; dates are site-local.
+    let pages = [
+        br#"{"posts":[
+            {"slug":"dec","published_at":"2027-01-01T00:30:00.000+01:00","visibility":"public"},
+            {"slug":"late","published_at":"2026-12-31T23:59:00.000+01:00","visibility":"public"},
+            {"slug":"paid","published_at":"2026-06-01T10:00:00.000+02:00","visibility":"paid"}
+         ],"meta":{"pagination":{"page":1,"next":2}}}"#
+            .to_vec(),
+        br#"{"posts":[
+            {"slug":"mid","published_at":"2026-03-08T09:00:00.000+01:00","visibility":"public"},
+            {"slug":"first","published_at":"2026-01-01T00:10:00.000+01:00","visibility":"public"},
+            {"slug":"old","published_at":"2025-12-31T23:50:00.000+01:00","visibility":"public"}
+         ],"meta":{"pagination":{"page":2,"next":null}}}"#
+            .to_vec(),
+    ];
+    let urls = std::cell::RefCell::new(Vec::new());
+    let get = |url: &str| {
+        urls.borrow_mut().push(url.to_string());
+        let page = if url.contains("page=2") { 1 } else { 0 };
+        Ok(HttpReply {
+            status: 200,
+            body: pages[page].clone(),
+        })
+    };
+    let listing = list_posts(
+        &cfg("u", "k"),
+        &range(Some("2026-01-01"), Some("2026-12-31")),
+        &get,
+    )
+    .unwrap();
+    let slugs: Vec<&str> = listing.public.iter().map(|p| p.slug.as_str()).collect();
+    assert_eq!(slugs, ["first", "mid", "late"]);
+    let skipped: Vec<&str> = listing.not_public.iter().map(|p| p.slug.as_str()).collect();
+    assert_eq!(skipped, ["paid"]);
+    assert_eq!(urls.borrow().len(), 2);
+    assert!(urls.borrow()[0].starts_with("u/ghost/api/content/posts/?key=k&"));
+
+    // Open ends.
+    let all = list_posts(&cfg("u", "k"), &range(None, None), &get).unwrap();
+    assert_eq!(all.public.len(), 5);
+    let upto = list_posts(&cfg("u", "k"), &range(None, Some("2026-03-08")), &get).unwrap();
+    let slugs: Vec<&str> = upto.public.iter().map(|p| p.slug.as_str()).collect();
+    assert_eq!(slugs, ["old", "first", "mid"]);
+}
+
+#[test]
+fn list_posts_error_hides_key() {
+    let get = |_url: &str| {
+        Ok(HttpReply {
+            status: 401,
+            body: vec![],
+        })
+    };
+    let err = list_posts(&cfg("u", "secret"), &range(None, None), &get).unwrap_err();
+    let text = format!("{err:#}");
+    assert!(text.contains("401"));
+    assert!(!text.contains("secret"));
 }

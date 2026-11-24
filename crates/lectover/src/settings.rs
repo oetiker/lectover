@@ -53,6 +53,8 @@ pub struct SiteSettings {
     pub ghost_key: SecretRef,
     pub sounds_dir: PathBuf,
     pub lexicon: PathBuf,
+    /// First publication date `render --since/--until` takes by default (`YYYY-MM-DD`).
+    pub since: Option<String>,
 }
 
 /// An environment value counts only if it is non-empty.
@@ -242,6 +244,7 @@ impl Settings {
             language: cfg.language.clone(),
             voices: cfg.voices.clone(),
             ghost_key: cfg.ghost_key.clone(),
+            since: cfg.since.clone(),
             domain,
         }
     }

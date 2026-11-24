@@ -275,11 +275,23 @@ pub fn local_post(post: &str, local: &LocalArgs) -> Result<Option<crate::ghost::
 }
 
 #[derive(Debug, Args)]
+#[command(group(clap::ArgGroup::new("posts").required(true).multiple(true).args(["post", "since", "until"])))]
 pub struct RenderArgs {
     /// Post URL, slug, or local file (.md, .markdown, .html, .htm) to render without Ghost.
-    pub post: String,
+    /// Leave it out with --since/--until to render every public post of a site.
+    pub post: Option<String>,
     #[command(flatten)]
     pub local: LocalArgs,
+    /// Render every public post of the site published on or after this date (site-local)
+    /// instead of one post [default with --until: the site's `since`].
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_date,
+          conflicts_with_all = ["post", "title", "authors", "date", "slug"])]
+    pub since: Option<String>,
+    /// Render every public post of the site published on or before this date (site-local);
+    /// with --since, the range between.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_date,
+          conflicts_with_all = ["post", "title", "authors", "date", "slug"])]
+    pub until: Option<String>,
     /// Voice id from the voice registry; repeat the flag for more voices
     /// [default: the site's voices, else the registry's first].
     #[arg(long = "voice", value_name = "ID", action = ArgAction::Append, num_args = 1)]
@@ -355,6 +367,15 @@ impl RenderArgs {
     /// or `--pace` (which stretches instead).
     pub fn reroll_outliers(&self) -> bool {
         !self.no_reroll_tempo && !self.pace
+    }
+}
+
+/// A `YYYY-MM-DD` calendar date.
+pub fn parse_date(s: &str) -> Result<String> {
+    if crate::config::valid_date(s) {
+        Ok(s.to_string())
+    } else {
+        bail!("not a calendar date YYYY-MM-DD: {s}")
     }
 }
 

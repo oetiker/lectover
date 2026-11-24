@@ -117,7 +117,7 @@ fn deserialize_since<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, 
 }
 
 /// Accepts exactly `YYYY-MM-DD` naming a real calendar date.
-fn valid_date(s: &str) -> bool {
+pub fn valid_date(s: &str) -> bool {
     let b = s.as_bytes();
     if b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
         return false;
