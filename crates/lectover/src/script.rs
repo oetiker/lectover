@@ -176,6 +176,7 @@ fn spoken_block(text: String) -> Block {
         hash: block_hash(&text),
         tokens: tokens(&text),
         text,
+        breaks: Vec::new(),
     }
 }
 

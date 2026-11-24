@@ -11,6 +11,7 @@ fn mk(tag: &str, text: &str) -> Block {
         hash: block_hash(&text),
         tokens: tokens(&text),
         text,
+        breaks: Vec::new(),
     }
 }
 
