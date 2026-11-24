@@ -67,6 +67,10 @@ pub struct Block {
     pub text: String,
     pub hash: String,
     pub tokens: Vec<String>,
+    /// Token counts before each `<br>` inside the block, ascending, none at either end.
+    /// Not part of the page contract: text, hash and tokens are the same with or without
+    /// the line breaks; only the spoken text ends a line there.
+    pub breaks: Vec<usize>,
 }
 
 fn element(node: &Handle) -> Option<(String, bool, bool)> {
@@ -94,18 +98,20 @@ fn is_skipped(tag: &str, kg_card: bool) -> bool {
     SKIPPED_TAGS.contains(&tag) || kg_card
 }
 
-fn own_text(node: &Handle, out: &mut String) {
+/// The text of `node` into `out`; the byte offset in `out` of every `<br>` into `breaks`.
+fn own_text(node: &Handle, out: &mut String, breaks: &mut Vec<usize>) {
     for child in node.children.borrow().iter() {
         match &child.data {
             NodeData::Text { contents } => out.push_str(&contents.borrow()),
             NodeData::Element { .. } => {
                 let (tag, ct, card) = element(child).expect("element");
                 if tag == "br" {
+                    breaks.push(out.len());
                     out.push(' ');
                 } else if is_block(&tag, ct) || is_skipped(&tag, card) {
                     // handled as its own block, or not read at all
                 } else {
-                    own_text(child, out);
+                    own_text(child, out, breaks);
                 }
             }
             _ => {}
@@ -142,15 +148,24 @@ fn walk(node: &Handle, blocks: &mut Vec<Block>, marks: &mut Vec<Mark>) {
         }
         if is_block(&tag, ct) {
             let mut raw = String::new();
-            own_text(child, &mut raw);
+            let mut raw_breaks = Vec::new();
+            own_text(child, &mut raw, &mut raw_breaks);
             let text = collapse(&raw);
             if !text.is_empty() {
+                let toks = tokens(&text);
+                let mut breaks: Vec<usize> = raw_breaks
+                    .iter()
+                    .map(|&at| tokens(&collapse(&raw[..at])).len())
+                    .filter(|&k| k > 0 && k < toks.len())
+                    .collect();
+                breaks.dedup();
                 marks.push(Mark::Block(blocks.len()));
                 blocks.push(Block {
                     tag,
                     hash: block_hash(&text),
-                    tokens: tokens(&text),
+                    tokens: toks,
                     text,
+                    breaks,
                 });
             }
         }

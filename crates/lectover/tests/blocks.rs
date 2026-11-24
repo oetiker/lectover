@@ -86,3 +86,18 @@ fn blocks_match_goldens() {
     }
     assert_eq!(checked, 11);
 }
+
+#[test]
+fn br_is_a_line_break_outside_the_page_contract() {
+    let blocks = extract_blocks("<p><b>Hallo</b><br><br>Guten Tag</p>");
+    assert_eq!(blocks.len(), 1);
+    let b = &blocks[0];
+    // the page contract is what it was without the line breaks
+    assert_eq!(b.text, "Hallo Guten Tag");
+    assert_eq!(b.hash, block_hash("Hallo Guten Tag"));
+    assert_eq!(b.tokens, ["Hallo", "Guten", "Tag"]);
+    // both <br> fall after the first token
+    assert_eq!(b.breaks, [1]);
+    // a <br> at either end of the block ends no line inside it
+    assert!(extract_blocks("<p><br>Hallo<br></p>")[0].breaks.is_empty());
+}

@@ -100,19 +100,32 @@ pub(crate) fn ends_sentence(spoken: &str) -> bool {
         .ends_with(['.', '!', '?'])
 }
 
+/// The spoken text of each group; a group that ends a line (`<br>`) without punctuation gets a
+/// full stop, so "Hallo<br>Guten Tag" is spoken as two sentences, not as "Hallo Guten Tag".
+/// Punctuation is not a spoken word, so alignment and display are unchanged.
+fn spoken_lines(groups: &[Group], breaks: &[usize]) -> Vec<String> {
+    groups
+        .iter()
+        .map(|g| {
+            let open = !ends_sentence(&g.spoken)
+                && !g.spoken.ends_with([',', ';', ':', '…', '-', '–', '—']);
+            if open && breaks.contains(&g.last) {
+                format!("{}.", g.spoken)
+            } else {
+                g.spoken.clone()
+            }
+        })
+        .collect()
+}
+
 /// (g0, g1, text) per sentence; ends are judged on the spoken text, so "25." or "ca." never end one.
-fn sentences(groups: &[Group]) -> Vec<(usize, usize, String)> {
-    let join = |gs: &[Group]| {
-        gs.iter()
-            .map(|g| g.spoken.as_str())
-            .collect::<Vec<_>>()
-            .join(" ")
-    };
+fn sentences(groups: &[Group], breaks: &[usize]) -> Vec<(usize, usize, String)> {
+    let spoken = spoken_lines(groups, breaks);
     let mut out = Vec::new();
     let mut start = 0;
-    for (i, g) in groups.iter().enumerate() {
-        if ends_sentence(&g.spoken) || i == groups.len() - 1 {
-            out.push((start, i + 1, join(&groups[start..=i])));
+    for (i, s) in spoken.iter().enumerate() {
+        if ends_sentence(s) || i == groups.len() - 1 {
+            out.push((start, i + 1, spoken[start..=i].join(" ")));
             start = i + 1;
         }
     }
@@ -124,11 +137,7 @@ fn block_chunks(index: usize, block: &Block, groups: &[Group], max_chars: usize)
         return Vec::new();
     }
     if HEADING_TAGS.contains(&block.tag.as_str()) {
-        let text = groups
-            .iter()
-            .map(|g| g.spoken.as_str())
-            .collect::<Vec<_>>()
-            .join(" ");
+        let text = spoken_lines(groups, &block.breaks).join(" ");
         return vec![Chunk {
             block: index,
             g0: 0,
@@ -138,7 +147,7 @@ fn block_chunks(index: usize, block: &Block, groups: &[Group], max_chars: usize)
         }];
     }
     let mut merged: Vec<(usize, usize, String)> = Vec::new();
-    for (g0, g1, text) in sentences(groups) {
+    for (g0, g1, text) in sentences(groups, &block.breaks) {
         if let Some(last) = merged.last_mut() {
             let joined = last.2.chars().count() + 1 + text.chars().count();
             if joined <= max_chars {
