@@ -324,6 +324,25 @@ fn swiss_spot_checks_match_python() {
             ],
         ),
         (
+            "ab 28.01.26 neu",
+            &[
+                (0, 1, "ab"),
+                (1, 2, "achtundzwanzigsten Januar zweitausendsechsundzwanzig"),
+                (2, 3, "neu"),
+            ],
+        ),
+        (
+            "am 31.12.99",
+            &[
+                (0, 1, "am"),
+                (
+                    1,
+                    2,
+                    "einunddreißigsten Dezember neunzehnhundertneunundneunzig",
+                ),
+            ],
+        ),
+        (
             "32.1.2026",
             &[(0, 1, "zweiunddreißig.eins.zweitausendsechsundzwanzig")],
         ),

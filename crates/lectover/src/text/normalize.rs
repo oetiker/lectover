@@ -296,7 +296,12 @@ fn numeric_date(c: &Caps, _: &str) -> Option<String> {
     }
     let mut spoken = format!("{} {}", dative_ordinal(day), MONTHS[month as usize - 1]);
     if let Some(y) = c.get(3) {
-        spoken = format!("{spoken} {}", year(int(y.as_str())?));
+        let mut y_num = int(y.as_str())?;
+        // Two-digit year: the POSIX strptime pivot, 69-99 is 19xx, 00-68 is 20xx.
+        if y.as_str().len() == 2 {
+            y_num += if y_num >= 69 { 1900 } else { 2000 };
+        }
+        spoken = format!("{spoken} {}", year(y_num));
     }
     Some(spoken)
 }
@@ -417,7 +422,7 @@ static RULES: LazyLock<Vec<(Regex, Action)>> = LazyLock::new(|| {
         ),
         // dates: "25." before a month name (month stays its own token), also each day of a
         // list before it ("25. und 26. November", "1., 2. und 3. Mai", "3. bis 5. Mai");
-        // 15.10.2025 / 15.10. / 15.10
+        // 15.10.2025 / 15.10.25 / 15.10. / 15.10
         call(
             format!(
                 r"(?<![{W}.,])(\d{{1,2}})\.(?=(?:,? (?:und |bis |oder )?\d{{1,2}}\.)* (?:{months})(?![{W}]))"
@@ -426,7 +431,7 @@ static RULES: LazyLock<Vec<(Regex, Action)>> = LazyLock::new(|| {
         ),
         call(
             format!(
-                r"(?<![{W}.,])(\d{{1,2}})\.(\d{{1,2}})(?:\.(\d{{4}})(?![{W}]|[.,]\d)|\.(?![{W}])|(?![{W}.,])(?!{decimal_unit}))"
+                r"(?<![{W}.,])(\d{{1,2}})\.(\d{{1,2}})(?:\.(\d{{4}}|\d{{2}})(?![{W}]|[.,]\d)|\.(?![{W}])|(?![{W}.,])(?!{decimal_unit}))"
             ),
             numeric_date,
         ),
