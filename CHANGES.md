@@ -16,6 +16,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 ### Fixed
+
+## 0.3.1 - 2026-11-24
+
+### Fixed
+
 - A date with a two-digit year, such as "28.01.26" in a post title, was read out as «achtundzwanzig.eins.sechsundzwanzig». It is now read as a date with the full year, «achtundzwanzigsten Januar zweitausendsechsundzwanzig»; years 69 to 99 count as 19xx, 00 to 68 as 20xx.
 
 ## 0.3.0 - 2026-11-24
