@@ -12,11 +12,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### New
-- `lectover render --since DATE --until DATE` renders every public post of a site published in that range (both inclusive, site-local dates, oldest first), loading the models once; either end may be left open, and without `--since` the site's `since` is the first date (the key was validated but unused until now). Members-only and paid posts are skipped with a note; a failing post is reported and the run continues, exiting with an error that names the failed posts.
 
 ### Changed
 
 ### Fixed
+
+## 0.3.0 - 2026-11-24
+### New
+- `lectover render --since DATE --until DATE` renders every public post of a site published in that range (both inclusive, site-local dates, oldest first), loading the models once; either end may be left open, and without `--since` the site's `since` is the first date (the key was validated but unused until now). Members-only and paid posts are skipped with a note; a failing post is reported and the run continues, exiting with an error that names the failed posts.
 
 ## 0.2.1 - 2026-11-24
 ### Fixed
