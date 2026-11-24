@@ -1,7 +1,7 @@
 use lectover::plan::{bucket_for, max_tokens_for, plan_chunks, Chunk, ChunkKind};
 use lectover::text::normalize::{load_lexicon, spoken_groups, Group, Lexicon};
 use lectover::text::spoken_words::spoken_words;
-use lectover::text::{collapse, tokens, Block};
+use lectover::text::{collapse, extract_blocks, tokens, Block};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -17,6 +17,7 @@ fn blk(tag: &str, text: &str) -> (Block, Vec<Group>) {
         hash: String::new(),
         tokens: tokens(&text),
         text: text.clone(),
+        breaks: Vec::new(),
     };
     let groups = spoken_groups(&text, &Lexicon::new());
     (block, groups)
@@ -175,6 +176,7 @@ fn chunks_match_goldens() {
                     .iter()
                     .map(|t| t.as_str().unwrap().to_string())
                     .collect(),
+                breaks: Vec::new(),
             })
             .collect();
         let groups: Vec<Vec<Group>> = blocks
@@ -232,5 +234,34 @@ fn title_tts_text_ends_with_a_full_stop() {
     assert_eq!(
         chunk("und dann", ChunkKind::Sentence).tts_text(),
         "und dann"
+    );
+}
+
+#[test]
+fn line_break_ends_a_sentence() {
+    let blocks = extract_blocks(concat!(
+        "<p><b>Hallo</b><br><br>Guten Tag</p>",
+        "<p>Liebe Grüsse,<br>Tobi</p>",
+        "<h2>Zeile eins<br>Zeile zwei</h2>",
+    ));
+    let groups: Vec<Vec<Group>> = blocks
+        .iter()
+        .map(|b| spoken_groups(&b.text, &Lexicon::new()))
+        .collect();
+    let chunks = plan_chunks(&blocks, &groups, 600);
+    let texts: Vec<&str> = chunks.iter().map(|c| c.text.as_str()).collect();
+    // a line without punctuation gets a full stop; one ending in a comma keeps it
+    assert_eq!(
+        texts,
+        [
+            "Hallo. Guten Tag",
+            "Liebe Grüsse, Tobi",
+            "Zeile eins. Zeile zwei"
+        ]
+    );
+    // the full stop is no spoken word: alignment and highlighting are unchanged
+    assert_eq!(
+        spoken_words(&chunks[0].text),
+        spoken_words("Hallo Guten Tag")
     );
 }

@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 
 ### Fixed
+- A line break (`<br>`) in a post is spoken as the end of a sentence: `<b>Hallo</b><br><br>Guten Tag` was read as one sentence, "Hallo Guten Tag", and is now read as "Hallo. Guten Tag". A line ending in a comma, colon or dash is read as before. The page, the word highlighting and earlier recordings are unaffected; recordings of posts with such line breaks change when they are rendered again.
 
 ## 0.2.0 - 2026-11-22
 ### New
