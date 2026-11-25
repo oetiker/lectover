@@ -13,7 +13,7 @@ use anyhow::Result;
 use clap::Parser;
 use lectover::cli::{Cli, Commands, DevCommand, ModelsCommand, VoiceCommand};
 use lectover::design::{design_voice, DesignRequest, VoiceDesigner, MAX_TOKENS, REF_TEXT};
-use lectover::dev::{build, page_path, render_dev_page, DevServer};
+use lectover::dev::{build, page_path, render_dev_page, write_player, DevServer, PLAYER_JS};
 use lectover::ghost::{GhostConfig, HttpReply, Post};
 use lectover::models::{DesignFiles, DESIGN_SOURCES, DESIGN_TALKER};
 use lectover::voices::load_registry;
@@ -220,7 +220,7 @@ fn server() -> (tempfile::TempDir, DevServer) {
     let srv = DevServer::start(
         "127.0.0.1:0",
         dir.path(),
-        &root().join("player/lectover.js"),
+        Some(root().join("player/lectover.js").as_path()),
     )
     .unwrap();
     (dir, srv)
@@ -318,6 +318,54 @@ fn ogg_content_type() {
     srv.stop();
 }
 
+/// Without a player file, `/js` answers with the player built into the binary.
+#[test]
+fn js_route_serves_the_embedded_player() {
+    let dir = tempfile::tempdir().unwrap();
+    let srv = DevServer::start("127.0.0.1:0", dir.path(), None).unwrap();
+    let repo = fs::read(root().join("player/lectover.js")).unwrap();
+    let r = get(&format!("{}/js?domain=olten.jetzt", srv.url()), None);
+    assert_eq!(r.status, 200);
+    assert_eq!(r.header("Content-Type"), Some("text/javascript"));
+    assert_eq!(r.body, repo);
+    let r = get(&format!("{}/js", srv.url()), Some("bytes=0-9"));
+    assert_eq!((r.status, r.body.as_slice()), (206, &repo[..10]));
+    assert_eq!(
+        r.header("Content-Range"),
+        Some(format!("bytes 0-9/{}", repo.len()).as_str())
+    );
+    srv.stop();
+}
+
+/// `render` puts the player at the top of the deploy tree, creating the tree if needed.
+#[test]
+fn write_player_puts_lectover_js_at_the_deploy_root() {
+    let dir = tempfile::tempdir().unwrap();
+    let site = dir.path().join("site");
+    let path = write_player(&site).unwrap();
+    assert_eq!(path, site.join("lectover.js"));
+    assert_eq!(fs::read_to_string(&path).unwrap(), PLAYER_JS);
+    assert_eq!(
+        PLAYER_JS.as_bytes(),
+        fs::read(root().join("player/lectover.js")).unwrap()
+    );
+    // A stale copy is replaced.
+    fs::write(&path, "old()").unwrap();
+    write_player(&site).unwrap();
+    assert_eq!(fs::read_to_string(&path).unwrap(), PLAYER_JS);
+}
+
+#[test]
+fn dev_serve_takes_a_player_file() {
+    let cli = Cli::try_parse_from(["lectover", "dev", "serve", "--player", "p/x.js"]).unwrap();
+    match cli.command {
+        Commands::Dev(DevCommand::Serve { player, .. }) => {
+            assert_eq!(player, Some(PathBuf::from("p/x.js")))
+        }
+        other => panic!("parsed as {other:?}"),
+    }
+}
+
 #[test]
 fn js_route_serves_the_player() {
     let (_dir, srv) = server();
@@ -355,7 +403,12 @@ fn paths_cannot_escape_the_site() {
     let site = outer.path().join("site");
     fs::create_dir(&site).unwrap();
     fs::write(site.join("ok.txt"), b"ok").unwrap();
-    let srv = DevServer::start("127.0.0.1:0", &site, &root().join("player/lectover.js")).unwrap();
+    let srv = DevServer::start(
+        "127.0.0.1:0",
+        &site,
+        Some(root().join("player/lectover.js").as_path()),
+    )
+    .unwrap();
     for path in [
         "/../secret.txt",
         "/%2e%2e/secret.txt",
@@ -390,7 +443,12 @@ fn symlinks_out_of_the_site_are_404() {
     // targets inside the site
     symlink("ok.txt", site.join("inner.txt")).unwrap();
     symlink("real", site.join("alias")).unwrap();
-    let srv = DevServer::start("127.0.0.1:0", &site, &root().join("player/lectover.js")).unwrap();
+    let srv = DevServer::start(
+        "127.0.0.1:0",
+        &site,
+        Some(root().join("player/lectover.js").as_path()),
+    )
+    .unwrap();
     for path in ["/link.txt", "/updir/secret.txt", "/updir/", "/page/"] {
         let r = get(&format!("{}{path}", srv.url()), None);
         assert_eq!(r.status, 404, "{path}");
@@ -424,13 +482,23 @@ fn js_symlink_out_of_the_player_dir_is_404() {
     symlink("real.js", players.join("inside.js")).unwrap();
     symlink("../secret.js", players.join("outside.js")).unwrap();
 
-    let srv = DevServer::start("127.0.0.1:0", &site, &players.join("outside.js")).unwrap();
+    let srv = DevServer::start(
+        "127.0.0.1:0",
+        &site,
+        Some(players.join("outside.js").as_path()),
+    )
+    .unwrap();
     let r = get(&format!("{}/js", srv.url()), None);
     assert_eq!(r.status, 404);
     assert_ne!(r.body, b"secret");
     srv.stop();
 
-    let srv = DevServer::start("127.0.0.1:0", &site, &players.join("inside.js")).unwrap();
+    let srv = DevServer::start(
+        "127.0.0.1:0",
+        &site,
+        Some(players.join("inside.js").as_path()),
+    )
+    .unwrap();
     let r = get(&format!("{}/js?domain=x", srv.url()), None);
     assert_eq!((r.status, r.body.as_slice()), (200, b"player()".as_slice()));
     assert_eq!(r.header("Content-Type"), Some("text/javascript"));
@@ -641,10 +709,10 @@ fn cli_dev_and_voice_defaults() {
     };
     assert_eq!((post.as_str(), out, site), ("a-b", None, None));
     let cli = Cli::try_parse_from(["lectover", "dev", "serve"]).unwrap();
-    let Commands::Dev(DevCommand::Serve { port, out }) = cli.command else {
+    let Commands::Dev(DevCommand::Serve { port, out, player }) = cli.command else {
         panic!()
     };
-    assert_eq!((port, out), (8000, None));
+    assert_eq!((port, out, player), (8000, None, None));
 
     let cli = Cli::try_parse_from([
         "lectover",

@@ -198,6 +198,9 @@ pub enum DevCommand {
     Serve {
         #[arg(long, default_value_t = 8000)]
         port: u16,
+        /// Answer /js with this file instead of the built-in player (for player development).
+        #[arg(long, value_name = "FILE")]
+        player: Option<PathBuf>,
         /// Deploy tree [default: ~/.local/share/lectover/site; env LECTOVER_SITE]
         #[arg(long, value_name = "DIR")]
         out: Option<PathBuf>,
@@ -480,11 +483,9 @@ fn run_command(cli: Cli, settings: &Settings) -> Result<()> {
             Ok(())
         }
         Commands::Doctor { .. } => unreachable!("handled in run"),
-        Commands::Dev(DevCommand::Serve { port, .. }) => crate::dev::serve(
-            &settings.site_root,
-            std::path::Path::new(crate::dev::PLAYER),
-            port,
-        ),
+        Commands::Dev(DevCommand::Serve { port, player, .. }) => {
+            crate::dev::serve(&settings.site_root, player.as_deref(), port)
+        }
     }
 }
 

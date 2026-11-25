@@ -376,7 +376,7 @@ fn load_models(
     Ok(models)
 }
 
-/// Render every voice of a planned post into the deploy tree.
+/// Render every voice of a planned post into the deploy tree, with the player at its top.
 fn render_prepared(
     args: &RenderArgs,
     settings: &Settings,
@@ -400,7 +400,9 @@ fn render_prepared(
             lexicon: &ctx.lexicon,
         },
         models,
-    )
+    )?;
+    crate::dev::write_player(&settings.site_root)?;
+    Ok(())
 }
 
 /// Each chunk's rates from the placed parts and the final word times (see [`chunk_rate`]).
