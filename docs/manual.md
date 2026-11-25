@@ -65,7 +65,7 @@ A forced aligner gives the time of every word.
 
 The result is an Ogg/Opus file, an MP3 copy (64 kbps, 24 kHz mono) and a JSON file of word timings per voice, plus a `manifest.json`, under `<deploy tree>/<domain>/<slug>/`.
 File names carry a content hash, `<voice>.<hash>.ogg`, `<voice>.<hash>.mp3` and `<voice>.<hash>.json`; the Ogg and the timings share one hash.
-The player script `player/lectover.js` plays the audio on the post page and highlights the spoken word.
+The player script plays the audio on the post page and highlights the spoken word; **render** writes it as `<deploy tree>/lectover.js`.
 
 Every recording opens with a spoken intro naming the title, the authors and the publication date, followed by the site's `intro.wav`.
 An `<hr>` in the post plays `break.wav`, or `intro.wav` when there is no `break.wav`.
@@ -185,10 +185,11 @@ Warns about rendered voices whose text differs from the page; the player stays o
 
 ## dev serve
 
-Serves the deploy tree on 127.0.0.1 with HTTP Range support and answers `/js` with `player/lectover.js`, read relative to the working directory.
+Serves the deploy tree on 127.0.0.1 with HTTP Range support and answers `/js` with the player script built into the binary.
 
 - `--port N`: Port. Default 8000.
 - `--out DIR`: Deploy tree.
+- `--player FILE`: Answer `/js` with *FILE* instead of the built-in player.
 
 ## cache prune
 
@@ -231,6 +232,7 @@ A usage error exits 2.
 - `~/.cache/lectover/models/`: Model files.
 - `~/.cache/lectover/takes/`: Cached takes; `asr/` and `align/` hold their transcripts and alignments.
 - `~/.local/share/lectover/site/`: Deploy tree.
+- `~/.local/share/lectover/site/lectover.js`: Player script, written by **render**.
 - `~/.local/share/lectover/voices/`: Voice registry: `voices.json` and, per voice, `<id>.wav` and `<id>.txt`.
 - `~/.local/share/lectover/sites/<domain>/`: Sounds of a site, `intro.wav` and `break.wav`.
 - `~/.local/state/lectover/say/`: Takes written by **say**.

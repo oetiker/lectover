@@ -110,9 +110,8 @@ takes never end ("transcribe: empty audio"). Lectover warns at startup when it
 is set (any value counts, even `0`).
 
 The binary is `target/release/lectover`. It runs from any directory and keeps
-its data at XDG paths (see Configuration). Only `lectover dev serve` still reads
-`player/lectover.js` relative to the working directory, so start it from the
-repository root.
+its data at XDG paths (see Configuration). The player script is built into the
+binary.
 
 ## Configuration
 
@@ -471,7 +470,9 @@ lectover dev serve                  # --port 8000; --out is the deploy tree
 Then open `http://localhost:8000/olten.jetzt/frohburg-spiel-satz-patt/` in a
 normal browser. `build` writes `<deploy tree>/<domain>/<slug>/index.html` next to
 the post's audio; the page loads the player from `/js?domain=<domain>` like
-the real embed, and the server answers `/js` with `player/lectover.js`. The
+the real embed, and the server answers `/js` with the built-in player. While
+you work on the player, `--player player/lectover.js` serves that file instead,
+without a rebuild. The
 server supports HTTP Range requests, which Chrome needs for seeking. Render
 the post first so the audio exists.
 
@@ -509,10 +510,11 @@ script comes from): the player plus one folder per blog.
   olten.jetzt/<slug>/manifest.json, <voice>.<hash>.ogg, <voice>.<hash>.mp3, <voice>.<hash>.json
 ```
 
-Upload a blog's rendered posts and the player (the dev pages are excluded):
+`render` writes the player as `lectover.js` at the top of the deploy tree, so the
+tree has the layout above. Upload it without the dev pages:
 
 ```bash
-rsync -av --exclude index.html ~/.local/share/lectover/site/olten.jetzt player/lectover.js <user>@lectover.oetiker.ch:/srv/lectover/
+rsync -av --exclude index.html ~/.local/share/lectover/site/ <user>@lectover.oetiker.ch:/srv/lectover/
 ```
 
 Apache (needs `mod_rewrite` and `mod_headers`; Range requests work by default):

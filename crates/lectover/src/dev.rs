@@ -2,7 +2,8 @@
 //!
 //! `lectover dev build <post>` writes `<site>/<domain>/<slug>/index.html` in the deploy tree,
 //! next to the post's audio (`<post>` may be a local Markdown or HTML file); `lectover dev serve` serves the deploy tree with single-range
-//! support (RFC 7233) and answers `/js` with `player/lectover.js`, like the production embed.
+//! support (RFC 7233) and answers `/js` with the player built into the binary (or a player file
+//! given with `--player`), like the production embed.
 
 use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
@@ -17,8 +18,25 @@ use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 use crate::ghost::{fetch_post, require_public, slug_from_arg, GhostConfig, HttpReply, Post};
 
-/// The player `/js` answers with, relative to the working directory.
-pub const PLAYER: &str = "player/lectover.js";
+/// The read-aloud player (`player/lectover.js`), built into the binary.
+pub const PLAYER_JS: &str = include_str!("../../../player/lectover.js");
+
+/// Name of the player at the top of the deploy tree.
+pub const PLAYER_FILE: &str = "lectover.js";
+
+/// Write the built-in player to `<site>/lectover.js`, creating `site` if needed; an existing
+/// copy with other content is replaced.
+pub fn write_player(site: &Path) -> Result<PathBuf> {
+    let path = site.join(PLAYER_FILE);
+    if fs::read(&path).ok().as_deref() == Some(PLAYER_JS.as_bytes()) {
+        return Ok(path);
+    }
+    fs::create_dir_all(site).with_context(|| format!("creating {}", site.display()))?;
+    let tmp = site.join(format!(".{PLAYER_FILE}.tmp"));
+    fs::write(&tmp, PLAYER_JS).with_context(|| format!("writing {}", tmp.display()))?;
+    fs::rename(&tmp, &path).with_context(|| format!("writing {}", path.display()))?;
+    Ok(path)
+}
 
 const CSS: &str = r#"
 body { margin: 0; padding: 2rem 1rem; font: 18px/1.6 Georgia, "Times New Roman", serif; color: #15171a; background: #fff; }
@@ -145,8 +163,9 @@ pub struct DevServer {
 }
 
 impl DevServer {
-    /// Listen on `addr` (port 0 picks a free one) and serve `site`, with `/js` answered by `player`.
-    pub fn start(addr: &str, site: &Path, player: &Path) -> Result<DevServer> {
+    /// Listen on `addr` (port 0 picks a free one) and serve `site`, with `/js` answered by the
+    /// `player` file, or by the built-in player when it is `None`.
+    pub fn start(addr: &str, site: &Path, player: Option<&Path>) -> Result<DevServer> {
         let server =
             Arc::new(Server::http(addr).map_err(|e| anyhow!("cannot listen on {addr}: {e}"))?);
         let local = server
@@ -195,7 +214,7 @@ impl DevServer {
 }
 
 /// `lectover dev serve`: serve `site` on 127.0.0.1:`port` until killed.
-pub fn serve(site: &Path, player: &Path, port: u16) -> Result<()> {
+pub fn serve(site: &Path, player: Option<&Path>, port: u16) -> Result<()> {
     let srv = DevServer::start(&format!("127.0.0.1:{port}"), site, player)?;
     println!("serving {} at http://localhost:{port}/", site.display());
     srv.wait();
@@ -234,29 +253,33 @@ fn text_reply(status: u16, msg: &str) -> Reply {
 struct Roots {
     /// Canonical site directory.
     site: PathBuf,
-    player: PathBuf,
-    /// Canonical directory of the player.
-    player_root: PathBuf,
+    /// Player file and the canonical directory it must lie in; `None`: the built-in player.
+    player: Option<(PathBuf, PathBuf)>,
 }
 
 impl Roots {
-    fn new(site: &Path, player: &Path) -> Result<Roots> {
+    fn new(site: &Path, player: Option<&Path>) -> Result<Roots> {
         let site_canon = fs::canonicalize(site).with_context(|| {
             format!(
                 "site directory {} not found (run `lectover dev build` first)",
                 site.display()
             )
         })?;
-        let dir = match player.parent() {
-            Some(d) if !d.as_os_str().is_empty() => d,
-            _ => Path::new("."),
+        let player = match player {
+            None => None,
+            Some(player) => {
+                let dir = match player.parent() {
+                    Some(d) if !d.as_os_str().is_empty() => d,
+                    _ => Path::new("."),
+                };
+                let root = fs::canonicalize(dir)
+                    .with_context(|| format!("player directory {} not found", dir.display()))?;
+                Some((player.to_path_buf(), root))
+            }
         };
-        let player_root = fs::canonicalize(dir)
-            .with_context(|| format!("player directory {} not found", dir.display()))?;
         Ok(Roots {
             site: site_canon,
-            player: player.to_path_buf(),
-            player_root,
+            player,
         })
     }
 }
@@ -304,7 +327,10 @@ fn respond(url: &str, range: Option<&str>, roots: &Roots) -> Reply {
     };
     let path = path.split('#').next().unwrap_or_default();
     if path == "/js" {
-        return serve_file(&roots.player, &roots.player_root, range);
+        return match &roots.player {
+            Some((player, root)) => serve_file(player, root, range),
+            None => serve_bytes(PLAYER_JS.as_bytes(), "text/javascript", range),
+        };
     }
     let requested = translate(path, &roots.site);
     let Some(dir) = confine(&requested, &roots.site).filter(|p| p.is_dir()) else {
@@ -434,14 +460,33 @@ fn serve_file(path: &Path, root: &Path, range: Option<&str>) -> Reply {
     let Some(real) = confine(path, root) else {
         return text_reply(404, "not found");
     };
-    let Ok(mut f) = File::open(&real) else {
+    let Ok(f) = File::open(&real) else {
         return text_reply(404, "not found");
     };
     let size = match f.metadata() {
         Ok(m) if m.is_file() => m.len(),
         _ => return text_reply(404, "not found"),
     };
-    let ctype = header("Content-Type", content_type(path));
+    serve_body(f, size, content_type(path), range)
+}
+
+fn serve_bytes(bytes: &'static [u8], ctype: &str, range: Option<&str>) -> Reply {
+    serve_body(
+        std::io::Cursor::new(bytes),
+        bytes.len() as u64,
+        ctype,
+        range,
+    )
+}
+
+/// A body of `size` bytes, whole or the part `range` asks for.
+fn serve_body<B: Read + Seek + Send + 'static>(
+    mut f: B,
+    size: u64,
+    ctype: &str,
+    range: Option<&str>,
+) -> Reply {
+    let ctype = header("Content-Type", ctype);
     match parse_range(range, size) {
         RangeAnswer::Whole => reply(200, vec![ctype], Box::new(f), size),
         RangeAnswer::Unsatisfiable => {
