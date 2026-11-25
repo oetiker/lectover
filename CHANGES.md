@@ -13,10 +13,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### New
 
+### Changed
+
+### Fixed
+
+## 0.3.2 - 2026-11-25
+
+### New
+
 - `render` writes the player script as `lectover.js` at the top of the deploy tree, so one copy of the tree deploys the audio and the matching player.
 - `lectover dev serve --player FILE` answers `/js` with *FILE* instead of the built-in player.
-
-### Changed
 
 ### Fixed
 
