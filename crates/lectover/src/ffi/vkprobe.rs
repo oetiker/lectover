@@ -86,16 +86,17 @@ pub fn run_probe() -> Result<()> {
         if held.buffer.is_null() {
             bail!("allocating {} MiB failed", (3 * bytes) >> 20);
         }
-        let ones = vec![1.0f32; N];
-        let twos = vec![2.0f32; N];
-        sys::ggml_backend_tensor_set(a, ones.as_ptr().cast::<c_void>(), 0, bytes);
-        sys::ggml_backend_tensor_set(b, twos.as_ptr().cast::<c_void>(), 0, bytes);
+        // One host vector for both inputs and the result: 128 MiB instead of 384 MiB per child.
+        let mut host = vec![1.0f32; N];
+        sys::ggml_backend_tensor_set(a, host.as_ptr().cast::<c_void>(), 0, bytes);
+        host.fill(2.0);
+        sys::ggml_backend_tensor_set(b, host.as_ptr().cast::<c_void>(), 0, bytes);
         if sys::ggml_backend_graph_compute(held.backend, graph) != sys::GGML_STATUS_SUCCESS {
             bail!("compute failed");
         }
-        let mut out = vec![0.0f32; N];
-        sys::ggml_backend_tensor_get(c, out.as_mut_ptr().cast::<c_void>(), 0, bytes);
-        if let Some((i, v)) = out.iter().enumerate().find(|(_, &v)| v != 3.0) {
+        host.fill(0.0);
+        sys::ggml_backend_tensor_get(c, host.as_mut_ptr().cast::<c_void>(), 0, bytes);
+        if let Some((i, v)) = host.iter().enumerate().find(|(_, &v)| v != 3.0) {
             bail!("wrong result at {i}: {v}");
         }
     }

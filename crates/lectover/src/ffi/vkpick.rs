@@ -167,6 +167,26 @@ fn enumerate() -> anyhow::Result<Vec<VkDevice>> {
     devices
 }
 
+/// The test outcome of each device, matched by index; a device without a result failed.
+pub fn with_outcomes(
+    gpus: &[&VkDevice],
+    outcomes: Vec<(usize, Outcome)>,
+    is_pci: impl Fn(i64, i64) -> bool,
+) -> Vec<Probed> {
+    gpus.iter()
+        .map(|d| Probed {
+            index: d.index,
+            name: d.name.clone(),
+            pci: d.render.is_some_and(|(a, b)| is_pci(a, b)),
+            outcome: outcomes
+                .iter()
+                .find(|(i, _)| *i == d.index)
+                .map(|(_, o)| o.clone())
+                .unwrap_or_else(|| Outcome::Failed("no test result".into())),
+        })
+        .collect()
+}
+
 /// How long one device test may take; a hang counts as failed.
 #[cfg(target_os = "linux")]
 const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
@@ -278,7 +298,7 @@ pub fn probe_all(
                         std::thread::sleep(std::time::Duration::from_millis(20));
                     }
                     Some(Outcome::Failed(format!(
-                        "timed out after {} s",
+                        "timed out after {:.1} s",
                         timeout.as_secs_f64()
                     )))
                 }
@@ -340,16 +360,7 @@ pub fn limit_vulkan_devices(device: Option<super::Device>) {
                 return;
             }
         };
-        let probed: Vec<Probed> = gpus
-            .iter()
-            .zip(outcomes)
-            .map(|(d, (_, outcome))| Probed {
-                index: d.index,
-                name: d.name.clone(),
-                pci: d.render.is_some_and(|(a, b)| sysfs_is_pci(a, b)),
-                outcome,
-            })
-            .collect();
+        let probed = with_outcomes(&gpus, outcomes, sysfs_is_pci);
         let choice = choose(&probed);
         let cpu_fallback = device != Some(super::Device::Vulkan);
         if let Some(m) = choice.message(started.elapsed(), cpu_fallback) {
@@ -564,6 +575,65 @@ mod tests {
                 "vulkan: no GPU passed the test (0 V (test failed: a)); test took 1.4 s; \
                  set GGML_VK_VISIBLE_DEVICES to choose"
             )
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_formats_the_timeout_like_the_line() {
+        let got = probe_all(&[0], &sh(&["sleep 30"]), Duration::from_millis(1000)).unwrap();
+        assert_eq!(
+            got,
+            vec![(0, Outcome::Failed("timed out after 1.0 s".into()))]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_tests_the_others_when_one_cannot_start() {
+        let spawn = |i: usize| {
+            if i == 0 {
+                let mut c = std::process::Command::new("sh");
+                c.arg("-c").arg("exit 0");
+                c
+            } else {
+                std::process::Command::new("/nonexistent/lectover")
+            }
+        };
+        let got = probe_all(&[0, 1], &spawn, Duration::from_secs(10)).unwrap();
+        assert_eq!(got[0], (0, Outcome::Passed));
+        assert_eq!(got[1].0, 1);
+        assert!(
+            matches!(&got[1].1, Outcome::Failed(w) if w.starts_with("could not start the test:")),
+            "{got:?}"
+        );
+    }
+
+    #[test]
+    fn outcomes_are_matched_by_device_index() {
+        let gpus = [
+            VkDevice {
+                index: 1,
+                name: "Venus".into(),
+                cpu: false,
+                render: Some((226, 129)),
+            },
+            VkDevice {
+                index: 3,
+                name: "Radeon".into(),
+                cpu: false,
+                render: Some((226, 128)),
+            },
+        ];
+        let refs: Vec<&VkDevice> = gpus.iter().collect();
+        // Out of order, and nothing for index 1.
+        let got = with_outcomes(&refs, vec![(3, Outcome::Passed)], |_, m| m == 128);
+        assert_eq!(
+            got,
+            vec![
+                p(1, "Venus", false, Err("no test result")),
+                p(3, "Radeon", true, Ok(())),
+            ]
         );
     }
 
