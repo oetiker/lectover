@@ -45,9 +45,6 @@ pub enum Commands {
     /// Speak lines of text (after the lexicon) to try pronunciations by ear.
     Say(SayArgs),
     /// Check the installation: config, directories, models, voices, sites, keys, GPU.
-    /// Test the first visible Vulkan device (run by lectover itself in a child process).
-    #[command(name = "vk-probe", hide = true)]
-    VkProbe,
     Doctor {
         /// Check only this site [default: every configured site].
         #[arg(long, value_name = "DOMAIN")]
@@ -56,6 +53,9 @@ pub enum Commands {
         #[arg(long)]
         offline: bool,
     },
+    /// Test the first visible Vulkan device (run by lectover itself in a child process).
+    #[command(name = "vk-probe", hide = true)]
+    VkProbe,
 }
 
 impl Commands {
@@ -588,5 +588,6 @@ mod tests {
         use clap::CommandFactory;
         let help = Cli::command().render_help().to_string();
         assert!(!help.contains("vk-probe"), "{help}");
+        assert!(help.contains("Check the installation"), "{help}");
     }
 }

@@ -83,8 +83,10 @@ pub fn choose(devs: &[Probed]) -> Choice {
 }
 
 impl Choice {
-    /// The stderr line that reports the choice; `None` when nothing changes.
-    pub fn message(&self, took: std::time::Duration) -> Option<String> {
+    /// The stderr line that reports the choice; `None` when nothing changes. `cpu_fallback`:
+    /// whether the command falls back to the CPU when no GPU passed (false when Vulkan was
+    /// asked for explicitly; the command then stops with its own error).
+    pub fn message(&self, took: std::time::Duration, cpu_fallback: bool) -> Option<String> {
         let took = took.as_secs_f64();
         match self {
             Choice::Leave => None,
@@ -93,8 +95,9 @@ impl Choice {
                 skipped.join(", ")
             )),
             Choice::NoGpu { skipped } => Some(format!(
-                "vulkan: no GPU passed the test ({}); test took {took:.1} s; using the CPU; set {VISIBLE_DEVICES_ENV} to choose",
-                skipped.join(", ")
+                "vulkan: no GPU passed the test ({}); test took {took:.1} s; {}set {VISIBLE_DEVICES_ENV} to choose",
+                skipped.join(", "),
+                if cpu_fallback { "using the CPU; " } else { "" }
             )),
         }
     }
@@ -175,14 +178,20 @@ fn failure(status: std::process::ExitStatus, stderr: &str) -> Outcome {
     if status.success() {
         return Outcome::Passed;
     }
-    if let Some(sig) = status.signal() {
-        return Outcome::Failed(format!("crashed (signal {sig})"));
-    }
     let lines: Vec<&str> = stderr
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty())
         .collect();
+    if let Some(sig) = status.signal() {
+        return Outcome::Failed(match lines.last() {
+            Some(l) => format!(
+                "crashed (signal {sig}): {}",
+                l.chars().take(120).collect::<String>()
+            ),
+            None => format!("crashed (signal {sig})"),
+        });
+    }
     let why = lines
         .iter()
         .rev()
@@ -260,7 +269,14 @@ pub fn probe_all(
                 }
                 Ok(None) if timed_out => {
                     let _ = r.child.kill();
-                    let _ = r.child.wait();
+                    // A child stuck in a driver call dies only when the call returns: wait a
+                    // little, then leave it unreaped rather than hang.
+                    let grace = Instant::now();
+                    while matches!(r.child.try_wait(), Ok(None))
+                        && grace.elapsed() < std::time::Duration::from_secs(1)
+                    {
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
                     Some(Outcome::Failed(format!(
                         "timed out after {} s",
                         timeout.as_secs_f64()
@@ -335,7 +351,8 @@ pub fn limit_vulkan_devices(device: Option<super::Device>) {
             })
             .collect();
         let choice = choose(&probed);
-        if let Some(m) = choice.message(started.elapsed()) {
+        let cpu_fallback = device != Some(super::Device::Vulkan);
+        if let Some(m) = choice.message(started.elapsed(), cpu_fallback) {
             eprintln!("{m}");
         }
         match &choice {
@@ -438,7 +455,7 @@ mod tests {
             skipped: strings(&["1 Venus (works, virtual)"]),
         };
         assert_eq!(
-            used.message(took).as_deref(),
+            used.message(took, true).as_deref(),
             Some(
                 "vulkan: using device 3; skipped: 1 Venus (works, virtual); test took 1.4 s; \
                  set GGML_VK_VISIBLE_DEVICES to choose"
@@ -448,13 +465,13 @@ mod tests {
             skipped: strings(&["0 V (test failed: a)"]),
         };
         assert_eq!(
-            none.message(took).as_deref(),
+            none.message(took, true).as_deref(),
             Some(
                 "vulkan: no GPU passed the test (0 V (test failed: a)); test took 1.4 s; \
                  using the CPU; set GGML_VK_VISIBLE_DEVICES to choose"
             )
         );
-        assert_eq!(Choice::Leave.message(took), None);
+        assert_eq!(Choice::Leave.message(took, true), None);
     }
 
     #[cfg(target_os = "linux")]
@@ -492,6 +509,23 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    fn probe_all_keeps_the_reason_of_a_crash() {
+        let spawn =
+            sh(&["echo 'vk::Device::mapMemory: ErrorOutOfDeviceMemory' >&2; kill -ABRT $$"]);
+        let got = probe_all(&[0], &spawn, Duration::from_secs(10)).unwrap();
+        assert_eq!(
+            got,
+            vec![(
+                0,
+                Outcome::Failed(
+                    "crashed (signal 6): vk::Device::mapMemory: ErrorOutOfDeviceMemory".into()
+                )
+            )]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
     fn probe_all_kills_a_hang() {
         let t = std::time::Instant::now();
         let got = probe_all(&[0], &sh(&["sleep 30"]), Duration::from_millis(300)).unwrap();
@@ -517,6 +551,20 @@ mod tests {
     fn probe_all_reports_spawn_failure() {
         let spawn = |_: usize| std::process::Command::new("/nonexistent/lectover");
         assert!(probe_all(&[0, 1], &spawn, Duration::from_secs(1)).is_err());
+    }
+
+    #[test]
+    fn no_gpu_with_vulkan_requested_does_not_promise_the_cpu() {
+        let none = Choice::NoGpu {
+            skipped: vec!["0 V (test failed: a)".into()],
+        };
+        assert_eq!(
+            none.message(Duration::from_millis(1400), false).as_deref(),
+            Some(
+                "vulkan: no GPU passed the test (0 V (test failed: a)); test took 1.4 s; \
+                 set GGML_VK_VISIBLE_DEVICES to choose"
+            )
+        );
     }
 
     /// Prints what this machine's Vulkan loader reports:
