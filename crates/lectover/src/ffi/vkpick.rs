@@ -16,44 +16,86 @@ pub struct VkDevice {
     pub render: Option<(i64, i64)>,
 }
 
-/// The `GGML_VK_VISIBLE_DEVICES` value to set, and the devices it leaves out.
+/// What the test of one device found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Outcome {
+    Passed,
+    /// Why it failed, in a few words.
+    Failed(String),
+}
+
+/// One non-CPU device with its test result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Probed {
+    pub index: usize,
+    pub name: String,
+    /// On a PCI render node, i.e. a physical GPU.
+    pub pci: bool,
+    pub outcome: Outcome,
+}
+
+/// What to do with `GGML_VK_VISIBLE_DEVICES`.
 #[derive(Debug, PartialEq, Eq)]
-pub struct Pick {
-    pub env: String,
-    pub skipped: Vec<String>,
+pub enum Choice {
+    /// Nothing to drop: leave ggml's own choice.
+    Leave,
+    /// Set the variable to `env`; `skipped` names the devices left out and why.
+    Use { env: String, skipped: Vec<String> },
+    /// No device passed: hide every Vulkan device, so the CPU runs.
+    NoGpu { skipped: Vec<String> },
 }
 
-impl Pick {
-    /// The stderr line that reports the choice.
-    pub fn message(&self) -> String {
-        format!(
-            "vulkan: using device {} only; skipping the devices not on a PCI render node: {}; set {VISIBLE_DEVICES_ENV} to choose",
-            self.env,
-            self.skipped.join(", ")
-        )
-    }
-}
-
-/// The GPUs on a PCI render node, when there are some and other GPUs besides them; `None`
-/// leaves ggml's own choice.
-pub fn visible_devices(devs: &[VkDevice], is_pci: impl Fn(i64, i64) -> bool) -> Option<Pick> {
-    let (good, bad): (Vec<&VkDevice>, Vec<&VkDevice>) = devs
+/// The devices to use: the physical ones that passed, else the virtual ones that passed.
+pub fn choose(devs: &[Probed]) -> Choice {
+    let passed = |d: &&Probed| d.outcome == Outcome::Passed;
+    let physical: Vec<&Probed> = devs.iter().filter(passed).filter(|d| d.pci).collect();
+    let keep = if physical.is_empty() {
+        devs.iter().filter(passed).collect()
+    } else {
+        physical
+    };
+    let skipped: Vec<String> = devs
         .iter()
-        .filter(|d| !d.cpu)
-        .partition(|d| d.render.is_some_and(|(major, minor)| is_pci(major, minor)));
-    if good.is_empty() || bad.is_empty() {
-        return None;
-    }
-    let env = good
-        .iter()
-        .map(|d| d.index.to_string())
-        .collect::<Vec<_>>()
-        .join(",");
-    let skipped = bad
-        .iter()
-        .map(|d| format!("{} {}", d.index, d.name))
+        .filter(|d| !keep.iter().any(|k| k.index == d.index))
+        .map(|d| match &d.outcome {
+            Outcome::Passed => format!("{} {} (works, virtual)", d.index, d.name),
+            Outcome::Failed(why) => format!("{} {} (test failed: {why})", d.index, d.name),
+        })
         .collect();
-    Some(Pick { env, skipped })
+    if keep.is_empty() {
+        if skipped.is_empty() {
+            Choice::Leave
+        } else {
+            Choice::NoGpu { skipped }
+        }
+    } else if skipped.is_empty() {
+        Choice::Leave
+    } else {
+        let env = keep
+            .iter()
+            .map(|d| d.index.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        Choice::Use { env, skipped }
+    }
+}
+
+impl Choice {
+    /// The stderr line that reports the choice; `None` when nothing changes.
+    pub fn message(&self, took: std::time::Duration) -> Option<String> {
+        let took = took.as_secs_f64();
+        match self {
+            Choice::Leave => None,
+            Choice::Use { env, skipped } => Some(format!(
+                "vulkan: using device {env}; skipped: {}; test took {took:.1} s; set {VISIBLE_DEVICES_ENV} to choose",
+                skipped.join(", ")
+            )),
+            Choice::NoGpu { skipped } => Some(format!(
+                "vulkan: no GPU passed the test ({}); test took {took:.1} s; using the CPU; set {VISIBLE_DEVICES_ENV} to choose",
+                skipped.join(", ")
+            )),
+        }
+    }
 }
 
 /// ggml-vulkan's list of device indices (into Vulkan's enumeration order).
@@ -131,9 +173,24 @@ pub fn limit_vulkan_devices() {
         }
         // On failure ggml enumerates on its own and reports what it finds.
         let Ok(devs) = enumerate() else { return };
-        if let Some(p) = visible_devices(&devs, sysfs_is_pci) {
-            eprintln!("{}", p.message());
-            std::env::set_var(VISIBLE_DEVICES_ENV, &p.env);
+        // Task 3 replaces this with a real test per device.
+        let started = std::time::Instant::now();
+        let probed: Vec<Probed> = devs
+            .iter()
+            .filter(|d| !d.cpu)
+            .map(|d| Probed {
+                index: d.index,
+                name: d.name.clone(),
+                pci: d.render.is_some_and(|(a, b)| sysfs_is_pci(a, b)),
+                outcome: Outcome::Passed,
+            })
+            .collect();
+        let choice = choose(&probed);
+        if let Some(m) = choice.message(started.elapsed()) {
+            eprintln!("{m}");
+        }
+        if let Choice::Use { env, .. } = &choice {
+            std::env::set_var(VISIBLE_DEVICES_ENV, env);
         }
     }
 }
@@ -141,87 +198,113 @@ pub fn limit_vulkan_devices() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
-    fn dev(index: usize, name: &str, cpu: bool, render: Option<(i64, i64)>) -> VkDevice {
-        VkDevice {
+    fn p(index: usize, name: &str, pci: bool, ok: Result<(), &str>) -> Probed {
+        Probed {
             index,
             name: name.into(),
-            cpu,
-            render,
+            pci,
+            outcome: match ok {
+                Ok(()) => Outcome::Passed,
+                Err(e) => Outcome::Failed(e.into()),
+            },
         }
     }
 
-    /// ol-01 on 2026-11-26: Venus and RADV on the virtio node (minor 129), the physical
-    /// Radeon (minor 128), llvmpipe.
-    fn ol01() -> Vec<VkDevice> {
-        vec![
-            dev(
-                0,
-                "Virtio-GPU Venus (Radeon 8060S)",
-                false,
-                Some((226, 129)),
-            ),
-            dev(1, "Radeon 8060S (RADV)", false, Some((226, 129))),
-            dev(2, "Radeon 8060S (RADV)", false, Some((226, 128))),
-            dev(3, "llvmpipe", true, None),
-        ]
-    }
-
-    fn pci_128(_: i64, minor: i64) -> bool {
-        minor == 128
+    fn strings(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
     }
 
     #[test]
-    fn keeps_only_gpus_on_a_pci_render_node() {
-        let p = visible_devices(&ol01(), pci_128).unwrap();
-        assert_eq!(p.env, "2");
+    fn physical_pass_beats_working_virtual() {
+        let devs = [
+            p(0, "RADV", false, Err("mapMemory failed")),
+            p(1, "Venus", false, Ok(())),
+            p(2, "RADV", false, Err("x")),
+            p(3, "Radeon", true, Ok(())),
+        ];
         assert_eq!(
-            p.skipped,
-            vec!["0 Virtio-GPU Venus (Radeon 8060S)", "1 Radeon 8060S (RADV)"]
+            choose(&devs),
+            Choice::Use {
+                env: "3".into(),
+                skipped: strings(&[
+                    "0 RADV (test failed: mapMemory failed)",
+                    "1 Venus (works, virtual)",
+                    "2 RADV (test failed: x)",
+                ]),
+            }
         );
     }
 
     #[test]
-    fn message_gives_the_reason_for_every_skipped_device() {
-        let p = visible_devices(&ol01(), pci_128).unwrap();
+    fn virtual_is_used_when_no_physical_passes() {
+        let devs = [p(0, "Venus", false, Ok(())), p(1, "Radeon", true, Err("e"))];
         assert_eq!(
-            p.message(),
-            "vulkan: using device 2 only; skipping the devices not on a PCI render node: \
-             0 Virtio-GPU Venus (Radeon 8060S), 1 Radeon 8060S (RADV); \
-             set GGML_VK_VISIBLE_DEVICES to choose"
+            choose(&devs),
+            Choice::Use {
+                env: "0".into(),
+                skipped: strings(&["1 Radeon (test failed: e)"]),
+            }
         );
     }
 
     #[test]
-    fn device_without_a_render_node_is_skipped() {
-        let devs = vec![
-            dev(0, "Venus", false, None),
-            dev(1, "Radeon", false, Some((226, 128))),
+    fn all_passing_physical_are_kept_in_order() {
+        let devs = [
+            p(0, "V", false, Err("e")),
+            p(1, "A", true, Ok(())),
+            p(2, "B", true, Ok(())),
         ];
-        assert_eq!(visible_devices(&devs, pci_128).unwrap().env, "1");
+        assert!(matches!(choose(&devs), Choice::Use { env, .. } if env == "1,2"));
     }
 
     #[test]
-    fn several_pci_gpus_are_all_kept_in_order() {
-        let devs = vec![
-            dev(0, "Venus", false, Some((226, 129))),
-            dev(1, "A", false, Some((226, 128))),
-            dev(2, "B", false, Some((226, 130))),
-        ];
-        let p = visible_devices(&devs, |_, m| m != 129).unwrap();
-        assert_eq!(p.env, "1,2");
+    fn nothing_to_drop_leaves_ggml_alone() {
+        assert_eq!(choose(&[p(0, "Radeon", true, Ok(()))]), Choice::Leave);
+        assert_eq!(choose(&[p(0, "Venus", false, Ok(()))]), Choice::Leave);
+        assert_eq!(choose(&[]), Choice::Leave);
     }
 
     #[test]
-    fn leaves_ggml_alone_when_nothing_is_to_skip() {
-        let devs = vec![
-            dev(0, "Radeon", false, Some((226, 128))),
-            dev(1, "llvmpipe", true, None),
-        ];
-        assert!(visible_devices(&devs, pci_128).is_none());
+    fn no_passing_gpu_means_cpu() {
+        let devs = [p(0, "V", false, Err("a")), p(1, "R", true, Err("b"))];
+        assert_eq!(
+            choose(&devs),
+            Choice::NoGpu {
+                skipped: strings(&["0 V (test failed: a)", "1 R (test failed: b)"]),
+            }
+        );
     }
 
-    /// Prints what this machine's Vulkan loader reports and what lectover would pick:
+    #[test]
+    fn message_text() {
+        let took = Duration::from_millis(1400);
+        let used = Choice::Use {
+            env: "3".into(),
+            skipped: strings(&["1 Venus (works, virtual)"]),
+        };
+        assert_eq!(
+            used.message(took).as_deref(),
+            Some(
+                "vulkan: using device 3; skipped: 1 Venus (works, virtual); test took 1.4 s; \
+                 set GGML_VK_VISIBLE_DEVICES to choose"
+            )
+        );
+        let none = Choice::NoGpu {
+            skipped: strings(&["0 V (test failed: a)"]),
+        };
+        assert_eq!(
+            none.message(took).as_deref(),
+            Some(
+                "vulkan: no GPU passed the test (0 V (test failed: a)); test took 1.4 s; \
+                 using the CPU; set GGML_VK_VISIBLE_DEVICES to choose"
+            )
+        );
+        assert_eq!(Choice::Leave.message(took), None);
+    }
+
+    /// Prints what this machine's Vulkan loader reports:
     /// `cargo test -p lectover --lib vkpick::tests::live -- --ignored --nocapture`
     #[cfg(target_os = "linux")]
     #[test]
@@ -235,14 +318,5 @@ mod tests {
                 d.index, d.name, d.cpu, d.render
             );
         }
-        println!("pick: {:?}", visible_devices(&devs, sysfs_is_pci));
-    }
-
-    #[test]
-    fn leaves_ggml_alone_when_no_pci_gpu_exists() {
-        // A VM with only a virtual GPU: better that one than none.
-        let devs = vec![dev(0, "Venus", false, Some((226, 129)))];
-        assert!(visible_devices(&devs, pci_128).is_none());
-        assert!(visible_devices(&[], pci_128).is_none());
     }
 }
