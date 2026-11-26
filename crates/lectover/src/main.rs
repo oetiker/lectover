@@ -7,6 +7,8 @@ use lectover::cli::{overrides, run, Cli, Commands};
 use lectover::settings::Settings;
 
 fn main() -> ExitCode {
+    // Before any ggml call: ggml-vulkan reads its device list once.
+    lectover::ffi::vkpick::limit_vulkan_devices();
     // `run` owns every model handle and drops it before returning (ggml Metal aborts on handles
     // still alive at exit), so exiting here is safe.
     if let Err(e) = lectover::ffi::check_cpu_baseline() {

@@ -44,6 +44,10 @@ url = "2.5.8"
 [target.'cfg(target_os = "macos")'.dependencies]
 lectover-sys = { version = "0.1.0", path = "../lectover-sys", features = ["metal"] }
 
+# Vulkan device enumeration before ggml starts (ffi/vkpick.rs); loads libvulkan at run time.
+[target.'cfg(target_os = "linux")'.dependencies]
+ash = "0.38.0"
+
 [dev-dependencies]
 
 [features]
