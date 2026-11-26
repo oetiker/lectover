@@ -10,18 +10,18 @@
 class Lectover < Formula
   desc "Read-aloud audio with word timings for Ghost blog posts"
   homepage "https://github.com/oetiker/lectover"
-  version "0.3.3"
+  version "0.4.0"
   license "AGPL-3.0-or-later"
 
   # BOTTLE-START
   bottle do
-    root_url "https://github.com/oetiker/lectover/releases/download/v0.3.3"
-    sha256 cellar: :any_skip_relocation, arm64_big_sur: "f4a054ce319dd414e823faf859f514be3deeb6ef95357060e6a362d17cc52dbb"
+    root_url "https://github.com/oetiker/lectover/releases/download/v0.4.0"
+    sha256 cellar: :any_skip_relocation, arm64_big_sur: "2ded4819f843b0d2403d6fa0892e49833fc99fe1e0ea5b3c49eec073b6d4e515"
   end
   # BOTTLE-END
 
   url "https://github.com/oetiker/lectover/releases/download/v#{version}/lectover-#{version}-aarch64-apple-darwin.tar.gz"
-  sha256 "5e61757db1c377454063df3552045be4ada3dbd6e0d9ac0b4fecd6f8c9953287" # mac-arm
+  sha256 "30449be7250723b16181bb27cb1ff74ba3afd67fbbdf461402bd54e55afc9a70" # mac-arm
 
   # A url inside on_macos/on_arm leaves Linux and Intel Macs with no url at
   # all, and brew then fails with "formula requires at least a URL" and a
