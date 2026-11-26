@@ -1,9 +1,11 @@
 //! Which Vulkan devices ggml may use.
 //!
-//! ggml-vulkan, and the TTS, ASR and aligner on top of it, take the first GPU it lists. A
-//! virtual GPU (for example a virtio-gpu with the Venus driver) can come first and fail every
-//! buffer mapping. Before the first ggml call, lectover therefore limits ggml to the GPUs whose
-//! DRM render node belongs to a PCI device, through `GGML_VK_VISIBLE_DEVICES`.
+//! ggml-vulkan, and the TTS, ASR and aligner on top of it, take the first GPU it lists. A GPU
+//! can be listed and still fail every buffer mapping (for example a virtio-gpu whose host
+//! window is too small), and whether it works can change from one desktop session to the next.
+//! Before the first ggml call, lectover therefore tests every GPU in a child process
+//! (`vkprobe`) and limits ggml, through `GGML_VK_VISIBLE_DEVICES`, to the GPUs that pass:
+//! those on a PCI render node (physical) first, virtual ones only when no physical GPU passes.
 
 /// One physical device as Vulkan enumerates it; `index` is its place in that order, which is
 /// what `GGML_VK_VISIBLE_DEVICES` counts.
@@ -162,37 +164,188 @@ fn enumerate() -> anyhow::Result<Vec<VkDevice>> {
     devices
 }
 
-/// Limit ggml to the GPUs on a PCI render node when Vulkan also lists others (see the module
-/// doc), unless `GGML_VK_VISIBLE_DEVICES` is set already. Call it in `main` for the commands
-/// that use the GPU, before any ggml call and before other threads exist.
-pub fn limit_vulkan_devices() {
+/// How long one device test may take; a hang counts as failed.
+#[cfg(target_os = "linux")]
+const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Why a finished test child failed, from its exit status and stderr.
+#[cfg(target_os = "linux")]
+fn failure(status: std::process::ExitStatus, stderr: &str) -> Outcome {
+    use std::os::unix::process::ExitStatusExt;
+    if status.success() {
+        return Outcome::Passed;
+    }
+    if let Some(sig) = status.signal() {
+        return Outcome::Failed(format!("crashed (signal {sig})"));
+    }
+    let lines: Vec<&str> = stderr
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    let why = lines
+        .iter()
+        .rev()
+        .find_map(|l| l.strip_prefix("error:"))
+        .map(str::trim)
+        .or(lines.last().copied())
+        .map(|l| l.chars().take(120).collect())
+        .unwrap_or_else(|| format!("exit {}", status.code().unwrap_or(-1)));
+    Outcome::Failed(why)
+}
+
+/// Run one test child per device index, all at once, each with `timeout`; stderr goes to a
+/// temporary file, so a noisy child cannot block. Err only when no child could start.
+#[cfg(target_os = "linux")]
+pub fn probe_all(
+    indices: &[usize],
+    spawn: &dyn Fn(usize) -> std::process::Command,
+    timeout: std::time::Duration,
+) -> anyhow::Result<Vec<(usize, Outcome)>> {
+    use std::io::{Read, Seek};
+    use std::process::Stdio;
+    use std::time::Instant;
+
+    struct Running {
+        index: usize,
+        child: std::process::Child,
+        stderr: std::fs::File,
+    }
+    let started = Instant::now();
+    let mut results: Vec<(usize, Outcome)> = Vec::new();
+    let mut running: Vec<Running> = Vec::new();
+    let mut last_error = None;
+    for &index in indices {
+        let spawned = tempfile::tempfile().and_then(|f| {
+            let child = spawn(index)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::from(f.try_clone()?))
+                .spawn()?;
+            Ok((child, f))
+        });
+        match spawned {
+            Ok((child, stderr)) => running.push(Running {
+                index,
+                child,
+                stderr,
+            }),
+            Err(e) => {
+                results.push((
+                    index,
+                    Outcome::Failed(format!("could not start the test: {e}")),
+                ));
+                last_error = Some(e);
+            }
+        }
+    }
+    if running.is_empty() {
+        if let Some(e) = last_error {
+            return Err(e.into());
+        }
+    }
+    while !running.is_empty() {
+        let timed_out = started.elapsed() >= timeout;
+        let mut i = 0;
+        while i < running.len() {
+            let r = &mut running[i];
+            let done = match r.child.try_wait() {
+                Ok(Some(status)) => {
+                    let mut text = String::new();
+                    let _ = r.stderr.rewind();
+                    let mut bytes = Vec::new();
+                    let _ = r.stderr.read_to_end(&mut bytes);
+                    text.push_str(&String::from_utf8_lossy(&bytes));
+                    Some(failure(status, &text))
+                }
+                Ok(None) if timed_out => {
+                    let _ = r.child.kill();
+                    let _ = r.child.wait();
+                    Some(Outcome::Failed(format!(
+                        "timed out after {} s",
+                        timeout.as_secs_f64()
+                    )))
+                }
+                Ok(None) => None,
+                Err(e) => Some(Outcome::Failed(format!("lost the test: {e}"))),
+            };
+            if let Some(outcome) = done {
+                let r = running.swap_remove(i);
+                results.push((r.index, outcome));
+            } else {
+                i += 1;
+            }
+        }
+        if !running.is_empty() {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+    results.sort_by_key(|(i, _)| *i);
+    Ok(results)
+}
+
+/// Test every Vulkan GPU in a child process and let ggml use only those that pass, physical
+/// before virtual (see the module doc). Skipped when `GGML_VK_VISIBLE_DEVICES` is set already or
+/// `device` names another backend. Call it in `main` for the commands that use the GPU, before
+/// any ggml call and before other threads exist.
+pub fn limit_vulkan_devices(device: Option<super::Device>) {
     #[cfg(target_os = "linux")]
     {
-        if !super::Device::Vulkan.compiled() || std::env::var_os(VISIBLE_DEVICES_ENV).is_some() {
+        if !super::Device::Vulkan.compiled()
+            || std::env::var_os(VISIBLE_DEVICES_ENV).is_some()
+            || device.is_some_and(|d| d != super::Device::Vulkan)
+        {
             return;
         }
         // On failure ggml enumerates on its own and reports what it finds.
         let Ok(devs) = enumerate() else { return };
-        // Task 3 replaces this with a real test per device.
+        let gpus: Vec<&VkDevice> = devs.iter().filter(|d| !d.cpu).collect();
+        if gpus.is_empty() {
+            return;
+        }
         let started = std::time::Instant::now();
-        let probed: Vec<Probed> = devs
+        let exe = match std::env::current_exe() {
+            Ok(exe) => exe,
+            Err(e) => {
+                eprintln!("vulkan: device test not possible: {e}");
+                return;
+            }
+        };
+        let spawn = |i: usize| {
+            let mut c = std::process::Command::new(&exe);
+            c.arg("vk-probe").env(VISIBLE_DEVICES_ENV, i.to_string());
+            c
+        };
+        let indices: Vec<usize> = gpus.iter().map(|d| d.index).collect();
+        let outcomes = match probe_all(&indices, &spawn, PROBE_TIMEOUT) {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("vulkan: device test not possible: {e}");
+                return;
+            }
+        };
+        let probed: Vec<Probed> = gpus
             .iter()
-            .filter(|d| !d.cpu)
-            .map(|d| Probed {
+            .zip(outcomes)
+            .map(|(d, (_, outcome))| Probed {
                 index: d.index,
                 name: d.name.clone(),
                 pci: d.render.is_some_and(|(a, b)| sysfs_is_pci(a, b)),
-                outcome: Outcome::Passed,
+                outcome,
             })
             .collect();
         let choice = choose(&probed);
         if let Some(m) = choice.message(started.elapsed()) {
             eprintln!("{m}");
         }
-        if let Choice::Use { env, .. } = &choice {
-            std::env::set_var(VISIBLE_DEVICES_ENV, env);
+        match &choice {
+            Choice::Use { env, .. } => std::env::set_var(VISIBLE_DEVICES_ENV, env),
+            Choice::NoGpu { .. } => std::env::set_var(VISIBLE_DEVICES_ENV, ""),
+            Choice::Leave => {}
         }
     }
+    #[cfg(not(target_os = "linux"))]
+    let _ = device;
 }
 
 #[cfg(test)]
@@ -302,6 +455,68 @@ mod tests {
             )
         );
         assert_eq!(Choice::Leave.message(took), None);
+    }
+
+    #[cfg(target_os = "linux")]
+    fn sh(scripts: &'static [&'static str]) -> impl Fn(usize) -> std::process::Command {
+        move |i| {
+            let mut c = std::process::Command::new("sh");
+            c.arg("-c").arg(scripts[i]);
+            c
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_passes_and_fails() {
+        let spawn = sh(&[
+            "exit 0",
+            "echo noise >&2; echo 'error: mapMemory failed' >&2; exit 1",
+        ]);
+        let got = probe_all(&[0, 1], &spawn, Duration::from_secs(10)).unwrap();
+        assert_eq!(
+            got,
+            vec![
+                (0, Outcome::Passed),
+                (1, Outcome::Failed("mapMemory failed".into()))
+            ]
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_reports_a_crash() {
+        let got = probe_all(&[0], &sh(&["kill -ABRT $$"]), Duration::from_secs(10)).unwrap();
+        assert_eq!(got, vec![(0, Outcome::Failed("crashed (signal 6)".into()))]);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_kills_a_hang() {
+        let t = std::time::Instant::now();
+        let got = probe_all(&[0], &sh(&["sleep 30"]), Duration::from_millis(300)).unwrap();
+        assert_eq!(
+            got,
+            vec![(0, Outcome::Failed("timed out after 0.3 s".into()))]
+        );
+        assert!(t.elapsed() < Duration::from_secs(3), "{:?}", t.elapsed());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_survives_a_noisy_child() {
+        let t = std::time::Instant::now();
+        let spawn = sh(&["head -c 2000000 /dev/zero | tr '\\0' x >&2; exit 0"]);
+        let got = probe_all(&[0], &spawn, Duration::from_secs(20)).unwrap();
+        assert_eq!(got, vec![(0, Outcome::Passed)]);
+        assert!(t.elapsed() < Duration::from_secs(10), "{:?}", t.elapsed());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn probe_all_reports_spawn_failure() {
+        let spawn = |_: usize| std::process::Command::new("/nonexistent/lectover");
+        assert!(probe_all(&[0, 1], &spawn, Duration::from_secs(1)).is_err());
     }
 
     /// Prints what this machine's Vulkan loader reports:
