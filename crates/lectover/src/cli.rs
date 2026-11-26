@@ -45,6 +45,9 @@ pub enum Commands {
     /// Speak lines of text (after the lexicon) to try pronunciations by ear.
     Say(SayArgs),
     /// Check the installation: config, directories, models, voices, sites, keys, GPU.
+    /// Test the first visible Vulkan device (run by lectover itself in a child process).
+    #[command(name = "vk-probe", hide = true)]
+    VkProbe,
     Doctor {
         /// Check only this site [default: every configured site].
         #[arg(long, value_name = "DOMAIN")]
@@ -63,7 +66,9 @@ impl Commands {
             | Commands::Voice(_)
             | Commands::Say(_)
             | Commands::Doctor { .. } => true,
-            Commands::Models(_) | Commands::Cache(_) | Commands::Dev(_) => false,
+            Commands::Models(_) | Commands::Cache(_) | Commands::Dev(_) | Commands::VkProbe => {
+                false
+            }
         }
     }
 }
@@ -431,7 +436,7 @@ pub fn overrides(cli: &Cli) -> Overrides {
             o.site = out.clone()
         }
         Commands::Say(a) => (o.models, o.voices) = (a.models.clone(), a.voices_dir.clone()),
-        Commands::Doctor { .. } | Commands::Cache(_) => {}
+        Commands::Doctor { .. } | Commands::Cache(_) | Commands::VkProbe => {}
     }
     o
 }
@@ -496,6 +501,7 @@ fn run_command(cli: Cli, settings: &Settings) -> Result<()> {
             Ok(())
         }
         Commands::Doctor { .. } => unreachable!("handled in run"),
+        Commands::VkProbe => unreachable!("handled in main"),
         Commands::Dev(DevCommand::Serve { port, player, .. }) => {
             crate::dev::serve(&settings.site_root, player.as_deref(), port)
         }
@@ -549,8 +555,16 @@ mod tests {
             &["models", "fetch"][..],
             &["cache", "prune"],
             &["dev", "serve"],
+            &["vk-probe"],
         ] {
             assert!(!command(no_gpu).uses_gpu(), "{no_gpu:?}");
         }
+    }
+
+    #[test]
+    fn vk_probe_is_hidden() {
+        use clap::CommandFactory;
+        let help = Cli::command().render_help().to_string();
+        assert!(!help.contains("vk-probe"), "{help}");
     }
 }

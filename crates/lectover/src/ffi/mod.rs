@@ -9,6 +9,7 @@ mod backend;
 mod reuse;
 mod tts;
 pub mod vkpick;
+pub mod vkprobe;
 
 use std::ffi::{c_char, CStr, CString};
 use std::path::Path;

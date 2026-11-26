@@ -20,6 +20,16 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     }
     lectover::ffi::init_ggml_logging();
+    // The device test of a parent lectover: no config, no settings.
+    if matches!(cli.command, Commands::VkProbe) {
+        return match lectover::ffi::vkprobe::run_probe() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
     lectover::ffi::warn_unified_memory();
     let doctor = matches!(cli.command, Commands::Doctor { .. });
     let env = |k: &str| std::env::var_os(k);
