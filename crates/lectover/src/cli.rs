@@ -55,6 +55,19 @@ pub enum Commands {
     },
 }
 
+impl Commands {
+    /// Whether the command can run a model on the GPU; only these choose a Vulkan device.
+    pub fn uses_gpu(&self) -> bool {
+        match self {
+            Commands::Render(_)
+            | Commands::Voice(_)
+            | Commands::Say(_)
+            | Commands::Doctor { .. } => true,
+            Commands::Models(_) | Commands::Cache(_) | Commands::Dev(_) => false,
+        }
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct SayArgs {
     /// Lines to speak, one take each, e.g. "Der Sessjonsbericht vom Mai."
@@ -510,4 +523,34 @@ fn free_bytes(path: &std::path::Path) -> Option<u64> {
     let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
     (unsafe { libc::statvfs(c.as_ptr(), &mut st) } == 0)
         .then(|| st.f_bavail as u64 * st.f_frsize as u64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn command(args: &[&str]) -> Commands {
+        Cli::try_parse_from(std::iter::once("lectover").chain(args.iter().copied()))
+            .unwrap()
+            .command
+    }
+
+    #[test]
+    fn only_model_commands_choose_a_gpu() {
+        for gpu in [
+            &["render", "some-post"][..],
+            &["say", "Hallo"],
+            &["voice", "clean", "x"],
+            &["doctor"],
+        ] {
+            assert!(command(gpu).uses_gpu(), "{gpu:?}");
+        }
+        for no_gpu in [
+            &["models", "fetch"][..],
+            &["cache", "prune"],
+            &["dev", "serve"],
+        ] {
+            assert!(!command(no_gpu).uses_gpu(), "{no_gpu:?}");
+        }
+    }
 }

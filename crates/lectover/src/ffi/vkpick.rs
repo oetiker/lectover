@@ -23,6 +23,17 @@ pub struct Pick {
     pub skipped: Vec<String>,
 }
 
+impl Pick {
+    /// The stderr line that reports the choice.
+    pub fn message(&self) -> String {
+        format!(
+            "vulkan: using device {} only; skipping the devices not on a PCI render node: {}; set {VISIBLE_DEVICES_ENV} to choose",
+            self.env,
+            self.skipped.join(", ")
+        )
+    }
+}
+
 /// The GPUs on a PCI render node, when there are some and other GPUs besides them; `None`
 /// leaves ggml's own choice.
 pub fn visible_devices(devs: &[VkDevice], is_pci: impl Fn(i64, i64) -> bool) -> Option<Pick> {
@@ -110,8 +121,8 @@ fn enumerate() -> anyhow::Result<Vec<VkDevice>> {
 }
 
 /// Limit ggml to the GPUs on a PCI render node when Vulkan also lists others (see the module
-/// doc), unless `GGML_VK_VISIBLE_DEVICES` is set already. Call it first thing in `main`,
-/// before any ggml call and before other threads exist.
+/// doc), unless `GGML_VK_VISIBLE_DEVICES` is set already. Call it in `main` for the commands
+/// that use the GPU, before any ggml call and before other threads exist.
 pub fn limit_vulkan_devices() {
     #[cfg(target_os = "linux")]
     {
@@ -121,11 +132,7 @@ pub fn limit_vulkan_devices() {
         // On failure ggml enumerates on its own and reports what it finds.
         let Ok(devs) = enumerate() else { return };
         if let Some(p) = visible_devices(&devs, sysfs_is_pci) {
-            eprintln!(
-                "vulkan: using device {} only, skipping {} (not on a PCI render node); set {VISIBLE_DEVICES_ENV} to choose",
-                p.env,
-                p.skipped.join(", ")
-            );
+            eprintln!("{}", p.message());
             std::env::set_var(VISIBLE_DEVICES_ENV, &p.env);
         }
     }
@@ -171,6 +178,17 @@ mod tests {
         assert_eq!(
             p.skipped,
             vec!["0 Virtio-GPU Venus (Radeon 8060S)", "1 Radeon 8060S (RADV)"]
+        );
+    }
+
+    #[test]
+    fn message_gives_the_reason_for_every_skipped_device() {
+        let p = visible_devices(&ol01(), pci_128).unwrap();
+        assert_eq!(
+            p.message(),
+            "vulkan: using device 2 only; skipping the devices not on a PCI render node: \
+             0 Virtio-GPU Venus (Radeon 8060S), 1 Radeon 8060S (RADV); \
+             set GGML_VK_VISIBLE_DEVICES to choose"
         );
     }
 

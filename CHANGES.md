@@ -17,6 +17,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- `lectover --version`, `--help`, `models`, `cache` and `dev` printed the line "vulkan: using device … only, skipping …" although they use no GPU; only `render`, `say`, `voice` and `doctor` print it now.
+- The line "vulkan: using device … only" put "(not on a PCI render node)" after the last skipped device, as if only that one had the problem; it now reads "skipping the devices not on a PCI render node: 0 …, 1 …".
+
 ## 0.3.3 - 2026-11-26
 
 ### Fixed
