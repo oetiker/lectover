@@ -15,6 +15,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+### Fixed
+
+## 0.4.0 - 2026-11-26
+
+### Changed
+
 - On a machine with several GPUs, `render`, `say`, `voice` and `doctor` now test each Vulkan GPU at start and use the ones that work, physical GPUs first; a working virtual GPU (for example a virtio-gpu with the Venus driver) is no longer skipped when no physical GPU works, and when no GPU works the CPU runs. The start line names each skipped device with its reason, for example "1 Virtio-GPU Venus (works, virtual)" or "0 … (test failed: …)", and how long the test took; these commands start later by that time.
 - A `--device` or `defaults.device` other than `vulkan` skips the GPU test; with `vulkan` given and no GPU passing the test, the command stops with an error instead of using the CPU.
 
