@@ -17,6 +17,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+## 0.3.3 - 2026-11-26
+
+### Fixed
+
 - On a machine with a virtual GPU next to the real one (for example a virtio-gpu with the Venus driver), `render`, `say` and `voice` stopped at once with "vk::Device::mapMemory: ErrorOutOfDeviceMemory", because the virtual GPU came first. The Vulkan build now uses only GPUs on a PCI render node and prints the devices it skips; `GGML_VK_VISIBLE_DEVICES` still overrides the choice.
 
 ## 0.3.2 - 2026-11-25
