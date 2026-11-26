@@ -9,10 +9,6 @@ use lectover::settings::Settings;
 fn main() -> ExitCode {
     // `--help` and `--version` exit here, before any device check.
     let cli = Cli::parse();
-    // Before any ggml call: ggml-vulkan reads its device list once.
-    if cli.command.uses_gpu() {
-        lectover::ffi::vkpick::limit_vulkan_devices();
-    }
     // `run` owns every model handle and drops it before returning (ggml Metal aborts on handles
     // still alive at exit), so exiting here is safe.
     if let Err(e) = lectover::ffi::check_cpu_baseline() {
@@ -44,6 +40,11 @@ fn main() -> ExitCode {
             for w in settings.config.iter().flat_map(|l| &l.warnings) {
                 eprintln!("warning: {w}");
             }
+        }
+        // Before any ggml call: ggml-vulkan reads its device list once.
+        if cli.command.uses_gpu() {
+            let device = cli.command.requested_device().or(settings.device);
+            lectover::ffi::vkpick::limit_vulkan_devices(device);
         }
         run(cli, &settings)
     });

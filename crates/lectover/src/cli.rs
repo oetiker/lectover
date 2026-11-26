@@ -59,6 +59,18 @@ pub enum Commands {
 }
 
 impl Commands {
+    /// The `--device` given on the command line, if the command has one.
+    pub fn requested_device(&self) -> Option<Device> {
+        match self {
+            Commands::Render(a) => a.device,
+            Commands::Say(a) => a.device,
+            Commands::Voice(VoiceCommand::Design(a)) => a.device,
+            Commands::Voice(VoiceCommand::Record(a)) => a.device,
+            Commands::Voice(VoiceCommand::Clean(a)) => a.device,
+            _ => None,
+        }
+    }
+
     /// Whether the command can run a model on the GPU; only these choose a Vulkan device.
     pub fn uses_gpu(&self) -> bool {
         match self {
@@ -559,6 +571,16 @@ mod tests {
         ] {
             assert!(!command(no_gpu).uses_gpu(), "{no_gpu:?}");
         }
+    }
+
+    #[test]
+    fn requested_device_reads_the_flag() {
+        assert_eq!(
+            command(&["say", "--device", "cpu", "Hallo"]).requested_device(),
+            Some(Device::Cpu)
+        );
+        assert_eq!(command(&["render", "x"]).requested_device(), None);
+        assert_eq!(command(&["doctor"]).requested_device(), None);
     }
 
     #[test]

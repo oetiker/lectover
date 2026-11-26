@@ -223,7 +223,7 @@ A usage error exits 2.
 - `LECTOVER_VOICES`: Voice registry directory.
 - `XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_STATE_HOME, XDG_CACHE_HOME`: Replace the `~/.config`, `~/.local/share`, `~/.local/state` and `~/.cache` prefixes of the default paths, on Linux and macOS alike.
 - `GHOST_CONTENT_KEY`: The Ghost Content API key of a site whose `ghost_key` is the default.
-- `GGML_VK_VISIBLE_DEVICES`: Comma-separated Vulkan device numbers, in the order `vulkaninfo` lists them, that the Vulkan backend may use. When it is not set and Vulkan lists GPUs on a PCI render node next to other GPUs (for example a virtio-gpu), **lectover** sets it to the PCI GPUs and names the skipped devices on stderr.
+- `GGML_VK_VISIBLE_DEVICES`: Comma-separated Vulkan device numbers, in the order `vulkaninfo` lists them, that the Vulkan backend may use. When it is not set, **render**, **say**, **voice** and **doctor** first test each Vulkan GPU (allocate, compute, check) and set it to the GPUs that pass: physical GPUs, else virtual ones such as a virtio-gpu. If none passes, the CPU runs. Skipped devices, the reason and the time the test took appear on stderr. A **--device** or `defaults.device` other than `vulkan` skips the test.
 - `GGML_CUDA_ENABLE_UNIFIED_MEMORY`: When set to any value, **lectover** warns at startup. On HIP and CUDA builds it makes the talker produce takes that never end.
 
 # FILES
